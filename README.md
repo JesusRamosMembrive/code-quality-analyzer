@@ -7,7 +7,7 @@ This repository is currently in the **foundation phase**: the project builds, ru
 ## Requisitos
 
 - Compilador compatible con C++17 (GCC, Clang o MSVC).
-- CMake >= 3.16.
+- CMake >= 3.20 (necesario para `ctest --test-dir`; la configuración y compilación funcionan desde CMake 3.16).
 
 ## Compilación
 
@@ -30,6 +30,14 @@ ctest --test-dir build --output-on-failure
 ```
 
 En Windows, el ejecutable se genera normalmente en `build/Debug/codeqa.exe` o `build/Release/codeqa.exe`, según el generador y la configuración utilizados.
+
+## Códigos de salida
+
+| Código | Significado |
+|--------|--------------|
+| 0 | Éxito |
+| 2 | Argumentos inválidos |
+| 4 | Error interno no controlado |
 
 ## Estado
 

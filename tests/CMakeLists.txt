@@ -7,7 +7,7 @@ add_executable(codeqa_tests
 )
 
 target_include_directories(codeqa_tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/third_party
+    ${PROJECT_SOURCE_DIR}/third_party
 )
 
 target_link_libraries(codeqa_tests PRIVATE codeqa_core)
@@ -19,7 +19,7 @@ add_test(
     COMMAND ${CMAKE_COMMAND}
         -DCODEQA_EXE=$<TARGET_FILE:codeqa>
         -DCODEQA_ARGS=--version
-        "-DCODEQA_EXPECTED_OUTPUT=Code Quality Analyzer 0.1.0"
+        "-DCODEQA_EXPECTED_OUTPUT=Code Quality Analyzer ${PROJECT_VERSION}"
         -DCODEQA_EXPECTED_EXIT_CODE=0
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckCliOutput.cmake
 )

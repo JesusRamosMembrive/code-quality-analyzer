@@ -16,8 +16,8 @@ option(CODEQA_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 include(cmake/CompilerWarnings.cmake)
 
 configure_file(
-    ${CMAKE_SOURCE_DIR}/include/codeqa/application/Version.h.in
-    ${CMAKE_BINARY_DIR}/generated/codeqa/application/Version.h
+    ${PROJECT_SOURCE_DIR}/include/codeqa/application/Version.h.in
+    ${PROJECT_BINARY_DIR}/generated/codeqa/application/Version.h
     @ONLY
 )
 
@@ -26,9 +26,12 @@ add_library(codeqa_core STATIC
     src/cli/RunApplication.cpp
 )
 target_include_directories(codeqa_core PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_BINARY_DIR}/generated
+    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_BINARY_DIR}/generated
 )
+# codeqa_core and codeqa opt into strict warnings; codeqa_tests deliberately does not,
+# since the vendored third_party/doctest/doctest.h itself emits warnings (e.g. MSVC C5285)
+# that would turn into hard errors under CODEQA_WARNINGS_AS_ERRORS=ON.
 codeqa_enable_warnings(codeqa_core)
 
 add_executable(codeqa src/cli/main.cpp)

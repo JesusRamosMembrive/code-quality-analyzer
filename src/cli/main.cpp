@@ -9,7 +9,7 @@
 
 int main(int argc, char** argv)
 {
-    const std::vector<std::string> arguments(argv + 1, argv + argc);
+    const std::vector<std::string> arguments(argc > 0 ? argv + 1 : argv, argv + argc);
 
     try
     {

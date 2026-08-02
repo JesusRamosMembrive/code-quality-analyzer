@@ -7,7 +7,7 @@
 namespace codeqa::cli
 {
 
-int runApplication(
+[[nodiscard]] int runApplication(
     const std::vector<std::string>& arguments,
     std::ostream& output,
     std::ostream& errorOutput);
