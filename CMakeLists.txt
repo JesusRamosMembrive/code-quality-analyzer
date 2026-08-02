@@ -21,11 +21,15 @@ configure_file(
 
 add_library(codeqa_core STATIC
     src/application/GetApplicationInfo.cpp
+    src/cli/RunApplication.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_BINARY_DIR}/generated
 )
+
+add_executable(codeqa src/cli/main.cpp)
+target_link_libraries(codeqa PRIVATE codeqa_core)
 
 enable_testing()
 

@@ -3,6 +3,7 @@ add_executable(codeqa_tests
     unit/SmokeTest.cpp
     unit/CoreModelsTest.cpp
     unit/GetApplicationInfoTest.cpp
+    unit/RunApplicationTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
