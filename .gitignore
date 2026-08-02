@@ -1,1 +1,10 @@
+build/
+cmake-build-*/
+.vscode/
+.idea/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+Testing/
 .worktrees/
