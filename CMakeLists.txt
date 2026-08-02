@@ -13,8 +13,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(CODEQA_BUILD_TESTS "Build CodeQA tests" ON)
 option(CODEQA_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 
-add_library(codeqa_core INTERFACE)
-target_include_directories(codeqa_core INTERFACE ${CMAKE_SOURCE_DIR}/include)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/include/codeqa/application/Version.h.in
+    ${CMAKE_BINARY_DIR}/generated/codeqa/application/Version.h
+    @ONLY
+)
+
+add_library(codeqa_core STATIC
+    src/application/GetApplicationInfo.cpp
+)
+target_include_directories(codeqa_core PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/generated
+)
 
 enable_testing()
 

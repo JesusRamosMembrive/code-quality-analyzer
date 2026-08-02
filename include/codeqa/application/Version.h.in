@@ -1,0 +1,3 @@
+#pragma once
+
+#define CODEQA_VERSION "@PROJECT_VERSION@"
