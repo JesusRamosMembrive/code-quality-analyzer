@@ -13,6 +13,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(CODEQA_BUILD_TESTS "Build CodeQA tests" ON)
 option(CODEQA_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 
+add_library(codeqa_core INTERFACE)
+target_include_directories(codeqa_core INTERFACE ${CMAKE_SOURCE_DIR}/include)
+
 enable_testing()
 
 if(CODEQA_BUILD_TESTS)
