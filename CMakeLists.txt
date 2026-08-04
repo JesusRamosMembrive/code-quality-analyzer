@@ -26,6 +26,7 @@ add_library(codeqa_core STATIC
     src/cli/RunApplication.cpp
     src/infrastructure/ClassifyExtension.cpp
     src/infrastructure/DefaultExclusions.cpp
+    src/infrastructure/DiscoverSourceFiles.cpp
     src/infrastructure/GlobMatcher.cpp
 )
 target_include_directories(codeqa_core PUBLIC
