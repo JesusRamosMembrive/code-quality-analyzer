@@ -35,10 +35,13 @@ En Windows, el ejecutable se genera normalmente en `build/Debug/codeqa.exe` o `b
 
 ```bash
 ./build/codeqa discover ./ruta/al/proyecto
-./build/codeqa discover ./ruta/al/proyecto --exclude "*/vendor/*"
+./build/codeqa discover ./ruta/al/proyecto --exclude vendor
+./build/codeqa discover ./ruta/al/proyecto --exclude "*_generated.cpp"
 ```
 
 Recorre recursivamente el directorio indicado y localiza los archivos fuente C/C++ soportados (`.c`, `.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.hxx`; `.h` se cuenta como ambiguo). Excluye por defecto `.git`, `build/`, `cmake-build-*/` y cualquier directorio oculto; `--exclude <glob>` (repetible) añade exclusiones adicionales. No lee el contenido de los archivos — solo enumera rutas y metadatos.
+
+Reglas de coincidencia de `--exclude`: un patrón sin `/` coincide con el nombre del archivo o directorio a cualquier profundidad (por eso `--exclude vendor` excluye cualquier directorio `vendor`, esté donde esté anidado). Un patrón con `/` debe coincidir con la ruta relativa completa, y `*` nunca cruza un `/` — por ejemplo `*/vendor/*` solo coincide con rutas de exactamente tres segmentos como `src/vendor/foo.cpp`, no con `vendor/foo.cpp` ni con `src/vendor/nested/foo.cpp`. Los patrones siempre usan `/` como separador, incluso en Windows: una ruta como `src\vendor\*` no coincidirá con nada, porque `\` no es un comodín y las rutas de Windows se normalizan internamente a `/` antes de comparar.
 
 ## Códigos de salida
 
