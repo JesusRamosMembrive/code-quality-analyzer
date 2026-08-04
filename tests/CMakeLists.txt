@@ -47,3 +47,13 @@ add_test(
         -DCODEQA_EXPECTED_EXIT_CODE=0
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckCliOutput.cmake
 )
+
+add_test(
+    NAME codeqa_integration_discover_excludes_build
+    COMMAND ${CMAKE_COMMAND}
+        -DCODEQA_EXE=$<TARGET_FILE:codeqa>
+        "-DCODEQA_ARGS=discover$<SEMICOLON>${CMAKE_CURRENT_SOURCE_DIR}/integration/fixtures/discover-sample"
+        "-DCODEQA_EXPECTED_OUTPUT=Excluded files: 1"
+        -DCODEQA_EXPECTED_EXIT_CODE=0
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckCliOutput.cmake
+)
