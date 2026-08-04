@@ -66,20 +66,15 @@ DiscoveryResult discoverSourceFiles(const DiscoveryOptions& options)
         return result;
     }
 
+    const std::filesystem::path root = options.rootPath.filename().empty()
+        ? options.rootPath.parent_path()
+        : options.rootPath;
+
     while (it != end)
     {
         const std::filesystem::directory_entry entry = *it;
 
-        std::error_code relativeError;
-        const std::filesystem::path relativePath
-            = std::filesystem::relative(entry.path(), options.rootPath, relativeError);
-
-        if (relativeError)
-        {
-            recordAccessDiagnostic(result, entry.path(), relativeError);
-            advance(it, entry.path(), result);
-            continue;
-        }
+        const std::filesystem::path relativePath = entry.path().lexically_relative(root);
 
         std::error_code typeError;
         const bool isDirectory = entry.is_directory(typeError);
