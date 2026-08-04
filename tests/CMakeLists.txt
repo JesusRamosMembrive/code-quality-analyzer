@@ -4,6 +4,7 @@ add_executable(codeqa_tests
     unit/CoreModelsTest.cpp
     unit/GetApplicationInfoTest.cpp
     unit/RunApplicationTest.cpp
+    unit/InfrastructureModelsTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE

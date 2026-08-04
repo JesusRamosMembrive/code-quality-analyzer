@@ -24,6 +24,8 @@ configure_file(
 add_library(codeqa_core STATIC
     src/application/GetApplicationInfo.cpp
     src/cli/RunApplication.cpp
+    src/infrastructure/ClassifyExtension.cpp
+    src/infrastructure/DefaultExclusions.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
