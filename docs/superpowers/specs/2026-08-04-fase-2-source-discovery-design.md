@@ -60,7 +60,7 @@ src/infrastructure/
 └── DiscoverSourceFiles.cpp
 
 include/codeqa/application/
-└── DiscoverProjectSources.h   (caso de uso: valida delega en infrastructure, sin lógica propia)
+└── DiscoverProjectSources.h   (caso de uso: delega en infrastructure, sin lógica propia)
 
 src/application/
 └── DiscoverProjectSources.cpp
@@ -89,9 +89,11 @@ struct DiscoveryResult
 {
     std::vector<DiscoveredFile> files;                    // orden determinista por ruta
     std::vector<codeqa::core::Diagnostic> diagnostics;    // uno por archivo inaccesible
-    std::size_t excludedCount{0};                         // excluidos por directorio fijo o por patrón
+    std::size_t excludedCount{0};                         // ver nota de conteo más abajo
 };
 ```
+
+**Nota sobre el conteo de exclusiones:** como el recorrido poda los directorios excluidos sin descender en ellos (decisión 8), no es posible conocer cuántos archivos hay dentro de un directorio excluido sin recorrerlo — y hacerlo anularía el propósito de la poda (evitar recorrer árboles grandes como `build/`). Por tanto `excludedCount` cuenta **entradas excluidas en el punto en que se excluyen**: un directorio completo excluido por la lista fija cuenta como 1, no como N archivos dentro; un archivo excluido individualmente por `--exclude` cuenta como 1. Esto difiere de una lectura literal de "Excluded files: 14" del roadmap como recuento profundo de archivos, pero es la lectura consistente con la estrategia de recorrido ya aprobada.
 
 `ExtensionCategory` es una clasificación **solo por extensión**, no la detección de lenguaje real de la Fase 3 (que probablemente necesite mirar contenido para los `.h` ambiguos). Por eso vive en `infrastructure`, no en `core`: no se comparte todavía con el resto del pipeline.
 
