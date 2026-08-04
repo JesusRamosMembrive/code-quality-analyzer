@@ -48,9 +48,16 @@ bool matchesExcludePattern(const std::string& pattern, const std::filesystem::pa
         ? relativePath.generic_string()
         : relativePath.filename().generic_string();
 
-    const std::regex compiledPattern("^" + translateGlobToRegex(pattern) + "$");
+    try
+    {
+        const std::regex compiledPattern("^" + translateGlobToRegex(pattern) + "$");
 
-    return std::regex_match(target, compiledPattern);
+        return std::regex_match(target, compiledPattern);
+    }
+    catch (const std::regex_error&)
+    {
+        return false;
+    }
 }
 
 } // namespace codeqa::infrastructure

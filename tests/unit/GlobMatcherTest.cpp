@@ -30,3 +30,20 @@ TEST_CASE("literal characters match exactly, including regex-special ones")
     CHECK(matchesExcludePattern("a.b.cpp", "a.b.cpp"));
     CHECK_FALSE(matchesExcludePattern("a.b.cpp", "aXbXcpp"));
 }
+
+TEST_CASE("a pathological pattern that would overflow std::regex's complexity limit does not throw and simply does not match")
+{
+    // Chaining many "*x" segments against a target almost (but not quite) made of
+    // matching characters forces the backtracking engine to explore a combinatorial
+    // number of ways to partition the run before failing, which is exactly the shape
+    // that trips libstdc++/MSVC's std::regex complexity guard (regex_error(error_complexity)).
+    std::string pathologicalPattern;
+    for (int i = 0; i < 20; ++i)
+    {
+        pathologicalPattern += "*x";
+    }
+
+    const std::string almostMatchingTarget = std::string(20, 'x') + "y";
+
+    CHECK_FALSE(matchesExcludePattern(pathologicalPattern, almostMatchingTarget));
+}
