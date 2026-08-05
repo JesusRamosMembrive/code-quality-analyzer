@@ -1,0 +1,48 @@
+{
+  "constructs": [
+    "C-PP-01",
+    "CPP-FUNC-01",
+    "CTRL-01",
+    "CTRL-03",
+    "CTRL-04",
+    "CTRL-05",
+    "CTRL-07",
+    "CTRL-08",
+    "CTRL-09",
+    "CTRL-10"
+  ],
+  "functions": [
+    {
+      "name": "classify",
+      "startLine": 3,
+      "endLine": 15,
+      "parameters": ["value", "strict"]
+    },
+    {
+      "name": "scan",
+      "startLine": 17,
+      "endLine": 37,
+      "parameters": ["values", "count"]
+    },
+    {
+      "name": "describe",
+      "startLine": 39,
+      "endLine": 50,
+      "parameters": ["code"]
+    },
+    {
+      "name": "drain",
+      "startLine": 52,
+      "endLine": 60,
+      "parameters": ["remaining"]
+    },
+    {
+      "name": "guarded",
+      "startLine": 62,
+      "endLine": 77,
+      "parameters": ["value"]
+    }
+  ],
+  "classes": [],
+  "diagnostics": []
+}

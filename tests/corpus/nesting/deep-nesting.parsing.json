@@ -1,0 +1,31 @@
+{
+  "constructs": [
+    "CPP-FUNC-01",
+    "CTRL-01",
+    "CTRL-02",
+    "CTRL-03",
+    "CTRL-08"
+  ],
+  "functions": [
+    {
+      "name": "flat",
+      "startLine": 1,
+      "endLine": 4,
+      "parameters": ["value"]
+    },
+    {
+      "name": "oneLevel",
+      "startLine": 6,
+      "endLine": 14,
+      "parameters": ["value"]
+    },
+    {
+      "name": "fourLevels",
+      "startLine": 16,
+      "endLine": 37,
+      "parameters": ["values", "count"]
+    }
+  ],
+  "classes": [],
+  "diagnostics": []
+}
