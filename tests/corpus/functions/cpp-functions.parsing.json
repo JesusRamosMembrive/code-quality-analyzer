@@ -1,0 +1,82 @@
+{
+  "constructs": [
+    "C-PP-01",
+    "CPP-FUNC-01",
+    "CPP-FUNC-02",
+    "CPP-FUNC-03",
+    "CPP-FUNC-04",
+    "CPP-FUNC-05",
+    "CPP-FUNC-06",
+    "CPP-FUNC-07",
+    "CPP-FUNC-08",
+    "CPP-TYPE-01",
+    "CPP-PARAM-02",
+    "CTRL-06",
+    "CTRL-08"
+  ],
+  "functions": [
+    {
+      "name": "Counter",
+      "startLine": 7,
+      "endLine": 10,
+      "parameters": []
+    },
+    {
+      "name": "~Counter",
+      "startLine": 12,
+      "endLine": 15,
+      "parameters": []
+    },
+    {
+      "name": "increment",
+      "startLine": 17,
+      "endLine": 20,
+      "parameters": []
+    },
+    {
+      "name": "value",
+      "startLine": 22,
+      "endLine": 22,
+      "parameters": []
+    },
+    {
+      "name": "operator==",
+      "startLine": 24,
+      "endLine": 27,
+      "parameters": ["other"]
+    },
+    {
+      "name": "Counter::value",
+      "startLine": 33,
+      "endLine": 36,
+      "parameters": []
+    },
+    {
+      "name": "countPositive",
+      "startLine": 38,
+      "endLine": 44,
+      "parameters": ["values"]
+    },
+    {
+      "name": "<lambda>",
+      "startLine": 40,
+      "endLine": 43,
+      "parameters": ["value"]
+    },
+    {
+      "name": "largest",
+      "startLine": 46,
+      "endLine": 50,
+      "parameters": ["first", "second"]
+    }
+  ],
+  "classes": [
+    {
+      "name": "Counter",
+      "kind": "class",
+      "startLine": 4,
+      "endLine": 30
+    }
+  ],
+  "diagnostics": []
+}

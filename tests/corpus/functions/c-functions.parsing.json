@@ -1,0 +1,48 @@
+{
+  "constructs": [
+    "C-PP-01",
+    "C-FUNC-01",
+    "C-FUNC-02",
+    "C-FUNC-03",
+    "C-FUNC-04",
+    "C-FUNC-05",
+    "CTRL-01",
+    "CTRL-03",
+    "CTRL-08",
+    "CTRL-11"
+  ],
+  "functions": [
+    {
+      "name": "declaredOnly",
+      "startLine": 3,
+      "endLine": 3,
+      "parameters": ["value"]
+    },
+    {
+      "name": "helper",
+      "startLine": 5,
+      "endLine": 8,
+      "parameters": ["value"]
+    },
+    {
+      "name": "sumAll",
+      "startLine": 10,
+      "endLine": 24,
+      "parameters": ["count"]
+    },
+    {
+      "name": "applyTwice",
+      "startLine": 26,
+      "endLine": 29,
+      "parameters": ["value", "operation"]
+    },
+    {
+      "name": "findFirstNegative",
+      "startLine": 31,
+      "endLine": 48,
+      "parameters": ["values", "count"]
+    }
+  ],
+  "classes": [],
+  "diagnostics": []
+}
