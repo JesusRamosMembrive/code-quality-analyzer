@@ -1,0 +1,20 @@
+{
+  "constructs": ["C-PP-01", "CPP-NS-01", "CPP-FUNC-01", "CTRL-08"],
+  "functions": [
+    {
+      "name": "identity",
+      "startLine": 6,
+      "endLine": 9,
+      "parameters": ["value"]
+    }
+  ],
+  "classes": [
+    {
+      "name": "demo",
+      "kind": "namespace",
+      "startLine": 3,
+      "endLine": 11
+    }
+  ],
+  "diagnostics": []
+}

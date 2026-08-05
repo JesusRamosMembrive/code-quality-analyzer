@@ -1,0 +1,13 @@
+{
+  "constructs": ["C-PP-01", "C-FUNC-01", "CTRL-08"],
+  "functions": [
+    {
+      "name": "main",
+      "startLine": 3,
+      "endLine": 6,
+      "parameters": []
+    }
+  ],
+  "classes": [],
+  "diagnostics": []
+}

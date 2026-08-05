@@ -78,3 +78,10 @@ add_test(
         -DCODEQA_EXPECTED_EXIT_CODE=0
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckCliOutput.cmake
 )
+
+add_test(
+    NAME codeqa_corpus_integrity
+    COMMAND ${CMAKE_COMMAND}
+        -DCODEQA_CORPUS_DIR=${CMAKE_CURRENT_SOURCE_DIR}/corpus
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/corpus/CheckCorpusIntegrity.cmake
+)

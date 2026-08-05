@@ -1,0 +1,118 @@
+# Verifies the corpus is internally consistent, without needing the analyzer.
+# Run as a CTest test via `cmake -P`. Required variable:
+#   CODEQA_CORPUS_DIR - absolute path to tests/corpus
+#
+# Checks:
+#   1. Every fixture source has a sibling .parsing.json, and vice versa.
+#   2. Every construct ID cited by a fixture exists in SUPPORTED-CONSTRUCTS.md.
+#   3. No fixture cites an OUT-* ID (those are exclusions, never coverage).
+# Check 4 (every documented ID is covered by a fixture) is added in Task 6.
+
+if(NOT DEFINED CODEQA_CORPUS_DIR)
+    message(FATAL_ERROR "CODEQA_CORPUS_DIR must be defined.")
+endif()
+
+# --- Collect the documented IDs -------------------------------------------
+
+# The ID regex must accept both three-segment IDs (C-FUNC-01, CPP-PARAM-02) and
+# two-segment ones (CTRL-01, OUT-03). A regex requiring three segments would make
+# every CTRL-* and OUT-* ID invisible to this checker on BOTH sides — documented
+# and cited — leaving the control-flow constructs silently unverified.
+set(CODEQA_ID_PATTERN "[A-Z][A-Z-]*-[0-9][0-9]")
+
+file(READ "${CODEQA_CORPUS_DIR}/SUPPORTED-CONSTRUCTS.md" constructsDocument)
+string(REGEX MATCHALL "`${CODEQA_ID_PATTERN}`" documentedIdTokens "${constructsDocument}")
+
+set(documentedIds "")
+foreach(token IN LISTS documentedIdTokens)
+    string(REPLACE "`" "" identifier "${token}")
+    list(APPEND documentedIds "${identifier}")
+endforeach()
+list(REMOVE_DUPLICATES documentedIds)
+
+list(LENGTH documentedIds documentedIdCount)
+if(documentedIdCount EQUAL 0)
+    message(FATAL_ERROR "No construct IDs found in SUPPORTED-CONSTRUCTS.md.")
+endif()
+
+# --- Check 1: fixture sources and expectation files pair up ---------------
+
+file(GLOB_RECURSE fixtureSources
+    "${CODEQA_CORPUS_DIR}/*.c"
+    "${CODEQA_CORPUS_DIR}/*.cpp")
+file(GLOB_RECURSE expectationFiles "${CODEQA_CORPUS_DIR}/*.parsing.json")
+
+set(failures "")
+
+foreach(source IN LISTS fixtureSources)
+    get_filename_component(sourceDirectory "${source}" DIRECTORY)
+    get_filename_component(sourceStem "${source}" NAME_WE)
+    set(expected "${sourceDirectory}/${sourceStem}.parsing.json")
+
+    if(NOT EXISTS "${expected}")
+        list(APPEND failures "Fixture '${source}' has no '${sourceStem}.parsing.json'.")
+    endif()
+endforeach()
+
+foreach(expectation IN LISTS expectationFiles)
+    get_filename_component(expectationDirectory "${expectation}" DIRECTORY)
+    get_filename_component(expectationName "${expectation}" NAME)
+    string(REPLACE ".parsing.json" "" expectationStem "${expectationName}")
+
+    if(NOT EXISTS "${expectationDirectory}/${expectationStem}.c"
+        AND NOT EXISTS "${expectationDirectory}/${expectationStem}.cpp")
+        list(APPEND failures "Expectation '${expectation}' has no matching .c or .cpp fixture.")
+    endif()
+endforeach()
+
+# --- Checks 2 and 3: cited IDs exist, and are never OUT-* -----------------
+
+set(citedIds "")
+
+foreach(expectation IN LISTS expectationFiles)
+    file(READ "${expectation}" expectationText)
+
+    # The constructs array is the first [...] block after the "constructs" key.
+    string(REGEX MATCH "\"constructs\"[ \t\r\n]*:[ \t\r\n]*\\[([^]]*)\\]"
+        constructsMatch "${expectationText}")
+
+    if(NOT constructsMatch)
+        list(APPEND failures "Expectation '${expectation}' has no 'constructs' field.")
+        continue()
+    endif()
+
+    string(REGEX MATCHALL "${CODEQA_ID_PATTERN}" fixtureIds "${CMAKE_MATCH_1}")
+
+    if(NOT fixtureIds)
+        list(APPEND failures "Expectation '${expectation}' has an empty 'constructs' field.")
+        continue()
+    endif()
+
+    foreach(identifier IN LISTS fixtureIds)
+        if(identifier MATCHES "^OUT-")
+            list(APPEND failures
+                "Expectation '${expectation}' cites '${identifier}', but OUT-* IDs are exclusions.")
+        elseif(NOT identifier IN_LIST documentedIds)
+            list(APPEND failures
+                "Expectation '${expectation}' cites '${identifier}', which is not in SUPPORTED-CONSTRUCTS.md.")
+        endif()
+
+        list(APPEND citedIds "${identifier}")
+    endforeach()
+endforeach()
+
+list(REMOVE_DUPLICATES citedIds)
+
+# --- Report ---------------------------------------------------------------
+
+if(failures)
+    list(JOIN failures "\n  " failureText)
+    message(FATAL_ERROR "Corpus integrity check failed:\n  ${failureText}")
+endif()
+
+list(LENGTH fixtureSources fixtureCount)
+list(LENGTH citedIds citedIdCount)
+message(STATUS
+    "Corpus integrity check passed: ${fixtureCount} fixture(s), "
+    "${citedIdCount} construct ID(s) cited, ${documentedIdCount} documented "
+    "(the documented total includes OUT-* exclusions, which are never cited).")
