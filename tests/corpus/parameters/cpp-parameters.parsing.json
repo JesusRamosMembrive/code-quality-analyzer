@@ -1,0 +1,44 @@
+{
+  "constructs": [
+    "C-PP-01",
+    "CPP-FUNC-01",
+    "CPP-PARAM-01",
+    "CPP-PARAM-02",
+    "CTRL-06",
+    "CTRL-08"
+  ],
+  "functions": [
+    {
+      "name": "withDefaults",
+      "startLine": 3,
+      "endLine": 6,
+      "parameters": ["required", "optional", "verbose"]
+    },
+    {
+      "name": "byReference",
+      "startLine": 8,
+      "endLine": 11,
+      "parameters": ["target", "source"]
+    },
+    {
+      "name": "byPointer",
+      "startLine": 13,
+      "endLine": 16,
+      "parameters": ["output", "input"]
+    },
+    {
+      "name": "ignoresArgument",
+      "startLine": 18,
+      "endLine": 21,
+      "parameters": [""]
+    },
+    {
+      "name": "manyParameters",
+      "startLine": 23,
+      "endLine": 26,
+      "parameters": ["first", "second", "third", "fourth", "fifth"]
+    }
+  ],
+  "classes": [],
+  "diagnostics": []
+}

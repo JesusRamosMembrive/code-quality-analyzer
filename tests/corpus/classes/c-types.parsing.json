@@ -1,0 +1,41 @@
+{
+  "constructs": [
+    "C-PP-01",
+    "C-TYPE-01",
+    "C-TYPE-02",
+    "C-TYPE-03",
+    "C-TYPE-04",
+    "C-DECL-01",
+    "C-FUNC-01",
+    "CTRL-08"
+  ],
+  "functions": [
+    {
+      "name": "pointSize",
+      "startLine": 26,
+      "endLine": 29,
+      "parameters": []
+    }
+  ],
+  "classes": [
+    {
+      "name": "Point",
+      "kind": "struct",
+      "startLine": 5,
+      "endLine": 9
+    },
+    {
+      "name": "Value",
+      "kind": "union",
+      "startLine": 11,
+      "endLine": 15
+    },
+    {
+      "name": "Status",
+      "kind": "enum",
+      "startLine": 17,
+      "endLine": 22
+    }
+  ],
+  "diagnostics": []
+}

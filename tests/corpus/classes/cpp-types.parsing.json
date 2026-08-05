@@ -1,0 +1,87 @@
+{
+  "constructs": [
+    "C-PP-01",
+    "CPP-TYPE-01",
+    "CPP-TYPE-02",
+    "CPP-TYPE-03",
+    "CPP-TYPE-04",
+    "CPP-TYPE-05",
+    "CPP-NS-01",
+    "CPP-NS-02",
+    "CPP-FUNC-01",
+    "CPP-FUNC-02",
+    "CPP-FUNC-04",
+    "CTRL-08"
+  ],
+  "functions": [
+    {
+      "name": "internalHelper",
+      "startLine": 9,
+      "endLine": 12,
+      "parameters": []
+    },
+    {
+      "name": "position",
+      "startLine": 33,
+      "endLine": 36,
+      "parameters": []
+    },
+    {
+      "name": "size",
+      "startLine": 42,
+      "endLine": 45,
+      "parameters": []
+    },
+    {
+      "name": "Box",
+      "startLine": 55,
+      "endLine": 58,
+      "parameters": ["content"]
+    }
+  ],
+  "classes": [
+    {
+      "name": "outer",
+      "kind": "namespace",
+      "startLine": 3,
+      "endLine": 64
+    },
+    {
+      "name": "",
+      "kind": "namespace",
+      "startLine": 6,
+      "endLine": 14
+    },
+    {
+      "name": "Mode",
+      "kind": "enum",
+      "startLine": 16,
+      "endLine": 20
+    },
+    {
+      "name": "Config",
+      "kind": "struct",
+      "startLine": 22,
+      "endLine": 25
+    },
+    {
+      "name": "Container",
+      "kind": "class",
+      "startLine": 27,
+      "endLine": 49
+    },
+    {
+      "name": "Iterator",
+      "kind": "class",
+      "startLine": 30,
+      "endLine": 40
+    },
+    {
+      "name": "Box",
+      "kind": "class",
+      "startLine": 51,
+      "endLine": 62
+    }
+  ],
+  "diagnostics": []
+}
