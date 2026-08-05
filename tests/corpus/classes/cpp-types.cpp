@@ -69,3 +69,11 @@ enum Color
     Green,
     Blue
 };
+
+class Base
+{
+};
+
+class Derived : public Base
+{
+};

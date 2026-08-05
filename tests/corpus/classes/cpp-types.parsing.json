@@ -6,6 +6,7 @@
     "CPP-TYPE-03",
     "CPP-TYPE-04",
     "CPP-TYPE-05",
+    "CPP-TYPE-06",
     "CPP-NS-01",
     "CPP-NS-02",
     "CPP-FUNC-01",
@@ -87,6 +88,18 @@
       "kind": "enum",
       "startLine": 66,
       "endLine": 71
+    },
+    {
+      "name": "Base",
+      "kind": "class",
+      "startLine": 73,
+      "endLine": 75
+    },
+    {
+      "name": "Derived",
+      "kind": "class",
+      "startLine": 77,
+      "endLine": 79
     }
   ],
   "diagnostics": []

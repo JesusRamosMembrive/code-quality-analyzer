@@ -40,10 +40,18 @@ fixtures hay que revisar.
 | `CPP-TYPE-03` | `enum` / `enum class` |
 | `CPP-TYPE-04` | Plantilla de clase (declarada, no instanciada) |
 | `CPP-TYPE-05` | Clase anidada |
+| `CPP-TYPE-06` | Clase derivada (cláusula base reconocida) |
 | `CPP-NS-01` | `namespace` |
 | `CPP-NS-02` | `namespace` anónimo |
 | `CPP-PARAM-01` | Valores de parámetro por defecto |
 | `CPP-PARAM-02` | Parámetros por referencia y por puntero |
+
+`CPP-TYPE-06` cubre únicamente que la cláusula base (`: public Base`) se
+reconozca como parte de la sintaxis de la clase derivada — que el frontend
+encuentre `D` en `class D : public B { ... }` sin que la cláusula base rompa
+el reconocimiento. La semántica de la herencia (miembros heredados, `virtual`,
+resolución de la jerarquía, slicing, etc.) permanece fuera de alcance: eso es
+`OUT-05`, sin cambios.
 
 ## Control de flujo (común a C y C++)
 
