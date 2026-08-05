@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <optional>
+#include <sstream>
 #include <system_error>
 
 namespace codeqa::cli
@@ -120,8 +121,10 @@ void printLanguageListing(
 
         if (detection.reason != "unambiguous extension")
         {
-            output << " (confidence " << std::fixed << std::setprecision(2) << detection.confidence
-                   << ") - " << detection.reason;
+            std::ostringstream confidenceText;
+            confidenceText << std::fixed << std::setprecision(2) << detection.confidence;
+
+            output << " (confidence " << confidenceText.str() << ") - " << detection.reason;
         }
 
         output << '\n';

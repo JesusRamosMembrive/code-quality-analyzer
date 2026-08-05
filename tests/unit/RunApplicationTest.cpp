@@ -242,3 +242,26 @@ TEST_CASE("--help documents --lang-override")
 
     CHECK(result.output.find("--lang-override") != std::string::npos);
 }
+
+TEST_CASE("discover does not leave the output stream's formatting state mutated")
+{
+    const std::filesystem::path root = makeTempDiscoverRoot();
+
+    std::ostringstream output;
+    std::ostringstream errorOutput;
+
+    const int exitCode = codeqa::cli::runApplication({"discover", root.string()}, output, errorOutput);
+    CHECK(exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+
+    // The listing above must have printed an ambiguous header's confidence (0.50), which is
+    // where std::fixed/std::setprecision(2) would previously leak into the stream's persistent
+    // formatting state. Writing an unformatted double to the same stream afterwards reveals the
+    // leak: with the bug, this would render as "3.00" instead of the default "3".
+    output << 3.0;
+
+    CHECK(output.str().find("util.h  Unknown (confidence 0.50) - ambiguous header extension\n")
+        != std::string::npos);
+    CHECK(output.str().substr(output.str().size() - 1) == "3");
+
+    std::filesystem::remove_all(root);
+}
