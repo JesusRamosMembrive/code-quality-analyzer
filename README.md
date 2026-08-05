@@ -43,6 +43,16 @@ Recorre recursivamente el directorio indicado y localiza los archivos fuente C/C
 
 Reglas de coincidencia de `--exclude`: un patrón sin `/` coincide con el nombre del archivo o directorio a cualquier profundidad (por eso `--exclude vendor` excluye cualquier directorio `vendor`, esté donde esté anidado). Un patrón con `/` debe coincidir con la ruta relativa completa, y `*` nunca cruza un `/` — por ejemplo `*/vendor/*` solo coincide con rutas de exactamente tres segmentos como `src/vendor/foo.cpp`, no con `vendor/foo.cpp` ni con `src/vendor/nested/foo.cpp`. Los patrones siempre usan `/` como separador, incluso en Windows: una ruta como `src\vendor\*` no coincidirá con nada, porque `\` no es un comodín y las rutas de Windows se normalizan internamente a `/` antes de comparar.
 
+### Detección de lenguaje
+
+```bash
+./build/codeqa discover ./ruta/al/proyecto --lang-override "include/network/*.h=c"
+```
+
+Cada archivo descubierto se lista con su lenguaje detectado (`C`, `C++` o `Unknown`). La detección se basa solo en la extensión: `.c` es siempre `C`, `.cc`/`.cpp`/`.cxx`/`.hpp`/`.hh`/`.hxx` son siempre `C++`, y un `.h` sin override queda como `Unknown` con confianza `0.50` — la herramienta no inventa certeza cuando no la hay, y esta fase sigue sin leer el contenido de los archivos.
+
+`--lang-override <pattern>=<lang>` (repetible, `<lang>` es `c` o `cpp`) fuerza el lenguaje de los archivos cuya ruta coincide con `<pattern>` — mismas reglas de coincidencia que `--exclude` (ver arriba) — con prioridad sobre la detección automática, incluso si la extensión era inequívoca. Si varios overrides coinciden con el mismo archivo, gana el último especificado.
+
 ## Códigos de salida
 
 | Código | Significado |

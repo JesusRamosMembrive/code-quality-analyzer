@@ -58,3 +58,23 @@ add_test(
         -DCODEQA_EXPECTED_EXIT_CODE=0
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckCliOutput.cmake
 )
+
+add_test(
+    NAME codeqa_integration_discover_language
+    COMMAND ${CMAKE_COMMAND}
+        -DCODEQA_EXE=$<TARGET_FILE:codeqa>
+        "-DCODEQA_ARGS=discover$<SEMICOLON>${CMAKE_CURRENT_SOURCE_DIR}/integration/fixtures/discover-sample"
+        "-DCODEQA_EXPECTED_OUTPUT=util.h  Unknown (confidence 0.50) - ambiguous header extension"
+        -DCODEQA_EXPECTED_EXIT_CODE=0
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckCliOutput.cmake
+)
+
+add_test(
+    NAME codeqa_integration_lang_override
+    COMMAND ${CMAKE_COMMAND}
+        -DCODEQA_EXE=$<TARGET_FILE:codeqa>
+        "-DCODEQA_ARGS=discover$<SEMICOLON>${CMAKE_CURRENT_SOURCE_DIR}/integration/fixtures/discover-sample$<SEMICOLON>--lang-override$<SEMICOLON>util.h=cpp"
+        "-DCODEQA_EXPECTED_OUTPUT=util.h  C++ (confidence 1.00) - path override"
+        -DCODEQA_EXPECTED_EXIT_CODE=0
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckCliOutput.cmake
+)
