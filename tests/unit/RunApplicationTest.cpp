@@ -175,3 +175,70 @@ TEST_CASE("--help documents the discover subcommand")
     CHECK(result.output.find("discover") != std::string::npos);
     CHECK(result.output.find("--exclude") != std::string::npos);
 }
+
+TEST_CASE("discover with a missing --lang-override value returns CLI006")
+{
+    const std::filesystem::path root = makeTempDiscoverRoot();
+
+    const RunResult result = run({"discover", root.string(), "--lang-override"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI006") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("discover with a malformed --lang-override value returns CLI007")
+{
+    const std::filesystem::path root = makeTempDiscoverRoot();
+
+    const RunResult resultNoEquals = run({"discover", root.string(), "--lang-override", "util.h"});
+    CHECK(resultNoEquals.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(resultNoEquals.errorOutput.find("CLI007") != std::string::npos);
+
+    const RunResult resultBadLanguage =
+        run({"discover", root.string(), "--lang-override", "util.h=python"});
+    CHECK(resultBadLanguage.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(resultBadLanguage.errorOutput.find("CLI007") != std::string::npos);
+
+    const RunResult resultEmptyPattern =
+        run({"discover", root.string(), "--lang-override", "=c"});
+    CHECK(resultEmptyPattern.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(resultEmptyPattern.errorOutput.find("CLI007") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("discover prints a per-file language listing")
+{
+    const std::filesystem::path root = makeTempDiscoverRoot();
+
+    const RunResult result = run({"discover", root.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find("main.c  C\n") != std::string::npos);
+    CHECK(result.output.find("util.cpp  C++\n") != std::string::npos);
+    CHECK(result.output.find("util.h  Unknown (confidence 0.50) - ambiguous header extension\n")
+        != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("--lang-override forces the language of a matching file")
+{
+    const std::filesystem::path root = makeTempDiscoverRoot();
+
+    const RunResult result = run({"discover", root.string(), "--lang-override", "util.h=cpp"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find("util.h  C++ (confidence 1.00) - path override\n") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("--help documents --lang-override")
+{
+    const RunResult result = run({"--help"});
+
+    CHECK(result.output.find("--lang-override") != std::string::npos);
+}

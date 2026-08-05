@@ -1,15 +1,19 @@
 #include "codeqa/cli/RunApplication.h"
 
 #include "codeqa/application/ApplicationInfo.h"
+#include "codeqa/application/DetectFileLanguage.h"
 #include "codeqa/application/DiscoverProjectSources.h"
 #include "codeqa/application/GetApplicationInfo.h"
 #include "codeqa/cli/ExitCode.h"
+#include "codeqa/core/Language.h"
+#include "codeqa/core/LanguageDetectionResult.h"
 #include "codeqa/infrastructure/DiscoveredFile.h"
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/infrastructure/DiscoveryResult.h"
 #include "codeqa/infrastructure/ExtensionCategory.h"
 
 #include <filesystem>
+#include <iomanip>
 #include <optional>
 #include <system_error>
 
@@ -25,16 +29,19 @@ void printHelp(std::ostream& output)
               "\n"
               "Usage:\n"
               "  codeqa [options]\n"
-              "  codeqa discover <path> [--exclude <glob>]...\n"
+              "  codeqa discover <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
               "\n"
               "Options:\n"
               "  -h, --help       Show this help.\n"
               "  -v, --version    Show application version.\n"
               "\n"
               "Commands:\n"
-              "  discover <path>       Discover C/C++ source files under <path>.\n"
-              "      --exclude <glob>  Exclude files/directories matching a glob pattern\n"
-              "                        (repeatable).\n";
+              "  discover <path>                    Discover C/C++ source files under <path>.\n"
+              "      --exclude <glob>                Exclude files/directories matching a glob\n"
+              "                                       pattern (repeatable).\n"
+              "      --lang-override <pattern>=<lang> Force the language of files matching\n"
+              "                                       <pattern> (<lang> is 'c' or 'cpp';\n"
+              "                                       repeatable, last match wins).\n";
 }
 
 void printVersion(std::ostream& output)
@@ -75,10 +82,72 @@ void printDiscoveryResult(std::ostream& output, const codeqa::infrastructure::Di
            << "Read errors: " << result.diagnostics.size() << '\n';
 }
 
+const char* languageName(codeqa::core::Language language)
+{
+    switch (language)
+    {
+    case codeqa::core::Language::C:
+        return "C";
+    case codeqa::core::Language::Cpp:
+        return "C++";
+    case codeqa::core::Language::Unknown:
+        return "Unknown";
+    }
+
+    return "Unknown";
+}
+
+void printLanguageListing(
+    std::ostream& output,
+    const codeqa::infrastructure::DiscoveryResult& result,
+    const std::vector<codeqa::application::LanguageOverride>& overrides)
+{
+    if (result.files.empty())
+    {
+        return;
+    }
+
+    output << '\n';
+
+    const codeqa::application::DetectFileLanguage detectFileLanguage;
+
+    for (const codeqa::infrastructure::DiscoveredFile& file : result.files)
+    {
+        const codeqa::core::LanguageDetectionResult detection =
+            detectFileLanguage.execute(file, overrides);
+
+        output << file.path.generic_string() << "  " << languageName(detection.language);
+
+        if (detection.reason != "unambiguous extension")
+        {
+            output << " (confidence " << std::fixed << std::setprecision(2) << detection.confidence
+                   << ") - " << detection.reason;
+        }
+
+        output << '\n';
+    }
+}
+
+std::optional<codeqa::core::Language> parseLanguageName(const std::string& languageText)
+{
+    if (languageText == "c")
+    {
+        return codeqa::core::Language::C;
+    }
+
+    if (languageText == "cpp")
+    {
+        return codeqa::core::Language::Cpp;
+    }
+
+    return std::nullopt;
+}
+
 int runDiscover(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
 {
     std::optional<std::filesystem::path> path;
     std::vector<std::string> excludePatterns;
+    std::vector<codeqa::application::LanguageOverride> languageOverrides;
 
     for (std::size_t index = 1; index < arguments.size(); ++index)
     {
@@ -93,6 +162,41 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
             }
 
             excludePatterns.push_back(arguments[index + 1]);
+            ++index;
+            continue;
+        }
+
+        if (token == "--lang-override")
+        {
+            if (index + 1 >= arguments.size())
+            {
+                errorOutput << "Error [CLI006]: Missing value for '--lang-override'.\n";
+                return static_cast<int>(ExitCode::InvalidArguments);
+            }
+
+            const std::string& value = arguments[index + 1];
+            const std::size_t equalsPosition = value.find('=');
+
+            if (equalsPosition == std::string::npos || equalsPosition == 0
+                || equalsPosition == value.size() - 1)
+            {
+                errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
+                               << "'. Expected <pattern>=c|cpp.\n";
+                return static_cast<int>(ExitCode::InvalidArguments);
+            }
+
+            const std::string pattern = value.substr(0, equalsPosition);
+            const std::string languageText = value.substr(equalsPosition + 1);
+            const std::optional<codeqa::core::Language> language = parseLanguageName(languageText);
+
+            if (!language.has_value())
+            {
+                errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
+                               << "'. Expected <pattern>=c|cpp.\n";
+                return static_cast<int>(ExitCode::InvalidArguments);
+            }
+
+            languageOverrides.push_back(codeqa::application::LanguageOverride{pattern, *language});
             ++index;
             continue;
         }
@@ -131,6 +235,7 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
     const codeqa::infrastructure::DiscoveryResult result = discoverProjectSources.execute(options);
 
     printDiscoveryResult(output, result);
+    printLanguageListing(output, result, languageOverrides);
     return static_cast<int>(ExitCode::Success);
 }
 
