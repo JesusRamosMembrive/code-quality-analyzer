@@ -6,7 +6,7 @@
 #   1. Every fixture source has a sibling .parsing.json, and vice versa.
 #   2. Every construct ID cited by a fixture exists in SUPPORTED-CONSTRUCTS.md.
 #   3. No fixture cites an OUT-* ID (those are exclusions, never coverage).
-# Check 4 (every documented ID is covered by a fixture) is added in Task 6.
+#   4. Every documented non-OUT-* ID is covered by at least one fixture.
 
 if(NOT DEFINED CODEQA_CORPUS_DIR)
     message(FATAL_ERROR "CODEQA_CORPUS_DIR must be defined.")
@@ -102,6 +102,18 @@ foreach(expectation IN LISTS expectationFiles)
 endforeach()
 
 list(REMOVE_DUPLICATES citedIds)
+
+# --- Check 4: every documented non-OUT ID is covered by a fixture ---------
+
+foreach(identifier IN LISTS documentedIds)
+    if(identifier MATCHES "^OUT-")
+        continue()
+    endif()
+
+    if(NOT identifier IN_LIST citedIds)
+        list(APPEND failures "Construct '${identifier}' is documented but no fixture covers it.")
+    endif()
+endforeach()
 
 # --- Report ---------------------------------------------------------------
 
