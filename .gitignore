@@ -8,4 +8,5 @@ cmake-build-*/
 *.VC.opendb
 Testing/
 .worktrees/
+.claude/
 *.log
