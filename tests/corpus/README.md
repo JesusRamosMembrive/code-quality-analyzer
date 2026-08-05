@@ -93,6 +93,40 @@ rama o si cada `case` suma, y esas decisiones pertenecen a la Fase 6.
   de tree-sitter en la Fase 4**: hoy no existe todavía un analizador que confirme
   qué produce exactamente la recuperación de errores sobre código roto.
 
+### IDs no verificables: cobertura solo por presencia
+
+El formato de expectativas tiene cuatro campos: `constructs`, `functions`,
+`classes` y `diagnostics`. Ninguno de ellos puede expresar todo lo que
+`SUPPORTED-CONSTRUCTS.md` declara soportado. Los siguientes IDs están citados
+por al menos un fixture — pasan el check 5 de `CheckCorpusIntegrity.cmake` —
+pero **no dejan ningún rastro verificable** en el `.parsing.json`: nada en
+`functions` ni en `classes` distingue un fixture donde el frontend maneja
+correctamente la construcción de uno donde la ignora por completo.
+
+| ID | Por qué no es verificable |
+|---|---|
+| `C-PP-01` | El `#include` no aparece en ningún campo de la expectativa. |
+| `C-DECL-01` | Las variables globales no tienen campo propio; no están en `functions` ni en `classes`. |
+| `C-TYPE-04` | `typedef` no tiene valor de `kind` propio: no hay forma de afirmar que se reconoció el alias. |
+| `C-FUNC-03` | `static` no se registra en ninguna parte de la entrada de `functions`. |
+| `C-FUNC-04` | El formato descarta explícitamente la elipsis (`...`) de `parameters`: una función variádica y una que no lo sea son indistinguibles. |
+| `C-FUNC-05` | Un parámetro de tipo puntero a función solo deja su nombre en `parameters`, igual que cualquier otro parámetro. |
+| `CPP-PARAM-01` | Los valores por defecto de los parámetros no se registran; `parameters` solo lleva nombres. |
+| `CPP-PARAM-02` | Referencia y puntero son indistinguibles en `parameters`: ambos dejan solo el nombre del parámetro. |
+
+`CPP-TYPE-03` es un caso a medias: `enum` y `enum class` colapsan al mismo
+`kind: "enum"`, así que un fixture prueba que el frontend reconoce *un* enum
+en esa línea, pero no si distingue la variante con ámbito (`enum class`) de la
+que no lo tiene.
+
+La consecuencia práctica: un frontend de Fase 4 que ignorara por completo
+`typedef`, las variables globales, `static`, los parámetros variádicos y la
+distinción referencia/puntero pasaría igualmente los ocho IDs de esta lista,
+porque el check 5 solo prueba **citación** (el ID aparece en `constructs` de
+algún fixture), no **ejercicio** (el frontend produjo el resultado correcto
+para esa construcción). La Fase 4 debe validar estos IDs por algún otro medio
+— no basta con que el corpus los cite.
+
 ## Verificación
 
 `CheckCorpusIntegrity.cmake` se ejecuta como test de CTest (`codeqa_corpus_integrity`)
