@@ -55,6 +55,8 @@ add_library(codeqa_core STATIC
     src/application/DiscoverProjectSources.cpp
     src/application/DetectFileLanguage.cpp
     src/cli/RunApplication.cpp
+    src/frontend/SelectGrammar.cpp
+    src/frontend/TreeSitterParser.cpp
     src/infrastructure/ClassifyExtension.cpp
     src/infrastructure/DefaultExclusions.cpp
     src/infrastructure/DiscoverSourceFiles.cpp
@@ -64,6 +66,7 @@ target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_BINARY_DIR}/generated
 )
+target_link_libraries(codeqa_core PUBLIC tree_sitter tree_sitter_c tree_sitter_cpp)
 # codeqa_core and codeqa opt into strict warnings; codeqa_tests deliberately does not,
 # since the vendored third_party/doctest/doctest.h itself emits warnings (e.g. MSVC C5285)
 # that would turn into hard errors under CODEQA_WARNINGS_AS_ERRORS=ON.
