@@ -9,13 +9,14 @@ add_executable(codeqa_tests
     unit/DiscoverSourceFilesTest.cpp
     unit/DiscoverProjectSourcesTest.cpp
     unit/DetectFileLanguageTest.cpp
+    unit/TreeSitterSmokeTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
     ${PROJECT_SOURCE_DIR}/third_party
 )
 
-target_link_libraries(codeqa_tests PRIVATE codeqa_core)
+target_link_libraries(codeqa_tests PRIVATE codeqa_core tree_sitter tree_sitter_c tree_sitter_cpp)
 
 add_test(NAME codeqa_tests COMMAND codeqa_tests)
 
