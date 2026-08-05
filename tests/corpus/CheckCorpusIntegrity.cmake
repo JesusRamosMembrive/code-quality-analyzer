@@ -4,9 +4,11 @@
 #
 # Checks:
 #   1. Every fixture source has a sibling .parsing.json, and vice versa.
-#   2. Every construct ID cited by a fixture exists in SUPPORTED-CONSTRUCTS.md.
-#   3. No fixture cites an OUT-* ID (those are exclusions, never coverage).
-#   4. Every documented non-OUT-* ID is covered by at least one fixture.
+#   2. Every expectation file declares the required top-level fields: functions,
+#      classes, and diagnostics.
+#   3. Every construct ID cited by a fixture exists in SUPPORTED-CONSTRUCTS.md.
+#   4. No fixture cites an OUT-* ID (those are exclusions, never coverage).
+#   5. Every documented non-OUT-* ID is covered by at least one fixture.
 
 if(NOT DEFINED CODEQA_CORPUS_DIR)
     message(FATAL_ERROR "CODEQA_CORPUS_DIR must be defined.")
@@ -65,7 +67,28 @@ foreach(expectation IN LISTS expectationFiles)
     endif()
 endforeach()
 
-# --- Checks 2 and 3: cited IDs exist, and are never OUT-* -----------------
+# --- Check 2: required top-level fields are present -----------------------
+
+# README.md requires every expectation file to declare functions, classes, and
+# diagnostics -- including the explicit "diagnostics": [] on fixtures with no
+# expected diagnostics, which is a deliberate assertion, not an omission. A
+# simple key-presence regex is all CMake 3.16 offers (no JSON parsing until
+# Fase 4); it cannot validate structure or values, only that the key exists.
+set(CODEQA_REQUIRED_FIELDS "functions" "classes" "diagnostics")
+
+foreach(expectation IN LISTS expectationFiles)
+    file(READ "${expectation}" expectationText)
+
+    foreach(requiredField IN LISTS CODEQA_REQUIRED_FIELDS)
+        string(REGEX MATCH "\"${requiredField}\"[ \t\r\n]*:" fieldMatch "${expectationText}")
+        if(NOT fieldMatch)
+            list(APPEND failures
+                "Expectation '${expectation}' is missing required field '${requiredField}'.")
+        endif()
+    endforeach()
+endforeach()
+
+# --- Checks 3 and 4: cited IDs exist, and are never OUT-* ------------------
 
 set(citedIds "")
 
@@ -81,7 +104,19 @@ foreach(expectation IN LISTS expectationFiles)
         continue()
     endif()
 
-    string(REGEX MATCHALL "${CODEQA_ID_PATTERN}" fixtureIds "${CMAKE_MATCH_1}")
+    # Extract every QUOTED STRING in the constructs array, not just the substrings
+    # that already happen to look like a well-formed ID. Matching CODEQA_ID_PATTERN
+    # directly here would silently skip anything that doesn't already have the
+    # right shape -- wrong case ("cpp-func-99"), wrong digit count ("CPP-FUNC-1"),
+    # or outright garbage ("TOTALLY_BOGUS") -- defeating the very check that is
+    # supposed to catch those typos.
+    string(REGEX MATCHALL "\"[^\"]*\"" fixtureIdTokens "${CMAKE_MATCH_1}")
+
+    set(fixtureIds "")
+    foreach(token IN LISTS fixtureIdTokens)
+        string(REGEX REPLACE "^\"|\"$" "" identifier "${token}")
+        list(APPEND fixtureIds "${identifier}")
+    endforeach()
 
     if(NOT fixtureIds)
         list(APPEND failures "Expectation '${expectation}' has an empty 'constructs' field.")
@@ -103,7 +138,7 @@ endforeach()
 
 list(REMOVE_DUPLICATES citedIds)
 
-# --- Check 4: every documented non-OUT ID is covered by a fixture ---------
+# --- Check 5: every documented non-OUT ID is covered by a fixture ---------
 
 foreach(identifier IN LISTS documentedIds)
     if(identifier MATCHES "^OUT-")
