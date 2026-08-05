@@ -79,15 +79,30 @@ rama o si cada `case` suma, y esas decisiones pertenecen a la Fase 6.
 - Los valores de `kind` en `classes` son: `class`, `struct`, `union`, `enum`,
   `namespace`.
 
+### Exhaustividad vs. mínimo
+
+- En los fixtures bien formados, `functions` y `classes` son **exhaustivos**: el
+  frontend debe encontrar exactamente estas entradas, ni más ni menos.
+- En los fixtures de `malformed/`, `functions` y `classes` son un **conjunto
+  mínimo**: el frontend debe encontrar al menos estas entradas, y puede recuperar
+  entradas adicionales de la región rota como resultado de la recuperación de
+  errores de tree-sitter. Un runner que exija igualdad de conjuntos ahí fallaría
+  sobre un comportamiento correcto del parser, no sobre un error real.
+- Las `functions` (y `classes`) de los fixtures de `malformed/`, así como las
+  líneas de sus `diagnostics`, son **provisionales pendientes de la salida real
+  de tree-sitter en la Fase 4**: hoy no existe todavía un analizador que confirme
+  qué produce exactamente la recuperación de errores sobre código roto.
+
 ## Verificación
 
 `CheckCorpusIntegrity.cmake` se ejecuta como test de CTest (`codeqa_corpus_integrity`)
 y comprueba, sin necesidad del analizador:
 
 1. Todo fixture fuente tiene su `.parsing.json`, y viceversa.
-2. Todo ID citado en un `constructs` existe en `SUPPORTED-CONSTRUCTS.md`.
-3. Ningún fixture cita un ID `OUT-*`.
-4. Todo ID no-`OUT-*` de `SUPPORTED-CONSTRUCTS.md` está cubierto por al menos un fixture.
+2. Todo `.parsing.json` declara los campos `functions`, `classes` y `diagnostics`.
+3. Todo ID citado en un `constructs` existe en `SUPPORTED-CONSTRUCTS.md`.
+4. Ningún fixture cita un ID `OUT-*`.
+5. Todo ID no-`OUT-*` de `SUPPORTED-CONSTRUCTS.md` está cubierto por al menos un fixture.
 
 La verificación de que el analizador produce realmente estos resultados llega en
 la Fase 4, con el runner que lee estos archivos.
