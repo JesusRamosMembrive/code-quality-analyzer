@@ -1,0 +1,18 @@
+{
+  "constructs": ["CPP-FUNC-01", "CTRL-01", "CTRL-08"],
+  "functions": [
+    {
+      "name": "wellFormed",
+      "startLine": 1,
+      "endLine": 4,
+      "parameters": ["value"]
+    }
+  ],
+  "classes": [],
+  "diagnostics": [
+    {
+      "line": 13,
+      "severity": "error"
+    }
+  ]
+}

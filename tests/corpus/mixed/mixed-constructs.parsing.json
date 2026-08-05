@@ -1,0 +1,85 @@
+{
+  "constructs": [
+    "C-PP-01",
+    "CPP-NS-01",
+    "CPP-TYPE-01",
+    "CPP-TYPE-02",
+    "CPP-TYPE-03",
+    "CPP-FUNC-02",
+    "CPP-FUNC-03",
+    "CPP-FUNC-04",
+    "CPP-FUNC-05",
+    "CPP-FUNC-06",
+    "CPP-FUNC-08",
+    "CPP-PARAM-02",
+    "CTRL-01",
+    "CTRL-03",
+    "CTRL-07",
+    "CTRL-08"
+  ],
+  "functions": [
+    {
+      "name": "Engine",
+      "startLine": 22,
+      "endLine": 25,
+      "parameters": ["settings"]
+    },
+    {
+      "name": "~Engine",
+      "startLine": 27,
+      "endLine": 27,
+      "parameters": []
+    },
+    {
+      "name": "run",
+      "startLine": 29,
+      "endLine": 29,
+      "parameters": ["inputs"]
+    },
+    {
+      "name": "operator!",
+      "startLine": 31,
+      "endLine": 34,
+      "parameters": []
+    },
+    {
+      "name": "Engine::run",
+      "startLine": 40,
+      "endLine": 56,
+      "parameters": ["inputs"]
+    },
+    {
+      "name": "isEmpty",
+      "startLine": 58,
+      "endLine": 62,
+      "parameters": ["container"]
+    }
+  ],
+  "classes": [
+    {
+      "name": "app",
+      "kind": "namespace",
+      "startLine": 4,
+      "endLine": 64
+    },
+    {
+      "name": "Level",
+      "kind": "enum",
+      "startLine": 7,
+      "endLine": 11
+    },
+    {
+      "name": "Settings",
+      "kind": "struct",
+      "startLine": 13,
+      "endLine": 17
+    },
+    {
+      "name": "Engine",
+      "kind": "class",
+      "startLine": 19,
+      "endLine": 38
+    }
+  ],
+  "diagnostics": []
+}

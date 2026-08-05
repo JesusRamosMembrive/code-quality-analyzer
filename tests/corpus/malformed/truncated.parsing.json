@@ -1,0 +1,18 @@
+{
+  "constructs": ["C-PP-01", "C-FUNC-01", "CTRL-08"],
+  "functions": [
+    {
+      "name": "completeFunction",
+      "startLine": 3,
+      "endLine": 6,
+      "parameters": ["value"]
+    }
+  ],
+  "classes": [],
+  "diagnostics": [
+    {
+      "line": 8,
+      "severity": "error"
+    }
+  ]
+}
