@@ -62,3 +62,10 @@ private:
 };
 
 } // namespace outer
+
+enum Color
+{
+    Red,
+    Green,
+    Blue
+};

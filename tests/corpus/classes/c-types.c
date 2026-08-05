@@ -27,3 +27,5 @@ size_t pointSize(void)
 {
     return sizeof(PointAlias);
 }
+
+#include "local-config.h"

@@ -81,6 +81,12 @@
       "kind": "class",
       "startLine": 51,
       "endLine": 62
+    },
+    {
+      "name": "Color",
+      "kind": "enum",
+      "startLine": 66,
+      "endLine": 71
     }
   ],
   "diagnostics": []
