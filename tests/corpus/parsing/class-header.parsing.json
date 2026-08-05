@@ -1,0 +1,32 @@
+{
+  "constructs": ["C-PP-01", "CPP-TYPE-01", "CPP-FUNC-02"],
+  "functions": [
+    {
+      "name": "area",
+      "startLine": 8,
+      "endLine": 8,
+      "parameters": []
+    },
+    {
+      "name": "perimeter",
+      "startLine": 9,
+      "endLine": 9,
+      "parameters": []
+    },
+    {
+      "name": "scale",
+      "startLine": 10,
+      "endLine": 10,
+      "parameters": ["factor"]
+    }
+  ],
+  "classes": [
+    {
+      "name": "Shape",
+      "kind": "class",
+      "startLine": 5,
+      "endLine": 14
+    }
+  ],
+  "diagnostics": []
+}

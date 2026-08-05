@@ -3,7 +3,8 @@
 #   CODEQA_CORPUS_DIR - absolute path to tests/corpus
 #
 # Checks:
-#   1. Every fixture source has a sibling .parsing.json, and vice versa.
+#   1. Every fixture source (.c, .cpp, .h, .hpp) has a sibling .parsing.json,
+#      and vice versa.
 #   2. Every expectation file declares the required top-level fields: functions,
 #      classes, and diagnostics.
 #   3. Every construct ID cited by a fixture exists in SUPPORTED-CONSTRUCTS.md.
@@ -41,7 +42,9 @@ endif()
 
 file(GLOB_RECURSE fixtureSources
     "${CODEQA_CORPUS_DIR}/*.c"
-    "${CODEQA_CORPUS_DIR}/*.cpp")
+    "${CODEQA_CORPUS_DIR}/*.cpp"
+    "${CODEQA_CORPUS_DIR}/*.h"
+    "${CODEQA_CORPUS_DIR}/*.hpp")
 file(GLOB_RECURSE expectationFiles "${CODEQA_CORPUS_DIR}/*.parsing.json")
 
 set(failures "")
@@ -62,8 +65,10 @@ foreach(expectation IN LISTS expectationFiles)
     string(REPLACE ".parsing.json" "" expectationStem "${expectationName}")
 
     if(NOT EXISTS "${expectationDirectory}/${expectationStem}.c"
-        AND NOT EXISTS "${expectationDirectory}/${expectationStem}.cpp")
-        list(APPEND failures "Expectation '${expectation}' has no matching .c or .cpp fixture.")
+        AND NOT EXISTS "${expectationDirectory}/${expectationStem}.cpp"
+        AND NOT EXISTS "${expectationDirectory}/${expectationStem}.h"
+        AND NOT EXISTS "${expectationDirectory}/${expectationStem}.hpp")
+        list(APPEND failures "Expectation '${expectation}' has no matching .c, .cpp, .h, or .hpp fixture.")
     endif()
 endforeach()
 
