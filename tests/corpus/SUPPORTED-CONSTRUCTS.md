@@ -35,6 +35,7 @@ fixtures hay que revisar.
 | `CPP-FUNC-06` | Sobrecarga de operador |
 | `CPP-FUNC-07` | Lambda con cuerpo |
 | `CPP-FUNC-08` | Plantilla de función (declarada, no instanciada) |
+| `CPP-FUNC-09` | Método declarado en la clase, sin definición (prototipo) |
 | `CPP-TYPE-01` | `class` |
 | `CPP-TYPE-02` | `struct` |
 | `CPP-TYPE-03` | `enum` / `enum class` |

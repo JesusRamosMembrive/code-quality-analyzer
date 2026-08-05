@@ -1,5 +1,5 @@
 {
-  "constructs": ["C-PP-01", "CPP-TYPE-01", "CPP-FUNC-02"],
+  "constructs": ["C-PP-01", "CPP-TYPE-01", "CPP-FUNC-09"],
   "functions": [
     {
       "name": "area",
