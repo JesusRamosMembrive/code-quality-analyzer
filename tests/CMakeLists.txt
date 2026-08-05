@@ -8,6 +8,7 @@ add_executable(codeqa_tests
     unit/GlobMatcherTest.cpp
     unit/DiscoverSourceFilesTest.cpp
     unit/DiscoverProjectSourcesTest.cpp
+    unit/DetectFileLanguageTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
