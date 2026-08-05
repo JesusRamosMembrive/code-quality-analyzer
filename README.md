@@ -51,7 +51,9 @@ Reglas de coincidencia de `--exclude`: un patrón sin `/` coincide con el nombre
 
 Cada archivo descubierto se lista con su lenguaje detectado (`C`, `C++` o `Unknown`). La detección se basa solo en la extensión: `.c` es siempre `C`, `.cc`/`.cpp`/`.cxx`/`.hpp`/`.hh`/`.hxx` son siempre `C++`, y un `.h` sin override queda como `Unknown` con confianza `0.50` — la herramienta no inventa certeza cuando no la hay, y esta fase sigue sin leer el contenido de los archivos.
 
-`--lang-override <pattern>=<lang>` (repetible, `<lang>` es `c` o `cpp`) fuerza el lenguaje de los archivos cuya ruta coincide con `<pattern>` — mismas reglas de coincidencia que `--exclude` (ver arriba) — con prioridad sobre la detección automática, incluso si la extensión era inequívoca. Si varios overrides coinciden con el mismo archivo, gana el último especificado.
+`--lang-override <pattern>=<lang>` (repetible, `<lang>` es `c` o `cpp`) fuerza el lenguaje de los archivos cuya ruta coincide con `<pattern>`, con prioridad sobre la detección automática, incluso si la extensión era inequívoca. Si varios overrides coinciden con el mismo archivo, gana el último especificado.
+
+Reglas de coincidencia de `--lang-override`: a diferencia de `--exclude`, un override solo se evalúa contra archivos individuales ya descubiertos, nunca contra directorios. Un patrón sin `/` coincide con el nombre de archivo del fichero clasificado (no con un directorio); un patrón con `/` debe coincidir con la ruta relativa completa del archivo. `*` nunca cruza un `/`, y aplican las mismas mecánicas de traducción de glob (`?`, escapado, separador `/` normalizado) que `--exclude` — pero el objetivo de la coincidencia es siempre un archivo, nunca un directorio.
 
 ## Códigos de salida
 
