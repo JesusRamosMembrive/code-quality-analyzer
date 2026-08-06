@@ -912,6 +912,26 @@ bool isForStatement(TSNode node)
     return isNodeType(node, "for_statement") || isNodeType(node, "range_based_for_statement");
 }
 
+CallKind callKind(TSNode functionExpression)
+{
+    if (isNodeType(functionExpression, "identifier") || isNodeType(functionExpression, "qualified_identifier"))
+    {
+        return CallKind::Named;
+    }
+
+    if (isNodeType(functionExpression, "field_expression"))
+    {
+        return CallKind::Member;
+    }
+
+    return CallKind::Indirect;
+}
+
+std::size_t callArgumentCount(TSNode arguments)
+{
+    return ts_node_is_null(arguments) ? 0 : ts_node_named_child_count(arguments);
+}
+
 void extractBodyStructure(
     TSNode body,
     std::string_view source,
@@ -952,6 +972,22 @@ void extractBodyStructure(
                 local.hasInitializer = hasInitializer(declarator);
                 local.lexicalDepth = declarationDepth;
                 function.localVariables.push_back(std::move(local));
+            }
+        }
+
+        if (isNodeType(node, "call_expression") && !subtreeContainsErrorOrMissing(node))
+        {
+            const TSNode functionExpression = childForField(node, "function");
+            const TSNode arguments = childForField(node, "arguments");
+
+            if (!ts_node_is_null(functionExpression) && !ts_node_is_null(arguments))
+            {
+                CallModel call;
+                call.calleeText = nodeText(functionExpression, source);
+                call.kind = callKind(functionExpression);
+                call.argumentCount = callArgumentCount(arguments);
+                call.range = sourceRange(node, path);
+                function.calls.push_back(std::move(call));
             }
         }
 
@@ -1003,6 +1039,17 @@ void extractBodyStructure(
         function.controlFlow.begin(),
         function.controlFlow.end(),
         [](const ControlFlowModel& left, const ControlFlowModel& right) {
+            if (left.range.begin.offset != right.range.begin.offset)
+            {
+                return left.range.begin.offset < right.range.begin.offset;
+            }
+
+            return left.range.end.offset < right.range.end.offset;
+        });
+    std::stable_sort(
+        function.calls.begin(),
+        function.calls.end(),
+        [](const CallModel& left, const CallModel& right) {
             if (left.range.begin.offset != right.range.begin.offset)
             {
                 return left.range.begin.offset < right.range.begin.offset;

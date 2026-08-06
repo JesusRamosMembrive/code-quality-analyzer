@@ -286,13 +286,21 @@ TEST_CASE("extracts function body locals and control flow")
     CHECK_FALSE(scan.controlFlow[9].conditionRange.has_value());
 }
 
-TEST_CASE("keeps lambda body data out of the enclosing callable")
+TEST_CASE("extracts syntactic calls without resolving symbols")
 {
     const TempSourceFile file{
-        "lambda-body.cpp",
-        "void run() {\n"
-        "    int outer = 0;\n"
-        "    []() { int inner = 1; if (inner) { return; } }();\n"
+        "syntactic-calls.cpp",
+        "struct Sink { int emit(int value); };\n"
+        "int helper(int value) { return value; }\n"
+        "Sink factory();\n"
+        "using Callback = int (*)(int);\n"
+        "Callback callbackFactory();\n"
+        "int run(Sink* sink, int (*callback)(int), int value) {\n"
+        "    int first = helper(value);\n"
+        "    int second = sink->emit(value);\n"
+        "    int third = callback(value);\n"
+        "    int fourth = callbackFactory()(value);\n"
+        "    return factory().emit(first + second + third) + fourth;\n"
         "}\n"};
     codeqa::frontend::TreeSitterParser parser;
     codeqa::frontend::StructuralExtractor extractor;
@@ -300,9 +308,66 @@ TEST_CASE("keeps lambda body data out of the enclosing callable")
     const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
         file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
 
-    REQUIRE(result.functions.size() == 2);
-    const codeqa::frontend::FunctionModel& run = result.functions[0];
-    const codeqa::frontend::FunctionModel& lambda = result.functions[1];
+    const codeqa::frontend::FunctionModel* run = nullptr;
+
+    for (const codeqa::frontend::FunctionModel& function : result.functions)
+    {
+        if (function.name == "run")
+        {
+            run = &function;
+            break;
+        }
+    }
+
+    REQUIRE(run != nullptr);
+    REQUIRE(run->calls.size() == 7);
+    CHECK(run->calls[0].calleeText == "helper");
+    CHECK(run->calls[0].kind == codeqa::frontend::CallKind::Named);
+    CHECK(run->calls[0].argumentCount == 1);
+    CHECK(run->calls[1].calleeText == "sink->emit");
+    CHECK(run->calls[1].kind == codeqa::frontend::CallKind::Member);
+    CHECK(run->calls[1].argumentCount == 1);
+    CHECK(run->calls[2].calleeText == "callback");
+    CHECK(run->calls[2].kind == codeqa::frontend::CallKind::Named);
+    CHECK(run->calls[2].argumentCount == 1);
+    CHECK(run->calls[3].calleeText == "callbackFactory");
+    CHECK(run->calls[3].kind == codeqa::frontend::CallKind::Named);
+    CHECK(run->calls[3].argumentCount == 0);
+    CHECK(run->calls[4].calleeText == "callbackFactory()");
+    CHECK(run->calls[4].kind == codeqa::frontend::CallKind::Indirect);
+    CHECK(run->calls[4].argumentCount == 1);
+    CHECK(run->calls[5].calleeText == "factory");
+    CHECK(run->calls[5].kind == codeqa::frontend::CallKind::Named);
+    CHECK(run->calls[5].argumentCount == 0);
+    CHECK(run->calls[6].calleeText == "factory().emit");
+    CHECK(run->calls[6].kind == codeqa::frontend::CallKind::Member);
+    CHECK(run->calls[6].argumentCount == 1);
+
+    for (std::size_t index = 1; index < run->calls.size(); ++index)
+    {
+        CHECK(run->calls[index - 1].range.begin.offset <= run->calls[index].range.begin.offset);
+    }
+}
+
+TEST_CASE("keeps lambda calls out of the enclosing callable")
+{
+    const TempSourceFile file{
+        "lambda-body.cpp",
+        "int helper(int value) { return value; }\n"
+        "void run() {\n"
+        "    int outer = 0;\n"
+        "    []() { int inner = helper(1); if (inner) { return; } }();\n"
+        "    outer = helper(outer);\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 3);
+    const codeqa::frontend::FunctionModel& run = result.functions[1];
+    const codeqa::frontend::FunctionModel& lambda = result.functions[2];
     REQUIRE(run.localVariables.size() == 1);
     CHECK(run.localVariables[0].name == "outer");
     CHECK(run.controlFlow.empty());
@@ -312,6 +377,11 @@ TEST_CASE("keeps lambda body data out of the enclosing callable")
     REQUIRE(lambda.controlFlow.size() == 2);
     CHECK(lambda.controlFlow[0].kind == codeqa::frontend::ControlFlowKind::If);
     CHECK(lambda.controlFlow[1].kind == codeqa::frontend::ControlFlowKind::Return);
+    REQUIRE(run.calls.size() == 2);
+    CHECK(run.calls[0].kind == codeqa::frontend::CallKind::Indirect);
+    CHECK(run.calls[1].calleeText == "helper");
+    REQUIRE(lambda.calls.size() == 1);
+    CHECK(lambda.calls[0].calleeText == "helper");
 }
 
 TEST_CASE("keeps local method body data out of the enclosing callable")
