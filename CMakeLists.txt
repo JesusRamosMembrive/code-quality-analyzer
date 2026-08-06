@@ -57,6 +57,7 @@ add_library(codeqa_core STATIC
     src/cli/RunApplication.cpp
     src/frontend/SelectGrammar.cpp
     src/frontend/TreeSitterParser.cpp
+    src/frontend/ParseSourceFile.cpp
     src/infrastructure/ClassifyExtension.cpp
     src/infrastructure/DefaultExclusions.cpp
     src/infrastructure/DiscoverSourceFiles.cpp

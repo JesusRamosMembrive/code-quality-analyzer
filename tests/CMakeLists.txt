@@ -12,6 +12,7 @@ add_executable(codeqa_tests
     unit/TreeSitterSmokeTest.cpp
     unit/SelectGrammarTest.cpp
     unit/TreeSitterParserTest.cpp
+    unit/ParseSourceFileTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
