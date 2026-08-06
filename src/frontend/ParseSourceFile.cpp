@@ -5,9 +5,10 @@
 #include <tree_sitter/api.h>
 
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <optional>
-#include <sstream>
+#include <system_error>
 
 namespace codeqa::frontend
 {
@@ -68,6 +69,14 @@ void collectDiagnostics(
 
 std::optional<std::string> readFile(const std::filesystem::path& path)
 {
+    std::error_code sizeError;
+    const std::uintmax_t size = std::filesystem::file_size(path, sizeError);
+
+    if (sizeError)
+    {
+        return std::nullopt;
+    }
+
     std::ifstream input(path, std::ios::binary);
 
     if (!input)
@@ -75,15 +84,19 @@ std::optional<std::string> readFile(const std::filesystem::path& path)
         return std::nullopt;
     }
 
-    std::ostringstream buffer;
-    buffer << input.rdbuf();
+    std::string content(static_cast<std::size_t>(size), '\0');
 
-    if (input.bad())
+    if (size > 0)
     {
-        return std::nullopt;
+        input.read(content.data(), static_cast<std::streamsize>(size));
+
+        if (!input)
+        {
+            return std::nullopt;
+        }
     }
 
-    return buffer.str();
+    return content;
 }
 
 } // namespace
