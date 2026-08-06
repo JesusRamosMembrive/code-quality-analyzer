@@ -14,6 +14,7 @@ add_executable(codeqa_tests
     unit/TreeSitterParserTest.cpp
     unit/StructuralModelsTest.cpp
     unit/EmbeddedQueriesTest.cpp
+    unit/StructuralExtractorTest.cpp
     unit/ParseSourceFileTest.cpp
     unit/CorpusParsingTest.cpp
 )

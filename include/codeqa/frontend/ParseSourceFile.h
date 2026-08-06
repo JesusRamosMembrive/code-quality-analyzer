@@ -10,10 +10,13 @@
 namespace codeqa::frontend
 {
 
+class StructuralExtractor;
+
 [[nodiscard]] ParsedFile parseSourceFile(
     const std::filesystem::path& path,
     Grammar grammar,
     const std::string& grammarReason,
-    TreeSitterParser& parser);
+    TreeSitterParser& parser,
+    StructuralExtractor& extractor);
 
 } // namespace codeqa::frontend

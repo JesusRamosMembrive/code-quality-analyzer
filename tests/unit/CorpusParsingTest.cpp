@@ -2,6 +2,7 @@
 
 #include "codeqa/frontend/ParseSourceFile.h"
 #include "codeqa/frontend/SelectGrammar.h"
+#include "codeqa/frontend/StructuralExtractor.h"
 
 #include <filesystem>
 #include <string>
@@ -75,6 +76,7 @@ TEST_CASE("the corpus contains fixtures to check")
 TEST_CASE("every well-formed corpus fixture parses with zero diagnostics")
 {
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
 
     for (const CorpusFixture& fixture : collectCorpusFixtures())
     {
@@ -84,7 +86,7 @@ TEST_CASE("every well-formed corpus fixture parses with zero diagnostics")
         }
 
         const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
-            fixture.path, grammarForExtension(fixture.path), "corpus check", parser);
+            fixture.path, grammarForExtension(fixture.path), "corpus check", parser, extractor);
 
         INFO("fixture: " << fixture.path.generic_string());
         CHECK(result.parsed);
@@ -95,6 +97,7 @@ TEST_CASE("every well-formed corpus fixture parses with zero diagnostics")
 TEST_CASE("every malformed corpus fixture produces at least one diagnostic")
 {
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
     std::size_t malformedCount = 0;
 
     for (const CorpusFixture& fixture : collectCorpusFixtures())
@@ -107,7 +110,7 @@ TEST_CASE("every malformed corpus fixture produces at least one diagnostic")
         ++malformedCount;
 
         const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
-            fixture.path, grammarForExtension(fixture.path), "corpus check", parser);
+            fixture.path, grammarForExtension(fixture.path), "corpus check", parser, extractor);
 
         INFO("fixture: " << fixture.path.generic_string());
         CHECK(result.parsed);

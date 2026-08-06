@@ -1,6 +1,7 @@
 #include "doctest/doctest.h"
 
 #include "codeqa/frontend/ParseSourceFile.h"
+#include "codeqa/frontend/StructuralExtractor.h"
 
 #include <filesystem>
 #include <fstream>
@@ -40,9 +41,10 @@ TEST_CASE("a well-formed C file parses with no diagnostics")
 {
     const TempSourceFile file{"clean.c", "int main(void)\n{\n    return 0;\n}\n"};
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
 
     const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
-        file.path(), codeqa::frontend::Grammar::C, "detected language", parser);
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
 
     CHECK(result.parsed);
     CHECK(result.diagnostics.empty());
@@ -55,9 +57,10 @@ TEST_CASE("a well-formed C++ file parses with no diagnostics")
     const TempSourceFile file{
         "clean.cpp", "class Foo\n{\npublic:\n    int bar() { return 1; }\n};\n"};
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
 
     const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
-        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser);
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
 
     CHECK(result.parsed);
     CHECK(result.diagnostics.empty());
@@ -68,9 +71,10 @@ TEST_CASE("a broken file produces at least one diagnostic with a plausible line"
     const TempSourceFile file{
         "broken.cpp", "int fine(void)\n{\n    return 0;\n}\n\nint broken( {\n"};
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
 
     const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
-        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser);
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
 
     CHECK(result.parsed);
     REQUIRE_FALSE(result.diagnostics.empty());
@@ -85,9 +89,10 @@ TEST_CASE("a cascading error does not produce a diagnostic per nested node")
         "cascade.cpp",
         "void a()\n{\n    if (x) {\n        if (y) {\n            if (z) {\n"};
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
 
     const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
-        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser);
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
 
     CHECK(result.parsed);
     REQUIRE_FALSE(result.diagnostics.empty());
@@ -97,11 +102,12 @@ TEST_CASE("a cascading error does not produce a diagnostic per nested node")
 TEST_CASE("a missing file produces PARSE003 and is not marked parsed")
 {
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
     const std::filesystem::path missing =
         std::filesystem::temp_directory_path() / "codeqa_does_not_exist_12345.c";
 
     const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
-        missing, codeqa::frontend::Grammar::C, "detected language", parser);
+        missing, codeqa::frontend::Grammar::C, "detected language", parser, extractor);
 
     CHECK_FALSE(result.parsed);
     REQUIRE(result.diagnostics.size() == 1);
@@ -112,9 +118,10 @@ TEST_CASE("an empty file parses cleanly")
 {
     const TempSourceFile file{"empty.c", ""};
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
 
     const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
-        file.path(), codeqa::frontend::Grammar::C, "detected language", parser);
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
 
     CHECK(result.parsed);
     CHECK(result.diagnostics.empty());
@@ -124,11 +131,12 @@ TEST_CASE("parsing the same file twice produces identical diagnostics")
 {
     const TempSourceFile file{"repeat.cpp", "int broken( {\n"};
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
 
     const codeqa::frontend::ParsedFile first = codeqa::frontend::parseSourceFile(
-        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser);
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
     const codeqa::frontend::ParsedFile second = codeqa::frontend::parseSourceFile(
-        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser);
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
 
     REQUIRE(first.diagnostics.size() == second.diagnostics.size());
 

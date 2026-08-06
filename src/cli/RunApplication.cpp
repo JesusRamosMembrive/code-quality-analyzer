@@ -13,6 +13,7 @@
 #include "codeqa/frontend/ParseSourceFile.h"
 #include "codeqa/frontend/ParsedFile.h"
 #include "codeqa/frontend/SelectGrammar.h"
+#include "codeqa/frontend/StructuralExtractor.h"
 #include "codeqa/frontend/TreeSitterParser.h"
 #include "codeqa/infrastructure/DiscoveredFile.h"
 #include "codeqa/infrastructure/DiscoveryOptions.h"
@@ -330,6 +331,7 @@ int runParse(const std::vector<std::string>& arguments, std::ostream& output, st
 
     const codeqa::application::DetectFileLanguage detectFileLanguage;
     codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
 
     std::size_t filesParsedCount = 0;
     std::size_t cCount = 0;
@@ -352,7 +354,7 @@ int runParse(const std::vector<std::string>& arguments, std::ostream& output, st
         const std::filesystem::path fullPath = parsedArguments.path / file.path;
 
         codeqa::frontend::ParsedFile parsedFile = codeqa::frontend::parseSourceFile(
-            fullPath, grammarSelection.grammar, grammarSelection.reason, parser);
+            fullPath, grammarSelection.grammar, grammarSelection.reason, parser, extractor);
 
         if (parsedFile.parsed)
         {

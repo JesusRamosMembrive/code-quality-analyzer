@@ -1,6 +1,7 @@
 #include "codeqa/frontend/ParseSourceFile.h"
 
 #include "codeqa/core/DiagnosticSeverity.h"
+#include "codeqa/frontend/StructuralExtractor.h"
 
 #include <cstring>
 #include <filesystem>
@@ -70,7 +71,8 @@ ParsedFile parseSourceFile(
     const std::filesystem::path& path,
     Grammar grammar,
     const std::string& grammarReason,
-    TreeSitterParser& parser)
+    TreeSitterParser& parser,
+    StructuralExtractor& extractor)
 {
     ParsedFile result;
     result.path = path;
@@ -105,6 +107,8 @@ ParsedFile parseSourceFile(
             error.line,
             error.column));
     }
+
+    extractor.extract(*tree, grammar, *source, path, result);
 
     return result;
 }
