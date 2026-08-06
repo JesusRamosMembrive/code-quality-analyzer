@@ -304,8 +304,8 @@ bool isFunctionPointerDeclarator(TSNode node)
 bool isFunctionPointerDeclaration(TSNode declarator)
 {
     const TSNode nestedDeclarator = childForField(declarator, "declarator");
-    return !ts_node_is_null(nestedDeclarator)
-        && !ts_node_is_null(findDescendantOfType(nestedDeclarator, "pointer_declarator"));
+    return isNodeType(nestedDeclarator, "parenthesized_declarator")
+        && !ts_node_is_null(directChildOfType(nestedDeclarator, "pointer_declarator"));
 }
 
 bool hasClassAncestor(TSNode node)
@@ -489,13 +489,12 @@ bool isVariadic(TSNode functionDeclarator, std::string_view source)
 
 FunctionModel adaptFunction(
     TSNode candidate,
+    TSNode functionDeclarator,
     std::string_view source,
     const std::filesystem::path& path)
 {
     const bool isLambda = isNodeType(candidate, "lambda_expression");
-    const TSNode functionDeclarator = isLambda
-        ? candidate
-        : findFunctionDeclarator(candidate);
+    functionDeclarator = isLambda ? candidate : functionDeclarator;
     const TSNode declarator = findDeclarator(functionDeclarator);
     const std::string name = isLambda
         ? "<lambda>"
@@ -681,6 +680,25 @@ std::vector<TSNode> declarationDeclarators(TSNode candidate)
     return declarators;
 }
 
+std::vector<TSNode> functionDeclarators(TSNode candidate)
+{
+    std::vector<TSNode> functions;
+
+    for (const TSNode declarator : declarationDeclarators(candidate))
+    {
+        const TSNode function = isNodeType(declarator, "function_declarator")
+            ? declarator
+            : findFunctionDeclarator(declarator);
+
+        if (!ts_node_is_null(function))
+        {
+            functions.push_back(function);
+        }
+    }
+
+    return functions;
+}
+
 bool hasStorageClassSpecifier(TSNode candidate, std::string_view specifier, std::string_view source)
 {
     const uint32_t childCount = ts_node_named_child_count(candidate);
@@ -756,8 +774,10 @@ bool hasInitializer(TSNode declarator)
 
 bool isFunctionDeclaration(TSNode declarator)
 {
-    return isNodeType(declarator, "function_declarator")
-        && !isFunctionPointerDeclaration(declarator);
+    const TSNode function = isNodeType(declarator, "function_declarator")
+        ? declarator
+        : findFunctionDeclarator(declarator);
+    return !ts_node_is_null(function) && !isFunctionPointerDeclaration(function);
 }
 
 void adaptDeclaration(
@@ -940,16 +960,20 @@ void StructuralExtractor::extract(
 
             if (isNodeType(candidate, "declaration"))
             {
-                const TSNode functionDeclarator = findFunctionDeclarator(candidate);
-
-                if (ts_node_is_null(functionDeclarator)
-                    || isFunctionPointerDeclaration(functionDeclarator))
+                for (const TSNode functionDeclarator : functionDeclarators(candidate))
                 {
-                    continue;
+                    if (!isFunctionPointerDeclaration(functionDeclarator))
+                    {
+                        result.functions.push_back(
+                            adaptFunction(candidate, functionDeclarator, source, path));
+                    }
                 }
+
+                continue;
             }
 
-            result.functions.push_back(adaptFunction(candidate, source, path));
+            result.functions.push_back(
+                adaptFunction(candidate, findFunctionDeclarator(candidate), source, path));
         }
     }
 
@@ -960,7 +984,7 @@ void StructuralExtractor::extract(
 
         for (const TSNode lambda : lambdas)
         {
-            result.functions.push_back(adaptFunction(lambda, source, path));
+            result.functions.push_back(adaptFunction(lambda, lambda, source, path));
         }
     }
 

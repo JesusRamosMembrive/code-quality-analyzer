@@ -487,3 +487,41 @@ TEST_CASE("extracts file scope function pointers as globals")
     CHECK(result.globalVariables[0].declaredType == "int(*)(int)");
     CHECK(result.functions.empty());
 }
+
+TEST_CASE("extracts functions that return pointers")
+{
+    const TempSourceFile file{
+        "pointer-return-functions.c",
+        "int *f(int);\n"
+        "int *defined(int value) { return value ? 0 : 0; }\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    CHECK(result.functions[0].name == "f");
+    CHECK(result.functions[0].kind == codeqa::frontend::FunctionKind::Prototype);
+    CHECK(result.functions[1].name == "defined");
+    CHECK(result.functions[1].kind == codeqa::frontend::FunctionKind::Free);
+    CHECK(result.globalVariables.empty());
+}
+
+TEST_CASE("extracts only function pointers as globals from mixed declarations")
+{
+    const TempSourceFile file{
+        "mixed-function-declarators.c",
+        "int (*fp)(int), f(int*);\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    CHECK(result.functions[0].name == "f");
+    REQUIRE(result.globalVariables.size() == 1);
+    CHECK(result.globalVariables[0].name == "fp");
+    CHECK(result.globalVariables[0].declaredType == "int(*)(int)");
+}
