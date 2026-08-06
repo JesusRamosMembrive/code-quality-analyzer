@@ -411,6 +411,12 @@ core::SourceRange sourceRange(TSNode node, const std::filesystem::path& path)
             static_cast<std::size_t>(ts_node_end_byte(node))}};
 }
 
+core::SourceRange sourceRangeForCandidate(TSNode candidate, const std::filesystem::path& path)
+{
+    const TSNode parent = ts_node_parent(candidate);
+    return sourceRange(isNodeType(parent, "template_declaration") ? parent : candidate, path);
+}
+
 std::vector<ParameterModel> parametersFor(TSNode functionDeclarator, std::string_view source)
 {
     std::vector<ParameterModel> parameters;
@@ -489,7 +495,7 @@ FunctionModel adaptFunction(
     FunctionModel model;
     model.name = name;
     model.kind = functionKind(candidate, name, source);
-    model.range = sourceRange(candidate, path);
+    model.range = sourceRangeForCandidate(candidate, path);
     model.parameters = parametersFor(functionDeclarator, source);
     model.isStatic = hasStandaloneToken(specifiers, "static");
     model.isVariadic = isVariadic(functionDeclarator, source);
@@ -562,7 +568,7 @@ ClassModel adaptType(TSNode candidate, std::string_view source, const std::files
     ClassModel model;
     model.name = ts_node_is_null(name) ? std::string{} : nodeText(name, source);
     model.kind = kind;
-    model.range = sourceRange(candidate, path);
+    model.range = sourceRangeForCandidate(candidate, path);
     model.isTemplate = isNodeType(parent, "template_declaration");
     model.isScopedEnum = kind == ClassKind::Enum
         && (text.rfind("enum class", 0) == 0 || text.rfind("enum struct", 0) == 0);

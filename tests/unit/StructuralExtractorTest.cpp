@@ -165,6 +165,78 @@ TEST_CASE("extracts a C++ lambda")
     CHECK(result.functions[1].parameters[0].name == "candidate");
 }
 
+TEST_CASE("extracts const method prototypes and template ranges")
+{
+    const TempSourceFile file{
+        "template-ranges.cpp",
+        "template <typename T>\n"
+        "T largest(T left, T right)\n"
+        "{\n"
+        "    return left < right ? right : left;\n"
+        "}\n"
+        "\n"
+        "class Counter\n"
+        "{\n"
+        "public:\n"
+        "    int value() const;\n"
+        "};\n"
+        "\n"
+        "template <typename T>\n"
+        "class Box {};\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    const codeqa::frontend::FunctionModel* largest = nullptr;
+    const codeqa::frontend::FunctionModel* value = nullptr;
+
+    for (const codeqa::frontend::FunctionModel& function : result.functions)
+    {
+        if (function.name == "largest")
+        {
+            largest = &function;
+        }
+        else if (function.name == "value")
+        {
+            value = &function;
+        }
+    }
+
+    const codeqa::frontend::ClassModel* box = nullptr;
+
+    for (const codeqa::frontend::ClassModel& type : result.classes)
+    {
+        if (type.name == "Box")
+        {
+            box = &type;
+        }
+    }
+
+    CHECK(largest != nullptr);
+
+    if (largest != nullptr)
+    {
+        CHECK(largest->range.begin.line == 1);
+        CHECK(largest->range.end.line == 5);
+    }
+
+    CHECK(value != nullptr);
+
+    if (value != nullptr)
+    {
+        CHECK(value->kind == codeqa::frontend::FunctionKind::Prototype);
+    }
+
+    CHECK(box != nullptr);
+
+    if (box != nullptr)
+    {
+        CHECK(box->range.begin.line == 13);
+    }
+}
+
 TEST_CASE("extracts types from C++ namespaces and declarations")
 {
     const TempSourceFile file{
