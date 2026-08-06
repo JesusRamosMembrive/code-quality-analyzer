@@ -74,6 +74,11 @@ target_include_directories(tree_sitter_cpp PRIVATE
     ${PROJECT_SOURCE_DIR}/third_party/tree-sitter-cpp/src
 )
 
+add_library(nlohmann_json INTERFACE)
+target_include_directories(nlohmann_json INTERFACE
+    ${PROJECT_SOURCE_DIR}/third_party/nlohmann
+)
+
 add_library(codeqa_core STATIC
     src/application/GetApplicationInfo.cpp
     src/application/DiscoverProjectSources.cpp

@@ -1,18 +1,7 @@
 {
   "constructs": ["CPP-FUNC-01", "CTRL-01", "CTRL-08"],
-  "functions": [
-    {
-      "name": "wellFormed",
-      "startLine": 1,
-      "endLine": 4,
-      "parameters": ["value"]
-    }
-  ],
+  "functions": [{"name": "wellFormed", "kind": "free", "startLine": 1, "endLine": 4, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}],
   "classes": [],
-  "diagnostics": [
-    {
-      "line": 13,
-      "severity": "error"
-    }
-  ]
+  "includes": [],
+  "diagnostics": [{"line": 13, "severity": "error"}]
 }

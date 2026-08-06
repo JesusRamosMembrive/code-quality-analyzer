@@ -17,6 +17,7 @@ add_executable(codeqa_tests
     unit/StructuralExtractorTest.cpp
     unit/ParseSourceFileTest.cpp
     unit/CorpusParsingTest.cpp
+    unit/CorpusStructureTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
@@ -27,7 +28,9 @@ target_compile_definitions(codeqa_tests PRIVATE
     CODEQA_CORPUS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/corpus"
 )
 
-target_link_libraries(codeqa_tests PRIVATE codeqa_core tree_sitter tree_sitter_c tree_sitter_cpp)
+target_link_libraries(codeqa_tests PRIVATE
+    codeqa_core tree_sitter tree_sitter_c tree_sitter_cpp nlohmann_json
+)
 
 add_test(NAME codeqa_tests COMMAND codeqa_tests)
 

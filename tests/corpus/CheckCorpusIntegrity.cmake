@@ -6,7 +6,7 @@
 #   1. Every fixture source (.c, .cpp, .h, .hpp) has a sibling .parsing.json,
 #      and vice versa.
 #   2. Every expectation file declares the required top-level fields: functions,
-#      classes, and diagnostics.
+#      classes, includes, and diagnostics.
 #   3. Every construct ID cited by a fixture exists in SUPPORTED-CONSTRUCTS.md.
 #   4. No fixture cites an OUT-* ID (those are exclusions, never coverage).
 #   5. Every documented non-OUT-* ID is covered by at least one fixture.
@@ -74,12 +74,12 @@ endforeach()
 
 # --- Check 2: required top-level fields are present -----------------------
 
-# README.md requires every expectation file to declare functions, classes, and
-# diagnostics -- including the explicit "diagnostics": [] on fixtures with no
+# README.md requires every expectation file to declare functions, classes, includes,
+# and diagnostics -- including the explicit "diagnostics": [] on fixtures with no
 # expected diagnostics, which is a deliberate assertion, not an omission. A
 # simple key-presence regex is all CMake 3.16 offers (no JSON parsing until
 # Fase 4); it cannot validate structure or values, only that the key exists.
-set(CODEQA_REQUIRED_FIELDS "functions" "classes" "diagnostics")
+set(CODEQA_REQUIRED_FIELDS "functions" "classes" "includes" "diagnostics")
 
 foreach(expectation IN LISTS expectationFiles)
     file(READ "${expectation}" expectationText)

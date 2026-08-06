@@ -1,41 +1,17 @@
 {
-  "constructs": [
-    "C-PP-01",
-    "C-TYPE-01",
-    "C-TYPE-02",
-    "C-TYPE-03",
-    "C-TYPE-04",
-    "C-DECL-01",
-    "C-FUNC-01",
-    "CTRL-08"
-  ],
+  "constructs": ["C-PP-01", "C-TYPE-01", "C-TYPE-02", "C-TYPE-03", "C-TYPE-04", "C-DECL-01", "C-FUNC-01", "CTRL-08"],
   "functions": [
-    {
-      "name": "pointSize",
-      "startLine": 26,
-      "endLine": 29,
-      "parameters": []
-    }
+    {"name": "pointSize", "kind": "free", "startLine": 26, "endLine": 29, "parameters": [{"name": "", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}
   ],
   "classes": [
-    {
-      "name": "Point",
-      "kind": "struct",
-      "startLine": 5,
-      "endLine": 9
-    },
-    {
-      "name": "Value",
-      "kind": "union",
-      "startLine": 11,
-      "endLine": 15
-    },
-    {
-      "name": "Status",
-      "kind": "enum",
-      "startLine": 17,
-      "endLine": 22
-    }
+    {"name": "Point", "kind": "struct", "startLine": 5, "endLine": 9, "isTemplate": false, "isScopedEnum": false, "bases": []},
+    {"name": "Value", "kind": "union", "startLine": 11, "endLine": 15, "isTemplate": false, "isScopedEnum": false, "bases": []},
+    {"name": "Status", "kind": "enum", "startLine": 17, "endLine": 22, "isTemplate": false, "isScopedEnum": false, "bases": []},
+    {"name": "Point", "kind": "struct", "startLine": 24, "endLine": 24, "isTemplate": false, "isScopedEnum": false, "bases": []}
+  ],
+  "includes": [
+    {"target": "stddef.h", "delimiter": "system", "startLine": 1, "endLine": 2},
+    {"target": "local-config.h", "delimiter": "local", "startLine": 31, "endLine": 32}
   ],
   "diagnostics": []
 }

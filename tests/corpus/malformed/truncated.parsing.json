@@ -1,18 +1,7 @@
 {
   "constructs": ["C-PP-01", "C-FUNC-01", "CTRL-08"],
-  "functions": [
-    {
-      "name": "completeFunction",
-      "startLine": 3,
-      "endLine": 6,
-      "parameters": ["value"]
-    }
-  ],
+  "functions": [{"name": "completeFunction", "kind": "free", "startLine": 3, "endLine": 6, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}],
   "classes": [],
-  "diagnostics": [
-    {
-      "line": 8,
-      "severity": "error"
-    }
-  ]
+  "includes": [{"target": "stddef.h", "delimiter": "system", "startLine": 1, "endLine": 2}],
+  "diagnostics": [{"line": 8, "severity": "error"}]
 }

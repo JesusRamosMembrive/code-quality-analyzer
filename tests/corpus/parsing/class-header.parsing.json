@@ -1,32 +1,11 @@
 {
   "constructs": ["C-PP-01", "CPP-TYPE-01", "CPP-FUNC-09"],
   "functions": [
-    {
-      "name": "area",
-      "startLine": 8,
-      "endLine": 8,
-      "parameters": []
-    },
-    {
-      "name": "perimeter",
-      "startLine": 9,
-      "endLine": 9,
-      "parameters": []
-    },
-    {
-      "name": "scale",
-      "startLine": 10,
-      "endLine": 10,
-      "parameters": ["factor"]
-    }
+    {"name": "area", "kind": "prototype", "startLine": 8, "endLine": 8, "parameters": [], "isStatic": false, "isVariadic": false},
+    {"name": "perimeter", "kind": "prototype", "startLine": 9, "endLine": 9, "parameters": [], "isStatic": false, "isVariadic": false},
+    {"name": "scale", "kind": "prototype", "startLine": 10, "endLine": 10, "parameters": [{"name": "factor", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}
   ],
-  "classes": [
-    {
-      "name": "Shape",
-      "kind": "class",
-      "startLine": 5,
-      "endLine": 14
-    }
-  ],
+  "classes": [{"name": "Shape", "kind": "class", "startLine": 5, "endLine": 14, "isTemplate": false, "isScopedEnum": false, "bases": []}],
+  "includes": [{"target": "cstddef", "delimiter": "system", "startLine": 3, "endLine": 4}],
   "diagnostics": []
 }

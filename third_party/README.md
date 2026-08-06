@@ -18,6 +18,16 @@ actualiza su entrada aquí.
 | Archivos | `doctest/doctest.h` |
 | Para qué | Framework de tests unitarios |
 
+## nlohmann/json
+
+| Field | Value |
+|---|---|
+| Version | v3.11.3 |
+| Source | https://github.com/nlohmann/json/releases/tag/v3.11.3 |
+| License | MIT (`nlohmann/LICENSE.MIT`) |
+| Files | `nlohmann/json.hpp`, `nlohmann/LICENSE.MIT` |
+| Purpose | Read corpus JSON expectations in tests only |
+
 ## tree-sitter (runtime)
 
 | Campo | Valor |

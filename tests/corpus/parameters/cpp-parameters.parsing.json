@@ -1,44 +1,13 @@
 {
-  "constructs": [
-    "C-PP-01",
-    "CPP-FUNC-01",
-    "CPP-PARAM-01",
-    "CPP-PARAM-02",
-    "CTRL-06",
-    "CTRL-08"
-  ],
+  "constructs": ["C-PP-01", "CPP-FUNC-01", "CPP-PARAM-01", "CPP-PARAM-02", "CTRL-06", "CTRL-08"],
   "functions": [
-    {
-      "name": "withDefaults",
-      "startLine": 3,
-      "endLine": 6,
-      "parameters": ["required", "optional", "verbose"]
-    },
-    {
-      "name": "byReference",
-      "startLine": 8,
-      "endLine": 11,
-      "parameters": ["target", "source"]
-    },
-    {
-      "name": "byPointer",
-      "startLine": 13,
-      "endLine": 16,
-      "parameters": ["output", "input"]
-    },
-    {
-      "name": "ignoresArgument",
-      "startLine": 18,
-      "endLine": 21,
-      "parameters": [""]
-    },
-    {
-      "name": "manyParameters",
-      "startLine": 23,
-      "endLine": 26,
-      "parameters": ["first", "second", "third", "fourth", "fifth"]
-    }
+    {"name": "withDefaults", "kind": "free", "startLine": 3, "endLine": 6, "parameters": [{"name": "required", "passing": "value", "hasDefaultValue": false}, {"name": "optional", "passing": "value", "hasDefaultValue": true}, {"name": "verbose", "passing": "value", "hasDefaultValue": true}], "isStatic": false, "isVariadic": false},
+    {"name": "byReference", "kind": "free", "startLine": 8, "endLine": 11, "parameters": [{"name": "target", "passing": "reference", "hasDefaultValue": false}, {"name": "source", "passing": "reference", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
+    {"name": "byPointer", "kind": "free", "startLine": 13, "endLine": 16, "parameters": [{"name": "output", "passing": "pointer", "hasDefaultValue": false}, {"name": "input", "passing": "pointer", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
+    {"name": "ignoresArgument", "kind": "free", "startLine": 18, "endLine": 21, "parameters": [{"name": "", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
+    {"name": "manyParameters", "kind": "free", "startLine": 23, "endLine": 26, "parameters": [{"name": "first", "passing": "value", "hasDefaultValue": false}, {"name": "second", "passing": "value", "hasDefaultValue": false}, {"name": "third", "passing": "value", "hasDefaultValue": false}, {"name": "fourth", "passing": "value", "hasDefaultValue": false}, {"name": "fifth", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}
   ],
   "classes": [],
+  "includes": [{"target": "string", "delimiter": "system", "startLine": 1, "endLine": 2}],
   "diagnostics": []
 }

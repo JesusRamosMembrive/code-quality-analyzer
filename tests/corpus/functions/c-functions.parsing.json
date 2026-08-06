@@ -1,48 +1,13 @@
 {
-  "constructs": [
-    "C-PP-01",
-    "C-FUNC-01",
-    "C-FUNC-02",
-    "C-FUNC-03",
-    "C-FUNC-04",
-    "C-FUNC-05",
-    "CTRL-01",
-    "CTRL-03",
-    "CTRL-08",
-    "CTRL-11"
-  ],
+  "constructs": ["C-PP-01", "C-FUNC-01", "C-FUNC-02", "C-FUNC-03", "C-FUNC-04", "C-FUNC-05", "CTRL-01", "CTRL-03", "CTRL-08", "CTRL-11"],
   "functions": [
-    {
-      "name": "declaredOnly",
-      "startLine": 3,
-      "endLine": 3,
-      "parameters": ["value"]
-    },
-    {
-      "name": "helper",
-      "startLine": 5,
-      "endLine": 8,
-      "parameters": ["value"]
-    },
-    {
-      "name": "sumAll",
-      "startLine": 10,
-      "endLine": 24,
-      "parameters": ["count"]
-    },
-    {
-      "name": "applyTwice",
-      "startLine": 26,
-      "endLine": 29,
-      "parameters": ["value", "operation"]
-    },
-    {
-      "name": "findFirstNegative",
-      "startLine": 31,
-      "endLine": 48,
-      "parameters": ["values", "count"]
-    }
+    {"name": "declaredOnly", "kind": "prototype", "startLine": 3, "endLine": 3, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
+    {"name": "helper", "kind": "free", "startLine": 5, "endLine": 8, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}], "isStatic": true, "isVariadic": false},
+    {"name": "sumAll", "kind": "free", "startLine": 10, "endLine": 24, "parameters": [{"name": "count", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": true},
+    {"name": "applyTwice", "kind": "free", "startLine": 26, "endLine": 29, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}, {"name": "operation", "passing": "function-pointer", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
+    {"name": "findFirstNegative", "kind": "free", "startLine": 31, "endLine": 48, "parameters": [{"name": "values", "passing": "pointer", "hasDefaultValue": false}, {"name": "count", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}
   ],
   "classes": [],
+  "includes": [{"target": "stdarg.h", "delimiter": "system", "startLine": 1, "endLine": 2}],
   "diagnostics": []
 }
