@@ -51,6 +51,52 @@ ParameterPassing parameterPassingFor(frontend::ParameterPassing passing)
     throw std::logic_error("Unknown frontend parameter passing.");
 }
 
+ControlFlowKind controlFlowKindFor(frontend::ControlFlowKind kind)
+{
+    switch (kind)
+    {
+    case frontend::ControlFlowKind::If:
+        return ControlFlowKind::If;
+    case frontend::ControlFlowKind::Switch:
+        return ControlFlowKind::Switch;
+    case frontend::ControlFlowKind::For:
+        return ControlFlowKind::For;
+    case frontend::ControlFlowKind::While:
+        return ControlFlowKind::While;
+    case frontend::ControlFlowKind::DoWhile:
+        return ControlFlowKind::DoWhile;
+    case frontend::ControlFlowKind::Case:
+        return ControlFlowKind::Case;
+    case frontend::ControlFlowKind::Default:
+        return ControlFlowKind::Default;
+    case frontend::ControlFlowKind::Conditional:
+        return ControlFlowKind::Conditional;
+    case frontend::ControlFlowKind::Return:
+        return ControlFlowKind::Return;
+    case frontend::ControlFlowKind::Break:
+        return ControlFlowKind::Break;
+    case frontend::ControlFlowKind::Continue:
+        return ControlFlowKind::Continue;
+    }
+
+    throw std::logic_error("Unknown frontend control flow kind.");
+}
+
+CallKind callKindFor(frontend::CallKind kind)
+{
+    switch (kind)
+    {
+    case frontend::CallKind::Named:
+        return CallKind::Named;
+    case frontend::CallKind::Member:
+        return CallKind::Member;
+    case frontend::CallKind::Indirect:
+        return CallKind::Indirect;
+    }
+
+    throw std::logic_error("Unknown frontend call kind.");
+}
+
 TypeKind typeKindFor(frontend::ClassKind kind)
 {
     switch (kind)
@@ -224,6 +270,36 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
             callable.parameters.push_back(ParameterModel{
                 parameter.name, parameterPassingFor(parameter.passing), parameter.hasDefaultValue});
         }
+
+        for (const frontend::LocalVariableModel& local : function.localVariables)
+        {
+            callable.localVariables.push_back(LocalVariableModel{
+                identityFor(local.name, local.range, file.classes),
+                local.declaredType,
+                local.hasInitializer,
+                local.lexicalDepth});
+        }
+
+        for (const frontend::ControlFlowModel& flow : function.controlFlow)
+        {
+            callable.controlFlow.push_back(ControlFlowModel{
+                controlFlowKindFor(flow.kind), flow.range, flow.nestingDepth, flow.conditionRange});
+        }
+
+        for (const frontend::CallModel& call : function.calls)
+        {
+            callable.calls.push_back(CallModel{call.calleeText, callKindFor(call.kind), call.argumentCount, call.range});
+        }
+
+        sortByRange(callable.localVariables, [](const LocalVariableModel& local) -> const core::SourceRange& {
+            return local.symbol.range;
+        });
+        sortByRange(callable.controlFlow, [](const ControlFlowModel& flow) -> const core::SourceRange& {
+            return flow.range;
+        });
+        sortByRange(callable.calls, [](const CallModel& call) -> const core::SourceRange& {
+            return call.range;
+        });
 
         model.callables.push_back(std::move(callable));
     }

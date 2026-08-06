@@ -51,6 +51,21 @@ TEST_CASE("builds deterministic common project model from parsed frontend files"
             "target", codeqa::frontend::ParameterPassing::Reference, true}},
         true,
         false});
+    sourceFile.functions[0].localVariables = {
+        {"late", "int", rangeFor(sourcePath, 90, 91), false, 1},
+        {"first", "int", rangeFor(sourcePath, 10, 11), true, 0},
+        {"second", "int", rangeFor(sourcePath, 10, 11), false, 0}};
+    sourceFile.functions[0].controlFlow = {
+        {codeqa::frontend::ControlFlowKind::Return, rangeFor(sourcePath, 90, 91), 1, {}},
+        {codeqa::frontend::ControlFlowKind::If,
+         rangeFor(sourcePath, 10, 11),
+         0,
+         rangeFor(sourcePath, 12, 13)},
+        {codeqa::frontend::ControlFlowKind::For, rangeFor(sourcePath, 10, 11), 0, {}}};
+    sourceFile.functions[0].calls = {
+        {"lateCall", codeqa::frontend::CallKind::Named, 0, rangeFor(sourcePath, 90, 91)},
+        {"firstCall", codeqa::frontend::CallKind::Member, 2, rangeFor(sourcePath, 10, 11)},
+        {"secondCall", codeqa::frontend::CallKind::Indirect, 1, rangeFor(sourcePath, 10, 11)}};
     sourceFile.globalVariables.push_back(codeqa::frontend::GlobalVariableModel{
         "count", "int", rangeFor(sourcePath, 35, 45), true, false, true});
     sourceFile.typeAliases.push_back(codeqa::frontend::TypeAliasModel{
@@ -115,6 +130,30 @@ TEST_CASE("builds deterministic common project model from parsed frontend files"
     CHECK(modelFile.callables[0].parameters[0].passing == codeqa::model::ParameterPassing::Reference);
     CHECK(modelFile.callables[0].parameters[0].hasDefaultValue);
     CHECK(modelFile.callables[0].isStatic);
+    REQUIRE(modelFile.callables[0].localVariables.size() == 3);
+    CHECK(modelFile.callables[0].localVariables[0].symbol.name == "first");
+    CHECK(modelFile.callables[0].localVariables[0].symbol.qualifiedName == "first");
+    CHECK(modelFile.callables[0].localVariables[0].symbol.range.begin.offset == 10);
+    CHECK(modelFile.callables[0].localVariables[0].symbol.range.end.offset == 11);
+    CHECK(modelFile.callables[0].localVariables[0].hasInitializer);
+    CHECK(modelFile.callables[0].localVariables[1].symbol.name == "second");
+    CHECK(modelFile.callables[0].localVariables[2].symbol.name == "late");
+    CHECK(modelFile.callables[0].localVariables[2].symbol.qualifiedName == "outer::Box::late");
+    REQUIRE(modelFile.callables[0].controlFlow.size() == 3);
+    CHECK(modelFile.callables[0].controlFlow[0].kind == codeqa::model::ControlFlowKind::If);
+    REQUIRE(modelFile.callables[0].controlFlow[0].conditionRange.has_value());
+    CHECK(modelFile.callables[0].controlFlow[0].conditionRange->begin.offset == 12);
+    CHECK(modelFile.callables[0].controlFlow[0].conditionRange->end.offset == 13);
+    CHECK(modelFile.callables[0].controlFlow[1].kind == codeqa::model::ControlFlowKind::For);
+    CHECK_FALSE(modelFile.callables[0].controlFlow[1].conditionRange.has_value());
+    CHECK(modelFile.callables[0].controlFlow[2].kind == codeqa::model::ControlFlowKind::Return);
+    REQUIRE(modelFile.callables[0].calls.size() == 3);
+    CHECK(modelFile.callables[0].calls[0].calleeText == "firstCall");
+    CHECK(modelFile.callables[0].calls[0].kind == codeqa::model::CallKind::Member);
+    CHECK(modelFile.callables[0].calls[1].calleeText == "secondCall");
+    CHECK(modelFile.callables[0].calls[1].kind == codeqa::model::CallKind::Indirect);
+    CHECK(modelFile.callables[0].calls[2].calleeText == "lateCall");
+    CHECK(modelFile.callables[0].calls[2].kind == codeqa::model::CallKind::Named);
     REQUIRE(modelFile.globalVariables.size() == 1);
     CHECK(modelFile.globalVariables[0].symbol.qualifiedName == "outer::count");
     CHECK(modelFile.globalVariables[0].declaredType == "int");
