@@ -450,7 +450,79 @@ Expected: the new C++ and include tests pass and every pre-existing test remains
 
 ---
 
-### Task 5: Vendor JSON, migrate corpus expectations and add the complete structural runner
+### Task 5: Correct C++ method prototypes and template declaration ranges
+
+**Files:**
+- Modify: src/frontend/queries/cpp/functions.scm
+- Modify: src/frontend/StructuralExtractor.cpp
+- Modify: tests/unit/StructuralExtractorTest.cpp
+
+**Interfaces:**
+- A C++ `field_declaration` whose declarator contains a function declarator is
+  emitted as `FunctionKind::Prototype`, including trailing `const`.
+- A function or class directly wrapped by `template_declaration` has a range
+  beginning at the `template` token and ending at the final declaration token.
+
+- [ ] **Step 1: Write failing behaviour tests**
+
+Add a C++ temporary-source case to `StructuralExtractorTest.cpp`:
+
+    template <typename T>
+    T largest(T left, T right)
+    {
+        return left < right ? right : left;
+    }
+
+    class Counter
+    {
+    public:
+        int value() const;
+    };
+
+    template <typename T>
+    class Box {};
+
+Assert `largest.range.begin.line == 1`, `largest.range.end.line == 5`, a
+`value` function with `FunctionKind::Prototype`, and `Box.range.begin.line == 13`.
+
+- [ ] **Step 2: Run the focused test to verify it fails**
+
+Run:
+
+    cmake --build build --config Debug --target codeqa_tests
+    build/tests/Debug/codeqa_tests.exe --test-case="extracts const method prototypes and template ranges"
+
+Expected: the prototype is absent and the template ranges begin at their inner
+function or class nodes.
+
+- [ ] **Step 3: Extend the query and normalize ranges**
+
+Add a `field_declaration` function candidate to the C++ functions query. In
+`StructuralExtractor.cpp`, classify a selected field declaration as
+`FunctionKind::Prototype` when it has no body. When the candidate type or
+function has a direct `template_declaration` parent, build its `SourceRange`
+from that parent; otherwise preserve the candidate range. Keep all existing
+deduplication, parameter and malformed-tree rules unchanged.
+
+- [ ] **Step 4: Run focused and regression tests**
+
+Run:
+
+    cmake -S . -B build
+    cmake --build build --config Debug
+    build/tests/Debug/codeqa_tests.exe --test-case="extracts const method prototypes and template ranges,extracts functions*,extracts types*"
+    ctest --test-dir build -C Debug --output-on-failure
+
+Expected: the focused test and all existing tests pass.
+
+- [ ] **Step 5: Commit**
+
+    git add src/frontend/queries/cpp/functions.scm src/frontend/StructuralExtractor.cpp tests/unit/StructuralExtractorTest.cpp
+    git commit -m "fix: capture const prototypes and template ranges"
+
+---
+
+### Task 6: Vendor JSON, migrate corpus expectations and add the complete structural runner
 
 **Files:**
 - Create: third_party/nlohmann/json.hpp
@@ -525,7 +597,8 @@ Require includes in CheckCorpusIntegrity.cmake alongside functions, classes and 
 3. Add function kind with one of free, method, constructor, destructor, operator, lambda or prototype, plus isStatic and isVariadic booleans.
 4. Add class isTemplate and isScopedEnum booleans; add bases as an array of source names.
 5. Preserve constructs, startLine, endLine and diagnostics. Add a diagnostic column only when asserting it is valuable; the runner must accept its absence.
-6. Keep C-DECL-01 and C-TYPE-04 cited by their existing fixtures, but update tests/corpus/README.md to state that Fase 5 is the first phase that can prove them structurally.
+6. Keep C-DECL-01 and C-TYPE-04 cited by their existing fixtures, but update tests/corpus/README.md to state that Fase 5 is the first phase that can prove their global-variable and typedef-alias semantics. Include the fourth syntactic `Point` struct capture from `typedef struct Point PointAlias;`; it does not assert or model `PointAlias`.
+7. Preserve each `preproc_include` node range exactly, including a final newline when tree-sitter includes it.
 
 Use the following parameter expectation shape everywhere, including unnamed parameters:
 
@@ -564,7 +637,9 @@ Expected: the structural runner passes all fixtures; CTest stays green; the CLI 
 
 ## Final Verification
 
-- [ ] Re-read docs/superpowers/specs/2026-08-06-fase-4b-extraccion-estructural-design.md and verify Tasks 1–5 cover models, embedded queries, error behaviour, deterministic ordering, JSON provenance, runner semantics, corpus limits and acceptance criteria.
+- [ ] Verify Task 5 corrects C++ `const` method prototypes and template declaration ranges, and Task 6 records syntactic typedef-contained structs without asserting typedef-alias semantics.
+
+- [ ] Re-read docs/superpowers/specs/2026-08-06-fase-4b-extraccion-estructural-design.md and verify Tasks 1–6 cover models, embedded queries, template/prototype behaviour, error behaviour, deterministic ordering, JSON provenance, runner semantics, corpus limits and acceptance criteria.
 - [ ] Run git diff --check master~5..HEAD, excluding only untouched vendored tree-sitter files. Expected: no whitespace errors in project changes.
 - [ ] Run cmake -S . -B build, cmake --build build --config Debug and ctest --test-dir build -C Debug --output-on-failure. Expected: every test passes.
 - [ ] Run build/Debug/codeqa.exe parse tests/corpus. Expected: the Phase 4a CLI output remains unchanged.

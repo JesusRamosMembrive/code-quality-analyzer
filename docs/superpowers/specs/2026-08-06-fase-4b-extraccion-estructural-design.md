@@ -30,6 +30,17 @@ en la Fase 5. Tampoco incluye control de flujo, llamadas, métricas, reglas,
 informes, resolución de tipos, semántica de herencia, macros ni evaluación del
 preprocesador.
 
+### Enmienda de rangos y capturas sintácticas
+
+Los rangos de una función o tipo declarado directamente por
+`template_declaration` abarcan la declaración plantilla completa, incluidos la
+línea y los parámetros `template`. Los prototipos de método C++ son funciones
+estructurales aunque tengan calificadores finales, como `const`.
+
+Una captura `struct_specifier` dentro de `typedef struct Point PointAlias;` se
+conserva como la estructura sintáctica `Point`. No se crea ni se valida el alias
+`PointAlias`; por tanto C-TYPE-04 sigue pendiente de la Fase 5.
+
 ## 3. Arquitectura
 
 codeqa::frontend es la única capa que conoce tree-sitter. parseSourceFile
