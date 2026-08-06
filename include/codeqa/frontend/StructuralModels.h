@@ -76,4 +76,21 @@ struct IncludeDependency
     core::SourceRange range;
 };
 
+struct GlobalVariableModel
+{
+    std::string name;
+    std::string declaredType;
+    core::SourceRange range;
+    bool isStatic{false};
+    bool isExtern{false};
+    bool hasInitializer{false};
+};
+
+struct TypeAliasModel
+{
+    std::string name;
+    std::string aliasedType;
+    core::SourceRange range;
+};
+
 } // namespace codeqa::frontend

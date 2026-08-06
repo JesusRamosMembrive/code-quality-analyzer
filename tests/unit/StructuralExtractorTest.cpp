@@ -374,3 +374,69 @@ TEST_CASE("extracts include dependencies")
     CHECK(result.includes[1].delimiter == codeqa::frontend::IncludeDelimiter::Local);
     CHECK(result.includes[1].range.begin.line == 2);
 }
+
+TEST_CASE("extracts file scope globals from C")
+{
+    const TempSourceFile file{
+        "file-scope-globals.c",
+        "static int cache = 1;\n"
+        "extern const char* title;\n"
+        "typedef unsigned long Size;\n"
+        "int function(void) { int local = 0; return local; }\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.globalVariables.size() == 2);
+    CHECK(result.globalVariables[0].name == "cache");
+    CHECK(result.globalVariables[0].declaredType == "int");
+    CHECK(result.globalVariables[0].isStatic);
+    CHECK_FALSE(result.globalVariables[0].isExtern);
+    CHECK(result.globalVariables[0].hasInitializer);
+    CHECK(result.globalVariables[1].name == "title");
+    CHECK(result.globalVariables[1].declaredType == "const char*");
+    CHECK_FALSE(result.globalVariables[1].isStatic);
+    CHECK(result.globalVariables[1].isExtern);
+    CHECK_FALSE(result.globalVariables[1].hasInitializer);
+    CHECK(result.globalVariables[0].range.begin.line == 1);
+    CHECK(result.globalVariables[1].range.begin.line == 2);
+}
+
+TEST_CASE("extracts typedef aliases from C and C++ namespace scope")
+{
+    const TempSourceFile cFile{
+        "typedef-alias.c",
+        "typedef unsigned long Size;\n"
+        "int function(void) { typedef int LocalSize; return 0; }\n"};
+    const TempSourceFile cppFile{
+        "namespace-globals.cpp",
+        "namespace catalog {\n"
+        "extern const char* title;\n"
+        "typedef unsigned long Size;\n"
+        "void function() { int local = 0; (void)local; }\n"
+        "class Entry { int member; };\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile cResult = codeqa::frontend::parseSourceFile(
+        cFile.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+    const codeqa::frontend::ParsedFile cppResult = codeqa::frontend::parseSourceFile(
+        cppFile.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(cResult.typeAliases.size() == 1);
+    CHECK(cResult.typeAliases[0].name == "Size");
+    CHECK(cResult.typeAliases[0].aliasedType == "unsigned long");
+    CHECK(cResult.globalVariables.empty());
+
+    REQUIRE(cppResult.globalVariables.size() == 1);
+    CHECK(cppResult.globalVariables[0].name == "title");
+    CHECK(cppResult.globalVariables[0].declaredType == "const char*");
+    CHECK(cppResult.globalVariables[0].isExtern);
+    CHECK_FALSE(cppResult.globalVariables[0].hasInitializer);
+    REQUIRE(cppResult.typeAliases.size() == 1);
+    CHECK(cppResult.typeAliases[0].name == "Size");
+    CHECK(cppResult.typeAliases[0].aliasedType == "unsigned long");
+}

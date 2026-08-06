@@ -20,6 +20,8 @@ struct ParsedFile
     std::vector<FunctionModel> functions;
     std::vector<ClassModel> classes;
     std::vector<IncludeDependency> includes;
+    std::vector<GlobalVariableModel> globalVariables;
+    std::vector<TypeAliasModel> typeAliases;
     bool parsed{false};
 };
 

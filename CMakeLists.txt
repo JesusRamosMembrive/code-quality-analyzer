@@ -25,18 +25,22 @@ set(CODEQA_QUERY_FILES
     ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/functions.scm
     ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/types.scm
     ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/includes.scm
+    ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/declarations.scm
     ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/functions.scm
     ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/types.scm
     ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/includes.scm
+    ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/declarations.scm
 )
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CODEQA_QUERY_FILES})
 
 file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/functions.scm CODEQA_C_FUNCTIONS_QUERY)
 file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/types.scm CODEQA_C_TYPES_QUERY)
 file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/includes.scm CODEQA_C_INCLUDES_QUERY)
+file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/declarations.scm CODEQA_C_DECLARATIONS_QUERY)
 file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/functions.scm CODEQA_CPP_FUNCTIONS_QUERY)
 file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/types.scm CODEQA_CPP_TYPES_QUERY)
 file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/includes.scm CODEQA_CPP_INCLUDES_QUERY)
+file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/declarations.scm CODEQA_CPP_DECLARATIONS_QUERY)
 
 file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/generated/codeqa/frontend)
 configure_file(

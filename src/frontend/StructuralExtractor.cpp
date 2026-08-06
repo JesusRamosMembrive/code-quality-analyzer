@@ -602,6 +602,188 @@ IncludeDependency adaptInclude(
     return model;
 }
 
+bool isFileOrNamespaceScopeDeclaration(TSNode candidate)
+{
+    for (TSNode parent = ts_node_parent(candidate); !ts_node_is_null(parent);
+         parent = ts_node_parent(parent))
+    {
+        if (isNodeType(parent, "compound_statement") || isNodeType(parent, "class_specifier")
+            || isNodeType(parent, "struct_specifier") || isNodeType(parent, "union_specifier"))
+        {
+            return false;
+        }
+
+        if (isNodeType(parent, "namespace_definition") || isNodeType(parent, "translation_unit"))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool isDirectDeclarator(TSNode node)
+{
+    return isNodeType(node, "identifier") || isNodeType(node, "type_identifier")
+        || isNodeType(node, "init_declarator") || isNodeType(node, "pointer_declarator")
+        || isNodeType(node, "reference_declarator") || isNodeType(node, "array_declarator")
+        || isNodeType(node, "function_declarator") || isNodeType(node, "parenthesized_declarator")
+        || isNodeType(node, "attributed_declarator");
+}
+
+TSNode declaratorNameNode(TSNode declarator)
+{
+    if (isNodeType(declarator, "identifier") || isNodeType(declarator, "type_identifier"))
+    {
+        return declarator;
+    }
+
+    return findDeclarator(declarator);
+}
+
+std::vector<TSNode> declarationDeclarators(TSNode candidate)
+{
+    std::vector<TSNode> declarators;
+    const TSNode type = childForField(candidate, "type");
+    const std::size_t typeEnd = ts_node_is_null(type) ? 0 : ts_node_end_byte(type);
+    const uint32_t childCount = ts_node_named_child_count(candidate);
+
+    for (uint32_t index = 0; index < childCount; ++index)
+    {
+        const TSNode child = ts_node_named_child(candidate, index);
+
+        if (ts_node_start_byte(child) >= typeEnd && isDirectDeclarator(child))
+        {
+            declarators.push_back(child);
+        }
+    }
+
+    return declarators;
+}
+
+bool hasStorageClassSpecifier(TSNode candidate, std::string_view specifier, std::string_view source)
+{
+    const uint32_t childCount = ts_node_named_child_count(candidate);
+
+    for (uint32_t index = 0; index < childCount; ++index)
+    {
+        const TSNode child = ts_node_named_child(candidate, index);
+
+        if (isNodeType(child, "storage_class_specifier")
+            && trim(nodeText(child, source)) == specifier)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::string declarationType(
+    TSNode candidate,
+    TSNode declarator,
+    std::string_view source)
+{
+    const TSNode name = declaratorNameNode(declarator);
+    const std::size_t declaratorStart = ts_node_start_byte(declarator);
+    std::size_t specifierStart = ts_node_start_byte(candidate);
+    const uint32_t childCount = ts_node_named_child_count(candidate);
+
+    for (uint32_t index = 0; index < childCount; ++index)
+    {
+        const TSNode child = ts_node_named_child(candidate, index);
+
+        if (ts_node_start_byte(child) >= declaratorStart)
+        {
+            break;
+        }
+
+        if (!isNodeType(child, "storage_class_specifier"))
+        {
+            specifierStart = ts_node_start_byte(child);
+            break;
+        }
+
+        specifierStart = ts_node_end_byte(child);
+    }
+
+    const std::size_t nameStart = ts_node_is_null(name)
+        ? declaratorStart
+        : ts_node_start_byte(name);
+    const std::string base = specifierStart <= declaratorStart && declaratorStart <= source.size()
+        ? trim(std::string(source.substr(specifierStart, declaratorStart - specifierStart)))
+        : std::string{};
+    const std::string declaratorPrefix = declaratorStart <= nameStart && nameStart <= source.size()
+        ? trim(std::string(source.substr(declaratorStart, nameStart - declaratorStart)))
+        : std::string{};
+
+    return base + declaratorPrefix;
+}
+
+bool hasInitializer(TSNode declarator)
+{
+    return isNodeType(declarator, "init_declarator")
+        && !ts_node_is_null(childForField(declarator, "value"));
+}
+
+bool isFunctionDeclaration(TSNode declarator)
+{
+    return isNodeType(declarator, "function_declarator");
+}
+
+void adaptDeclaration(
+    TSNode candidate,
+    std::string_view source,
+    const std::filesystem::path& path,
+    ParsedFile& result)
+{
+    if ((ts_node_is_error(candidate) || ts_node_is_missing(candidate))
+        || !isFileOrNamespaceScopeDeclaration(candidate))
+    {
+        return;
+    }
+
+    const bool isTypeDefinition = isNodeType(candidate, "type_definition");
+    const bool isStatic = hasStorageClassSpecifier(candidate, "static", source);
+    const bool isExtern = hasStorageClassSpecifier(candidate, "extern", source);
+
+    for (const TSNode declarator : declarationDeclarators(candidate))
+    {
+        if (isFunctionDeclaration(declarator))
+        {
+            continue;
+        }
+
+        const TSNode name = declaratorNameNode(declarator);
+        const std::string nameText = ts_node_is_null(name) ? std::string{} : nodeText(name, source);
+
+        if (nameText.empty())
+        {
+            continue;
+        }
+
+        if (isTypeDefinition)
+        {
+            TypeAliasModel model;
+            model.name = nameText;
+            model.aliasedType = declarationType(candidate, declarator, source);
+            model.range = sourceRange(declarator, path);
+            result.typeAliases.push_back(std::move(model));
+        }
+        else
+        {
+            GlobalVariableModel model;
+            model.name = nameText;
+            model.declaredType = declarationType(candidate, declarator, source);
+            model.range = sourceRange(declarator, path);
+            model.isStatic = isStatic;
+            model.isExtern = isExtern;
+            model.hasInitializer = hasInitializer(declarator);
+            result.globalVariables.push_back(std::move(model));
+        }
+    }
+}
+
 void collectNodesOfType(TSNode node, const char* type, std::vector<TSNode>& nodes)
 {
     if (isNodeType(node, type))
@@ -635,6 +817,18 @@ bool hasSameIncludeRange(const IncludeDependency& left, const IncludeDependency&
         && left.range.end.offset == right.range.end.offset;
 }
 
+bool hasSameGlobalVariableRange(const GlobalVariableModel& left, const GlobalVariableModel& right)
+{
+    return left.range.begin.offset == right.range.begin.offset
+        && left.range.end.offset == right.range.end.offset;
+}
+
+bool hasSameTypeAliasRange(const TypeAliasModel& left, const TypeAliasModel& right)
+{
+    return left.range.begin.offset == right.range.begin.offset
+        && left.range.end.offset == right.range.end.offset;
+}
+
 } // namespace
 
 class StructuralExtractor::Impl
@@ -644,9 +838,13 @@ public:
         : cFunctions_(compileQuery(tree_sitter_c(), "queries/c/functions.scm", embedded_queries::cFunctions))
         , cTypes_(compileQuery(tree_sitter_c(), "queries/c/types.scm", embedded_queries::cTypes))
         , cIncludes_(compileQuery(tree_sitter_c(), "queries/c/includes.scm", embedded_queries::cIncludes))
+        , cDeclarations_(compileQuery(
+              tree_sitter_c(), "queries/c/declarations.scm", embedded_queries::cDeclarations))
         , cppFunctions_(compileQuery(tree_sitter_cpp(), "queries/cpp/functions.scm", embedded_queries::cppFunctions))
         , cppTypes_(compileQuery(tree_sitter_cpp(), "queries/cpp/types.scm", embedded_queries::cppTypes))
         , cppIncludes_(compileQuery(tree_sitter_cpp(), "queries/cpp/includes.scm", embedded_queries::cppIncludes))
+        , cppDeclarations_(compileQuery(
+              tree_sitter_cpp(), "queries/cpp/declarations.scm", embedded_queries::cppDeclarations))
     {
     }
 
@@ -665,13 +863,20 @@ public:
         return grammar == Grammar::C ? cIncludes_.get() : cppIncludes_.get();
     }
 
+    [[nodiscard]] TSQuery* declarationsFor(Grammar grammar) const
+    {
+        return grammar == Grammar::C ? cDeclarations_.get() : cppDeclarations_.get();
+    }
+
 private:
     QueryPointer cFunctions_;
     QueryPointer cTypes_;
     QueryPointer cIncludes_;
+    QueryPointer cDeclarations_;
     QueryPointer cppFunctions_;
     QueryPointer cppTypes_;
     QueryPointer cppIncludes_;
+    QueryPointer cppDeclarations_;
 };
 
 StructuralExtractor::StructuralExtractor()
@@ -803,6 +1008,47 @@ void StructuralExtractor::extract(
     result.includes.erase(
         std::unique(result.includes.begin(), result.includes.end(), hasSameIncludeRange),
         result.includes.end());
+
+    ts_query_cursor_exec(cursor.get(), impl_->declarationsFor(grammar), root);
+
+    while (ts_query_cursor_next_match(cursor.get(), &match))
+    {
+        for (uint16_t index = 0; index < match.capture_count; ++index)
+        {
+            adaptDeclaration(match.captures[index].node, source, path, result);
+        }
+    }
+
+    std::sort(
+        result.globalVariables.begin(),
+        result.globalVariables.end(),
+        [](const GlobalVariableModel& left, const GlobalVariableModel& right) {
+            if (left.range.begin.offset != right.range.begin.offset)
+            {
+                return left.range.begin.offset < right.range.begin.offset;
+            }
+
+            return left.range.end.offset < right.range.end.offset;
+        });
+    result.globalVariables.erase(
+        std::unique(
+            result.globalVariables.begin(), result.globalVariables.end(), hasSameGlobalVariableRange),
+        result.globalVariables.end());
+
+    std::sort(
+        result.typeAliases.begin(),
+        result.typeAliases.end(),
+        [](const TypeAliasModel& left, const TypeAliasModel& right) {
+            if (left.range.begin.offset != right.range.begin.offset)
+            {
+                return left.range.begin.offset < right.range.begin.offset;
+            }
+
+            return left.range.end.offset < right.range.end.offset;
+        });
+    result.typeAliases.erase(
+        std::unique(result.typeAliases.begin(), result.typeAliases.end(), hasSameTypeAliasRange),
+        result.typeAliases.end());
 }
 
 } // namespace codeqa::frontend
