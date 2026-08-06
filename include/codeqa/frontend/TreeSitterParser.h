@@ -5,12 +5,22 @@
 #include <cstddef>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 struct TSParser;
 struct TSTree;
 
 namespace codeqa::frontend
 {
+
+class StructuralExtractor;
+
+struct SyntaxError
+{
+    std::size_t line{0};
+    std::size_t column{0};
+    bool missing{false};
+};
 
 /// Owns a parsed syntax tree. Non-copyable, movable: the underlying TSTree
 /// must be deleted exactly once.
@@ -28,11 +38,13 @@ public:
 
     [[nodiscard]] const char* rootNodeType() const;
     [[nodiscard]] bool rootHasError() const;
-
-    /// Only the frontend's own translation units use this.
-    [[nodiscard]] TSTree* handle() const { return tree_; }
+    [[nodiscard]] std::vector<SyntaxError> syntaxErrors() const;
 
 private:
+    friend class StructuralExtractor;
+
+    [[nodiscard]] TSTree* handle() const;
+
     TSTree* tree_{nullptr};
 };
 

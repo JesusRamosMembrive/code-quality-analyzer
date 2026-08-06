@@ -26,6 +26,41 @@ const TSLanguage* languageFor(Grammar grammar)
     return tree_sitter_cpp();
 }
 
+void collectSyntaxErrors(TSNode node, std::vector<SyntaxError>& errors)
+{
+    if (ts_node_is_missing(node))
+    {
+        const TSPoint point = ts_node_start_point(node);
+        errors.push_back(SyntaxError{
+            static_cast<std::size_t>(point.row),
+            static_cast<std::size_t>(point.column),
+            true});
+        return;
+    }
+
+    if (ts_node_is_error(node))
+    {
+        const TSPoint point = ts_node_start_point(node);
+        errors.push_back(SyntaxError{
+            static_cast<std::size_t>(point.row),
+            static_cast<std::size_t>(point.column),
+            false});
+        return;
+    }
+
+    if (!ts_node_has_error(node))
+    {
+        return;
+    }
+
+    const uint32_t childCount = ts_node_child_count(node);
+
+    for (uint32_t index = 0; index < childCount; ++index)
+    {
+        collectSyntaxErrors(ts_node_child(node, index), errors);
+    }
+}
+
 } // namespace
 
 SyntaxTree::SyntaxTree(TSTree* tree)
@@ -69,6 +104,23 @@ const char* SyntaxTree::rootNodeType() const
 bool SyntaxTree::rootHasError() const
 {
     return ts_node_has_error(ts_tree_root_node(tree_));
+}
+
+std::vector<SyntaxError> SyntaxTree::syntaxErrors() const
+{
+    std::vector<SyntaxError> errors;
+
+    if (tree_ != nullptr)
+    {
+        collectSyntaxErrors(ts_tree_root_node(tree_), errors);
+    }
+
+    return errors;
+}
+
+TSTree* SyntaxTree::handle() const
+{
+    return tree_;
 }
 
 TreeSitterParser::TreeSitterParser()

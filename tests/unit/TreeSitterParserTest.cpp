@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 TEST_CASE("the parser produces a tree for valid C")
 {
@@ -35,6 +36,21 @@ TEST_CASE("the parser reports an error tree for broken source")
 
     REQUIRE(tree.has_value());
     CHECK(tree->rootHasError());
+}
+
+TEST_CASE("a syntax tree reports semantic syntax errors without exposing its handle")
+{
+    codeqa::frontend::TreeSitterParser parser;
+    std::optional<codeqa::frontend::SyntaxTree> tree =
+        parser.parse(codeqa::frontend::Grammar::Cpp, "int broken( {");
+
+    REQUIRE(tree.has_value());
+    const std::vector<codeqa::frontend::SyntaxError> errors = tree->syntaxErrors();
+
+    REQUIRE_FALSE(errors.empty());
+    CHECK(errors.front().line == 0);
+    CHECK(errors.front().column == 0);
+    CHECK_FALSE(errors.front().missing);
 }
 
 TEST_CASE("an empty source still yields a tree")

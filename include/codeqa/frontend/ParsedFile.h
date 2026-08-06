@@ -2,6 +2,7 @@
 
 #include "codeqa/core/Diagnostic.h"
 #include "codeqa/frontend/Grammar.h"
+#include "codeqa/frontend/StructuralModels.h"
 
 #include <filesystem>
 #include <string>
@@ -16,6 +17,9 @@ struct ParsedFile
     Grammar grammar{Grammar::Cpp};
     std::string grammarReason;
     std::vector<codeqa::core::Diagnostic> diagnostics;
+    std::vector<FunctionModel> functions;
+    std::vector<ClassModel> classes;
+    std::vector<IncludeDependency> includes;
     bool parsed{false};
 };
 
