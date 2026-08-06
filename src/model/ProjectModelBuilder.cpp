@@ -11,19 +11,6 @@ namespace codeqa::model
 namespace
 {
 
-core::Language languageFor(frontend::Grammar grammar)
-{
-    switch (grammar)
-    {
-    case frontend::Grammar::C:
-        return core::Language::C;
-    case frontend::Grammar::Cpp:
-        return core::Language::Cpp;
-    }
-
-    throw std::logic_error("Unknown frontend grammar.");
-}
-
 CallableKind callableKindFor(frontend::FunctionKind kind)
 {
     switch (kind)
@@ -209,7 +196,7 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
 {
     FileModel model;
     model.path = file.path;
-    model.language = languageFor(file.grammar);
+    model.language = file.language;
     model.state = analysisStateFor(file);
     model.diagnostics = file.diagnostics;
 
@@ -266,7 +253,7 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
     for (const frontend::GlobalVariableModel& variable : file.globalVariables)
     {
         model.globalVariables.push_back(GlobalVariableModel{
-            identityFor(variable.name, variable.range, file.classes),
+            identityFor(variable.name, variable.range, file.classes, true),
             variable.declaredType,
             variable.isStatic,
             variable.isExtern,

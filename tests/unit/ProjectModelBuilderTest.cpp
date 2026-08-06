@@ -29,6 +29,7 @@ TEST_CASE("builds deterministic common project model from parsed frontend files"
 
     codeqa::frontend::ParsedFile sourceFile;
     sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::Cpp;
     sourceFile.grammar = codeqa::frontend::Grammar::Cpp;
     sourceFile.parsed = true;
     sourceFile.diagnostics.push_back(codeqa::core::Diagnostic{
@@ -57,6 +58,7 @@ TEST_CASE("builds deterministic common project model from parsed frontend files"
 
     codeqa::frontend::ParsedFile unavailableFile;
     unavailableFile.path = unavailablePath;
+    unavailableFile.language = codeqa::core::Language::C;
     unavailableFile.grammar = codeqa::frontend::Grammar::C;
     unavailableFile.parsed = false;
     unavailableFile.diagnostics.push_back(codeqa::core::Diagnostic{
@@ -156,6 +158,35 @@ TEST_CASE("preserves qualified callable names and ignores anonymous namespaces")
     REQUIRE(result.files[0].callables.size() == 2);
     CHECK(result.files[0].callables[0].symbol.qualifiedName == "outer::Box::declaredElsewhere");
     CHECK(result.files[0].callables[1].symbol.qualifiedName == "outer::Box::value");
+}
+
+TEST_CASE("preserves qualified global identities outside lexical scope ranges")
+{
+    const std::filesystem::path sourcePath{"project/source.cpp"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.parsed = true;
+    sourceFile.classes = {
+        codeqa::frontend::ClassModel{
+            "ns", codeqa::frontend::ClassKind::Namespace, rangeFor(sourcePath, 1, 20)},
+        codeqa::frontend::ClassModel{
+            "Holder", codeqa::frontend::ClassKind::Struct, rangeFor(sourcePath, 5, 15)}};
+    sourceFile.globalVariables = {
+        codeqa::frontend::GlobalVariableModel{
+            "ns::value", "int", rangeFor(sourcePath, 30, 40)},
+        codeqa::frontend::GlobalVariableModel{
+            "ns::Holder::count", "int", rangeFor(sourcePath, 41, 55)}};
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        "project", std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE(result.files[0].globalVariables.size() == 2);
+    CHECK(result.files[0].globalVariables[0].symbol.name == "ns::value");
+    CHECK(result.files[0].globalVariables[0].symbol.qualifiedName == "ns::value");
+    CHECK(result.files[0].globalVariables[1].symbol.name == "ns::Holder::count");
+    CHECK(result.files[0].globalVariables[1].symbol.qualifiedName == "ns::Holder::count");
 }
 
 TEST_CASE("sorts every model collection by source range with stable ties")

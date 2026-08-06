@@ -267,6 +267,7 @@ TEST_CASE("AnalyzeProject materializes discovery diagnostics as unavailable file
     REQUIRE(project.files.size() == 1);
     const codeqa::model::FileModel& unavailable = project.files.front();
     CHECK(unavailable.path == missingRoot);
+    CHECK(unavailable.language == codeqa::core::Language::Unknown);
     CHECK(unavailable.state == codeqa::model::AnalysisState::Unavailable);
     REQUIRE(unavailable.diagnostics.size() == 1);
     CHECK(unavailable.diagnostics[0].code == "DISC001");

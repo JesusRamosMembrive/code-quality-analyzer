@@ -31,12 +31,14 @@ codeqa::model::ProjectModel AnalyzeProject::execute(const AnalyzeProjectRequest&
             detectFileLanguage.execute(file, request.languageOverrides);
         const codeqa::frontend::GrammarSelection grammar = codeqa::frontend::selectGrammar(detection.language);
 
-        parsedFiles.push_back(codeqa::frontend::parseSourceFile(
+        codeqa::frontend::ParsedFile parsedFile = codeqa::frontend::parseSourceFile(
             request.discovery.rootPath / file.path,
             grammar.grammar,
             grammar.reason,
             parser,
-            extractor));
+            extractor);
+        parsedFile.language = detection.language;
+        parsedFiles.push_back(std::move(parsedFile));
     }
 
     for (const codeqa::core::Diagnostic& diagnostic : discovery.diagnostics)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "codeqa/core/Diagnostic.h"
+#include "codeqa/core/Language.h"
 #include "codeqa/frontend/Grammar.h"
 #include "codeqa/frontend/StructuralModels.h"
 
@@ -14,6 +15,7 @@ namespace codeqa::frontend
 struct ParsedFile
 {
     std::filesystem::path path;
+    codeqa::core::Language language{codeqa::core::Language::Unknown};
     Grammar grammar{Grammar::Cpp};
     std::string grammarReason;
     std::vector<codeqa::core::Diagnostic> diagnostics;

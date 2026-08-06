@@ -76,6 +76,9 @@ ParsedFile parseSourceFile(
 {
     ParsedFile result;
     result.path = path;
+    result.language = grammar == Grammar::C
+        ? codeqa::core::Language::C
+        : codeqa::core::Language::Cpp;
     result.grammar = grammar;
     result.grammarReason = grammarReason;
 

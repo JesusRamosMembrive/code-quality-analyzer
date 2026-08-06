@@ -274,7 +274,7 @@ std::string declaratorName(TSNode declarator, std::string_view source)
     }
 
     if (isNodeType(declarator, "qualified_identifier") || isNodeType(declarator, "destructor_name")
-        || isNodeType(declarator, "operator_name"))
+        || isNodeType(declarator, "operator_name") || isNodeType(declarator, "type_identifier"))
     {
         return trim(nodeText(declarator, source));
     }
@@ -631,6 +631,7 @@ bool isFileOrNamespaceScopeDeclaration(TSNode candidate)
 bool isDirectDeclarator(TSNode node)
 {
     return isNodeType(node, "identifier") || isNodeType(node, "type_identifier")
+        || isNodeType(node, "qualified_identifier")
         || isNodeType(node, "init_declarator") || isNodeType(node, "pointer_declarator")
         || isNodeType(node, "reference_declarator") || isNodeType(node, "array_declarator")
         || isNodeType(node, "function_declarator") || isNodeType(node, "parenthesized_declarator")
@@ -639,6 +640,29 @@ bool isDirectDeclarator(TSNode node)
 
 TSNode declaratorNameNode(TSNode declarator)
 {
+    if (ts_node_is_null(declarator))
+    {
+        return TSNode{};
+    }
+
+    if (isNodeType(declarator, "qualified_identifier") || isNodeType(declarator, "identifier")
+        || isNodeType(declarator, "field_identifier") || isNodeType(declarator, "type_identifier"))
+    {
+        return declarator;
+    }
+
+    const TSNode nestedDeclarator = childForField(declarator, "declarator");
+
+    if (!ts_node_is_null(nestedDeclarator))
+    {
+        const TSNode nestedName = declaratorNameNode(nestedDeclarator);
+
+        if (!ts_node_is_null(nestedName))
+        {
+            return nestedName;
+        }
+    }
+
     const TSNode identifier = findIdentifier(declarator);
 
     if (!ts_node_is_null(identifier))
@@ -798,13 +822,7 @@ void adaptDeclaration(
 
     for (const TSNode declarator : declarationDeclarators(candidate))
     {
-        if (isFunctionDeclaration(declarator))
-        {
-            continue;
-        }
-
-        const TSNode name = declaratorNameNode(declarator);
-        const std::string nameText = ts_node_is_null(name) ? std::string{} : nodeText(name, source);
+        const std::string nameText = declaratorName(declarator, source);
 
         if (nameText.empty())
         {
@@ -818,18 +836,22 @@ void adaptDeclaration(
             model.aliasedType = declarationType(candidate, declarator, source);
             model.range = sourceRange(declarator, path);
             result.typeAliases.push_back(std::move(model));
+            continue;
         }
-        else
+
+        if (isFunctionDeclaration(declarator))
         {
-            GlobalVariableModel model;
-            model.name = nameText;
-            model.declaredType = declarationType(candidate, declarator, source);
-            model.range = sourceRange(declarator, path);
-            model.isStatic = isStatic;
-            model.isExtern = isExtern;
-            model.hasInitializer = hasInitializer(declarator);
-            result.globalVariables.push_back(std::move(model));
+            continue;
         }
+
+        GlobalVariableModel model;
+        model.name = nameText;
+        model.declaredType = declarationType(candidate, declarator, source);
+        model.range = sourceRange(declarator, path);
+        model.isStatic = isStatic;
+        model.isExtern = isExtern;
+        model.hasInitializer = hasInitializer(declarator);
+        result.globalVariables.push_back(std::move(model));
     }
 }
 

@@ -48,6 +48,7 @@ TEST_CASE("a well-formed C file parses with no diagnostics")
 
     CHECK(result.parsed);
     CHECK(result.diagnostics.empty());
+    CHECK(result.language == codeqa::core::Language::C);
     CHECK(result.grammar == codeqa::frontend::Grammar::C);
     CHECK(result.grammarReason == "detected language");
 }
@@ -64,6 +65,7 @@ TEST_CASE("a well-formed C++ file parses with no diagnostics")
 
     CHECK(result.parsed);
     CHECK(result.diagnostics.empty());
+    CHECK(result.language == codeqa::core::Language::Cpp);
 }
 
 TEST_CASE("a broken file produces at least one diagnostic with a plausible line")
@@ -110,6 +112,7 @@ TEST_CASE("a missing file produces PARSE003 and is not marked parsed")
         missing, codeqa::frontend::Grammar::C, "detected language", parser, extractor);
 
     CHECK_FALSE(result.parsed);
+    CHECK(result.language == codeqa::core::Language::C);
     REQUIRE(result.diagnostics.size() == 1);
     CHECK(result.diagnostics.front().code == "PARSE003");
 }

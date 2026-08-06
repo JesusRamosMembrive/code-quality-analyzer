@@ -473,6 +473,51 @@ TEST_CASE("extracts the base type for every typedef declarator")
     CHECK(result.typeAliases[1].aliasedType == "int*");
 }
 
+TEST_CASE("extracts function type typedef aliases from C and C++")
+{
+    const TempSourceFile cFile{"function-type-alias.c", "typedef int Handler(int);\n"};
+    const TempSourceFile cppFile{
+        "function-type-alias.cpp",
+        "namespace ns { struct Arg {}; }\n"
+        "typedef int Handler(ns::Arg);\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile cResult = codeqa::frontend::parseSourceFile(
+        cFile.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+    const codeqa::frontend::ParsedFile cppResult = codeqa::frontend::parseSourceFile(
+        cppFile.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(cResult.typeAliases.size() == 1);
+    CHECK(cResult.typeAliases[0].name == "Handler");
+    CHECK(cResult.typeAliases[0].aliasedType == "int(int)");
+    CHECK(cResult.functions.empty());
+    REQUIRE(cppResult.typeAliases.size() == 1);
+    CHECK(cppResult.typeAliases[0].name == "Handler");
+    CHECK(cppResult.typeAliases[0].aliasedType == "int(ns::Arg)");
+    CHECK(cppResult.functions.empty());
+}
+
+TEST_CASE("extracts qualified global definitions outside their lexical scopes")
+{
+    const TempSourceFile file{
+        "qualified-globals.cpp",
+        "namespace ns { struct Holder { static int count; }; }\n"
+        "int ns::value = 0;\n"
+        "int ns::Holder::count = 0;\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.globalVariables.size() == 2);
+    CHECK(result.globalVariables[0].name == "ns::value");
+    CHECK(result.globalVariables[0].declaredType == "int");
+    CHECK(result.globalVariables[1].name == "ns::Holder::count");
+    CHECK(result.globalVariables[1].declaredType == "int");
+}
+
 TEST_CASE("extracts file scope function pointers as globals")
 {
     const TempSourceFile file{"function-pointer.c", "int (*callback)(int);\n"};
