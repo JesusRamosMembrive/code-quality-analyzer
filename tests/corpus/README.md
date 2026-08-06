@@ -85,10 +85,12 @@ el texto del mensaje.
 
 ## Límites de Fase 5
 
-Este corpus también valida la primera capa del modelo común de Fase 5:
-archivos, diagnósticos, funciones, tipos, dependencias, variables de ámbito de
-archivo y aliases `typedef`. El flujo de control, las llamadas y las variables
-locales permanecen en la capa 2 de Fase 5.
+La Fase 5 está completa: además de archivos, diagnósticos, funciones, tipos,
+dependencias, variables de ámbito de archivo y aliases `typedef`, el modelo
+común expone datos tipados de cuerpo de función para variables locales, flujo
+de control y llamadas. Esta frontera sigue siendo sintáctica: no incluye
+resolución de llamadas o tipos, CFG, AST genérico ni texto de cuerpo, métricas,
+reglas ni informes.
 
 `classes/c-types.c` contiene `typedef struct Point PointAlias;`. La gramática
 actual también entrega el `struct Point` de la línea 24 como una captura

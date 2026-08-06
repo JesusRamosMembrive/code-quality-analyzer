@@ -72,6 +72,21 @@ bool hasNamedModel(const std::vector<Model>& models, const std::string& name)
     return false;
 }
 
+const codeqa::model::CallableModel& callableNamed(
+    const codeqa::model::FileModel& file,
+    const std::string& name)
+{
+    for (const codeqa::model::CallableModel& callable : file.callables)
+    {
+        if (callable.symbol.name == name)
+        {
+            return callable;
+        }
+    }
+
+    throw std::runtime_error("Expected callable was not modeled.");
+}
+
 template <typename Model, typename RangeFor>
 void checkRangeOrder(const std::vector<Model>& models, RangeFor rangeFor)
 {
@@ -132,17 +147,23 @@ TEST_CASE("analyzes a project into the common model")
         "{\n"
         "    int doubleValue() const { return 14; }\n"
         "};\n"
+        "int run(Widget& widget, bool enabled)\n"
+        "{\n"
+        "    int localValue = 0;\n"
+        "    if (enabled)\n"
+        "    {\n"
+        "        localValue = widget.value();\n"
+        "    }\n"
+        "    auto transform = [localValue]() { return localValue + 1; };\n"
+        "    callback();\n"
+        "    return transform();\n"
+        "}\n"
         "}\n"
         "}\n");
     fixture.addFile(
         "broken.cpp",
-        "int recoveredGlobal = 3;\n"
-        "class Broken\n"
-        "{\n"
-        "public:\n"
-        "    int value() const { return recoveredGlobal; }\n"
-        "};\n"
-        "int broken( {\n");
+        "int recovered() { int stable = 1; return stable; }\n"
+        "int broken() { int value = ; }\n");
 
     codeqa::application::AnalyzeProjectRequest request;
     request.discovery.rootPath = fixture.root();
@@ -168,13 +189,54 @@ TEST_CASE("analyzes a project into the common model")
     CHECK(hasNamedModel(globals.typeAliases, "Size"));
     CHECK(hasNamedModel(globals.typeAliases, "Count"));
     REQUIRE(widget.dependencies.size() == 2);
-    REQUIRE(widget.callables.size() == 2);
+    REQUIRE(widget.callables.size() == 4);
     REQUIRE(widget.types.size() == 2);
     REQUIRE(widget.namespaces.size() == 2);
     CHECK(hasNamedModel(widget.types, "Widget"));
     CHECK(hasNamedModel(widget.types, "Helper"));
-    CHECK(hasNamedModel(broken.globalVariables, "recoveredGlobal"));
-    CHECK(hasNamedModel(broken.types, "Broken"));
+
+    const codeqa::model::CallableModel& run = callableNamed(widget, "run");
+    REQUIRE(run.localVariables.size() == 2);
+    CHECK(run.localVariables[0].symbol.name == "localValue");
+    CHECK(run.localVariables[0].declaredType == "int");
+    CHECK(run.localVariables[0].hasInitializer);
+    CHECK(run.localVariables[0].lexicalDepth == 0);
+    CHECK(run.localVariables[1].symbol.name == "transform");
+    CHECK(run.localVariables[1].declaredType == "auto");
+    CHECK(run.localVariables[1].hasInitializer);
+    CHECK(run.localVariables[1].lexicalDepth == 0);
+    REQUIRE(run.controlFlow.size() == 2);
+    CHECK(run.controlFlow[0].kind == codeqa::model::ControlFlowKind::If);
+    CHECK(run.controlFlow[0].nestingDepth == 0);
+    CHECK(run.controlFlow[0].conditionRange.has_value());
+    CHECK(run.controlFlow[1].kind == codeqa::model::ControlFlowKind::Return);
+    CHECK(run.controlFlow[1].nestingDepth == 0);
+    REQUIRE(run.calls.size() == 3);
+    CHECK(run.calls[0].calleeText == "widget.value");
+    CHECK(run.calls[0].kind == codeqa::model::CallKind::Member);
+    CHECK(run.calls[0].argumentCount == 0);
+    CHECK(run.calls[1].calleeText == "callback");
+    CHECK(run.calls[1].kind == codeqa::model::CallKind::Named);
+    CHECK(run.calls[1].argumentCount == 0);
+    CHECK(run.calls[2].calleeText == "transform");
+    CHECK(run.calls[2].kind == codeqa::model::CallKind::Named);
+
+    const codeqa::model::CallableModel& lambda = callableNamed(widget, "<lambda>");
+    CHECK(lambda.kind == codeqa::model::CallableKind::Lambda);
+    CHECK(lambda.localVariables.empty());
+    REQUIRE(lambda.controlFlow.size() == 1);
+    CHECK(lambda.controlFlow[0].kind == codeqa::model::ControlFlowKind::Return);
+    CHECK(lambda.calls.empty());
+
+    const codeqa::model::CallableModel& recovered = callableNamed(broken, "recovered");
+    REQUIRE(recovered.localVariables.size() == 1);
+    CHECK(recovered.localVariables[0].symbol.name == "stable");
+    REQUIRE(recovered.controlFlow.size() == 1);
+    CHECK(recovered.controlFlow[0].kind == codeqa::model::ControlFlowKind::Return);
+    const codeqa::model::CallableModel& malformed = callableNamed(broken, "broken");
+    CHECK(malformed.localVariables.empty());
+    CHECK(malformed.controlFlow.empty());
+    CHECK(malformed.calls.empty());
 
     for (const codeqa::model::FileModel& file : project.files)
     {

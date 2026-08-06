@@ -39,6 +39,21 @@ bool hasNamedModel(const std::vector<Model>& models, const std::string& name)
     return false;
 }
 
+const codeqa::model::CallableModel& callableNamed(
+    const codeqa::model::FileModel& file,
+    const std::string& name)
+{
+    for (const codeqa::model::CallableModel& callable : file.callables)
+    {
+        if (callable.symbol.name == name)
+        {
+            return callable;
+        }
+    }
+
+    throw std::runtime_error("Expected callable was not modeled.");
+}
+
 template <typename Model, typename RangeFor>
 void checkRangeOrder(const std::vector<Model>& models, RangeFor rangeFor)
 {
@@ -110,6 +125,62 @@ void checkCollectionOrder(
     });
 }
 
+void checkBodyOrder(
+    const codeqa::model::FileModel& file,
+    const codeqa::model::FileModel& repeatedFile)
+{
+    REQUIRE(file.callables.size() == repeatedFile.callables.size());
+
+    for (std::size_t callableIndex = 0; callableIndex < file.callables.size(); ++callableIndex)
+    {
+        const codeqa::model::CallableModel& callable = file.callables[callableIndex];
+        const codeqa::model::CallableModel& repeatedCallable = repeatedFile.callables[callableIndex];
+        REQUIRE(callable.localVariables.size() == repeatedCallable.localVariables.size());
+        REQUIRE(callable.controlFlow.size() == repeatedCallable.controlFlow.size());
+        REQUIRE(callable.calls.size() == repeatedCallable.calls.size());
+
+        for (std::size_t index = 0; index < callable.localVariables.size(); ++index)
+        {
+            const auto& local = callable.localVariables[index];
+            const auto& repeatedLocal = repeatedCallable.localVariables[index];
+            CHECK(local.symbol.name == repeatedLocal.symbol.name);
+            CHECK(local.symbol.qualifiedName == repeatedLocal.symbol.qualifiedName);
+            CHECK(local.symbol.range.begin.offset == repeatedLocal.symbol.range.begin.offset);
+            CHECK(local.symbol.range.end.offset == repeatedLocal.symbol.range.end.offset);
+            CHECK(local.declaredType == repeatedLocal.declaredType);
+            CHECK(local.hasInitializer == repeatedLocal.hasInitializer);
+            CHECK(local.lexicalDepth == repeatedLocal.lexicalDepth);
+        }
+
+        for (std::size_t index = 0; index < callable.controlFlow.size(); ++index)
+        {
+            const auto& flow = callable.controlFlow[index];
+            const auto& repeatedFlow = repeatedCallable.controlFlow[index];
+            CHECK(flow.kind == repeatedFlow.kind);
+            CHECK(flow.range.begin.offset == repeatedFlow.range.begin.offset);
+            CHECK(flow.range.end.offset == repeatedFlow.range.end.offset);
+            CHECK(flow.nestingDepth == repeatedFlow.nestingDepth);
+            CHECK(flow.conditionRange.has_value() == repeatedFlow.conditionRange.has_value());
+            if (flow.conditionRange.has_value())
+            {
+                CHECK(flow.conditionRange->begin.offset == repeatedFlow.conditionRange->begin.offset);
+                CHECK(flow.conditionRange->end.offset == repeatedFlow.conditionRange->end.offset);
+            }
+        }
+
+        for (std::size_t index = 0; index < callable.calls.size(); ++index)
+        {
+            const auto& call = callable.calls[index];
+            const auto& repeatedCall = repeatedCallable.calls[index];
+            CHECK(call.calleeText == repeatedCall.calleeText);
+            CHECK(call.kind == repeatedCall.kind);
+            CHECK(call.argumentCount == repeatedCall.argumentCount);
+            CHECK(call.range.begin.offset == repeatedCall.range.begin.offset);
+            CHECK(call.range.end.offset == repeatedCall.range.end.offset);
+        }
+    }
+}
+
 } // namespace
 
 TEST_CASE("corpus adapts to the common model")
@@ -137,6 +208,7 @@ TEST_CASE("corpus adapts to the common model")
         const codeqa::model::FileModel& repeatedFile = repeatedProject.files[index];
         CHECK(file.path == repeatedFile.path);
         checkCollectionOrder(file, repeatedFile);
+        checkBodyOrder(file, repeatedFile);
     }
 
     const codeqa::model::FileModel& truncated =
@@ -179,5 +251,36 @@ TEST_CASE("corpus adapts to the common model")
     CHECK(hasNamedModel(cppTypes.types, "Container"));
     REQUIRE(cppTypes.dependencies.size() == 1);
     CHECK(cppTypes.dependencies[0].target == "cstddef");
+
+    const codeqa::model::FileModel& branching =
+        fileNamed(project, corpusRoot / "complexity" / "branching.cpp");
+    const codeqa::model::CallableModel& scan = callableNamed(branching, "scan");
+    REQUIRE(scan.controlFlow.size() == 6);
+    CHECK(scan.controlFlow[0].kind == codeqa::model::ControlFlowKind::For);
+    CHECK(scan.controlFlow[1].kind == codeqa::model::ControlFlowKind::If);
+    CHECK(scan.controlFlow[2].kind == codeqa::model::ControlFlowKind::Continue);
+    CHECK(scan.controlFlow[3].kind == codeqa::model::ControlFlowKind::If);
+    CHECK(scan.controlFlow[4].kind == codeqa::model::ControlFlowKind::Break);
+    CHECK(scan.controlFlow[5].kind == codeqa::model::ControlFlowKind::Return);
+
+    const codeqa::model::CallableModel& describe = callableNamed(branching, "describe");
+    REQUIRE(describe.controlFlow.size() == 7);
+    CHECK(describe.controlFlow[0].kind == codeqa::model::ControlFlowKind::Switch);
+    CHECK(describe.controlFlow[1].kind == codeqa::model::ControlFlowKind::Case);
+    CHECK(describe.controlFlow[3].kind == codeqa::model::ControlFlowKind::Case);
+    CHECK(describe.controlFlow[5].kind == codeqa::model::ControlFlowKind::Default);
+
+    const codeqa::model::FileModel& deepNesting =
+        fileNamed(project, corpusRoot / "nesting" / "deep-nesting.cpp");
+    const codeqa::model::CallableModel& fourLevels = callableNamed(deepNesting, "fourLevels");
+    REQUIRE(fourLevels.controlFlow.size() == 5);
+    CHECK(fourLevels.controlFlow[0].kind == codeqa::model::ControlFlowKind::While);
+    CHECK(fourLevels.controlFlow[0].nestingDepth == 0);
+    CHECK(fourLevels.controlFlow[1].kind == codeqa::model::ControlFlowKind::For);
+    CHECK(fourLevels.controlFlow[1].nestingDepth == 1);
+    CHECK(fourLevels.controlFlow[2].kind == codeqa::model::ControlFlowKind::If);
+    CHECK(fourLevels.controlFlow[2].nestingDepth == 2);
+    CHECK(fourLevels.controlFlow[3].kind == codeqa::model::ControlFlowKind::If);
+    CHECK(fourLevels.controlFlow[3].nestingDepth == 3);
 
 }

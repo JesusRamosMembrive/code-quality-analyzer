@@ -65,6 +65,11 @@ Que un `CTRL-*` esté listado significa que el corpus lo cubre y que la Fase 6
 debe decidir explícitamente cómo lo cuenta. **No** implica que sume a la
 complejidad ciclomática: esa decisión pertenece a la Fase 6.
 
+Nota de Fase 5: `CTRL-01` a `CTRL-09` están representados por el modelo tipado
+de cuerpo de función. `CTRL-07` se expone mediante un rango de condición, no
+como un nodo de flujo propio. `CTRL-10` y `CTRL-11` permanecen fuera de esta
+capa.
+
 | ID | Construcción |
 |---|---|
 | `CTRL-01` | `if` / `else if` / `else` |
