@@ -94,3 +94,23 @@ add_test(
         -DCODEQA_CORPUS_DIR=${CMAKE_CURRENT_SOURCE_DIR}/corpus
         -P ${CMAKE_CURRENT_SOURCE_DIR}/corpus/CheckCorpusIntegrity.cmake
 )
+
+add_test(
+    NAME codeqa_integration_parse_corpus_truncated
+    COMMAND ${CMAKE_COMMAND}
+        -DCODEQA_EXE=$<TARGET_FILE:codeqa>
+        "-DCODEQA_ARGS=parse$<SEMICOLON>${CMAKE_CURRENT_SOURCE_DIR}/corpus"
+        "-DCODEQA_EXPECTED_OUTPUT=  line 8: error"
+        -DCODEQA_EXPECTED_EXIT_CODE=0
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckCliOutput.cmake
+)
+
+add_test(
+    NAME codeqa_integration_parse_corpus_unclosed_brace
+    COMMAND ${CMAKE_COMMAND}
+        -DCODEQA_EXE=$<TARGET_FILE:codeqa>
+        "-DCODEQA_ARGS=parse$<SEMICOLON>${CMAKE_CURRENT_SOURCE_DIR}/corpus"
+        "-DCODEQA_EXPECTED_OUTPUT=  line 13: error"
+        -DCODEQA_EXPECTED_EXIT_CODE=0
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckCliOutput.cmake
+)

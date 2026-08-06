@@ -93,8 +93,15 @@ rama o si cada `case` suma, y esas decisiones pertenecen a la Fase 6.
   Fase 4b**: el frontend de la Fase 4a solo confirma parseo y diagnósticos —
   `ParsedFile` todavía no expone `functions` ni `classes`. Las líneas de
   `diagnostics`, en cambio, ya no son provisionales: la Fase 4a las verificó
-  contra la salida real de tree-sitter (`tests/unit/CorpusParsingTest.cpp`),
-  y coinciden con lo que la recuperación de errores produce hoy.
+  contra la salida real de tree-sitter, y coinciden con lo que la recuperación
+  de errores produce hoy. Esto queda fijado como garantía permanente, no solo
+  como comprobación puntual, por los tests de CTest
+  `codeqa_integration_parse_corpus_truncated` y
+  `codeqa_integration_parse_corpus_unclosed_brace`, que ejecutan el binario
+  real sobre el corpus y comprueban la línea exacta de cada diagnóstico en
+  cada build. (`tests/unit/CorpusParsingTest.cpp` solo comprueba que
+  `malformed/` produce algún diagnóstico, no su línea; no habría fallado si
+  alguien cambiara la línea esperada en un `.parsing.json`.)
 
 ### IDs no verificables: cobertura solo por presencia
 
@@ -142,4 +149,4 @@ y comprueba, sin necesidad del analizador:
 5. Todo ID no-`OUT-*` de `SUPPORTED-CONSTRUCTS.md` está cubierto por al menos un fixture.
 
 La verificación de que el analizador produce realmente estos resultados llega en
-la Fase 4, con el runner que lee estos archivos.
+la Fase 4b, con el runner que lee estos archivos.
