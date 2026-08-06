@@ -440,3 +440,50 @@ TEST_CASE("extracts typedef aliases from C and C++ namespace scope")
     CHECK(cppResult.typeAliases[0].name == "Size");
     CHECK(cppResult.typeAliases[0].aliasedType == "unsigned long");
 }
+
+TEST_CASE("extracts the base type for every file scope declarator")
+{
+    const TempSourceFile file{"multiple-globals.c", "int a, b;\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.globalVariables.size() == 2);
+    CHECK(result.globalVariables[0].name == "a");
+    CHECK(result.globalVariables[0].declaredType == "int");
+    CHECK(result.globalVariables[1].name == "b");
+    CHECK(result.globalVariables[1].declaredType == "int");
+}
+
+TEST_CASE("extracts the base type for every typedef declarator")
+{
+    const TempSourceFile file{"multiple-aliases.c", "typedef int A, *B;\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.typeAliases.size() == 2);
+    CHECK(result.typeAliases[0].name == "A");
+    CHECK(result.typeAliases[0].aliasedType == "int");
+    CHECK(result.typeAliases[1].name == "B");
+    CHECK(result.typeAliases[1].aliasedType == "int*");
+}
+
+TEST_CASE("extracts file scope function pointers as globals")
+{
+    const TempSourceFile file{"function-pointer.c", "int (*callback)(int);\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.globalVariables.size() == 1);
+    CHECK(result.globalVariables[0].name == "callback");
+    CHECK(result.globalVariables[0].declaredType == "int(*)(int)");
+    CHECK(result.functions.empty());
+}

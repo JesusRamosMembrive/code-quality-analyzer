@@ -301,6 +301,13 @@ bool isFunctionPointerDeclarator(TSNode node)
         && !ts_node_is_null(findDescendantOfType(node, "pointer_declarator"));
 }
 
+bool isFunctionPointerDeclaration(TSNode declarator)
+{
+    const TSNode nestedDeclarator = childForField(declarator, "declarator");
+    return !ts_node_is_null(nestedDeclarator)
+        && !ts_node_is_null(findDescendantOfType(nestedDeclarator, "pointer_declarator"));
+}
+
 bool hasClassAncestor(TSNode node)
 {
     for (TSNode parent = ts_node_parent(node); !ts_node_is_null(parent); parent = ts_node_parent(parent))
@@ -633,12 +640,25 @@ bool isDirectDeclarator(TSNode node)
 
 TSNode declaratorNameNode(TSNode declarator)
 {
-    if (isNodeType(declarator, "identifier") || isNodeType(declarator, "type_identifier"))
+    const TSNode identifier = findIdentifier(declarator);
+
+    if (!ts_node_is_null(identifier))
+    {
+        return identifier;
+    }
+
+    return findDescendantOfType(declarator, "type_identifier");
+}
+
+TSNode typeDeclarator(TSNode declarator)
+{
+    if (!isNodeType(declarator, "init_declarator"))
     {
         return declarator;
     }
 
-    return findDeclarator(declarator);
+    const TSNode nested = childForField(declarator, "declarator");
+    return ts_node_is_null(nested) ? declarator : nested;
 }
 
 std::vector<TSNode> declarationDeclarators(TSNode candidate)
@@ -684,8 +704,12 @@ std::string declarationType(
     TSNode declarator,
     std::string_view source)
 {
-    const TSNode name = declaratorNameNode(declarator);
-    const std::size_t declaratorStart = ts_node_start_byte(declarator);
+    const TSNode type = childForField(candidate, "type");
+    const TSNode typeNode = typeDeclarator(declarator);
+    const TSNode name = declaratorNameNode(typeNode);
+    const std::size_t typeEnd = ts_node_is_null(type) ? ts_node_start_byte(typeNode) : ts_node_end_byte(type);
+    const std::size_t declaratorStart = ts_node_start_byte(typeNode);
+    const std::size_t declaratorEnd = ts_node_end_byte(typeNode);
     std::size_t specifierStart = ts_node_start_byte(candidate);
     const uint32_t childCount = ts_node_named_child_count(candidate);
 
@@ -693,7 +717,7 @@ std::string declarationType(
     {
         const TSNode child = ts_node_named_child(candidate, index);
 
-        if (ts_node_start_byte(child) >= declaratorStart)
+        if (ts_node_start_byte(child) >= typeEnd)
         {
             break;
         }
@@ -710,14 +734,18 @@ std::string declarationType(
     const std::size_t nameStart = ts_node_is_null(name)
         ? declaratorStart
         : ts_node_start_byte(name);
-    const std::string base = specifierStart <= declaratorStart && declaratorStart <= source.size()
-        ? trim(std::string(source.substr(specifierStart, declaratorStart - specifierStart)))
+    const std::size_t nameEnd = ts_node_is_null(name) ? nameStart : ts_node_end_byte(name);
+    const std::string base = specifierStart <= typeEnd && typeEnd <= source.size()
+        ? trim(std::string(source.substr(specifierStart, typeEnd - specifierStart)))
         : std::string{};
     const std::string declaratorPrefix = declaratorStart <= nameStart && nameStart <= source.size()
         ? trim(std::string(source.substr(declaratorStart, nameStart - declaratorStart)))
         : std::string{};
+    const std::string declaratorSuffix = nameEnd <= declaratorEnd && declaratorEnd <= source.size()
+        ? trim(std::string(source.substr(nameEnd, declaratorEnd - nameEnd)))
+        : std::string{};
 
-    return base + declaratorPrefix;
+    return base + declaratorPrefix + declaratorSuffix;
 }
 
 bool hasInitializer(TSNode declarator)
@@ -728,7 +756,8 @@ bool hasInitializer(TSNode declarator)
 
 bool isFunctionDeclaration(TSNode declarator)
 {
-    return isNodeType(declarator, "function_declarator");
+    return isNodeType(declarator, "function_declarator")
+        && !isFunctionPointerDeclaration(declarator);
 }
 
 void adaptDeclaration(
@@ -909,10 +938,15 @@ void StructuralExtractor::extract(
         {
             const TSNode candidate = match.captures[index].node;
 
-            if (isNodeType(candidate, "declaration")
-                && ts_node_is_null(findFunctionDeclarator(candidate)))
+            if (isNodeType(candidate, "declaration"))
             {
-                continue;
+                const TSNode functionDeclarator = findFunctionDeclarator(candidate);
+
+                if (ts_node_is_null(functionDeclarator)
+                    || isFunctionPointerDeclaration(functionDeclarator))
+                {
+                    continue;
+                }
             }
 
             result.functions.push_back(adaptFunction(candidate, source, path));
