@@ -314,6 +314,36 @@ TEST_CASE("keeps lambda body data out of the enclosing callable")
     CHECK(lambda.controlFlow[1].kind == codeqa::frontend::ControlFlowKind::Return);
 }
 
+TEST_CASE("keeps local method body data out of the enclosing callable")
+{
+    const TempSourceFile file{
+        "local-method-body.cpp",
+        "void run() {\n"
+        "    int outer = 0;\n"
+        "    struct Local {\n"
+        "        void member() { int inner = 1; if (inner) { return; } }\n"
+        "    };\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    const codeqa::frontend::FunctionModel& run = result.functions[0];
+    const codeqa::frontend::FunctionModel& member = result.functions[1];
+    REQUIRE(run.localVariables.size() == 1);
+    CHECK(run.localVariables[0].name == "outer");
+    CHECK(run.controlFlow.empty());
+    CHECK(member.name == "member");
+    REQUIRE(member.localVariables.size() == 1);
+    CHECK(member.localVariables[0].name == "inner");
+    REQUIRE(member.controlFlow.size() == 2);
+    CHECK(member.controlFlow[0].kind == codeqa::frontend::ControlFlowKind::If);
+    CHECK(member.controlFlow[1].kind == codeqa::frontend::ControlFlowKind::Return);
+}
+
 TEST_CASE("recovers reliable body data from partial files")
 {
     const TempSourceFile file{

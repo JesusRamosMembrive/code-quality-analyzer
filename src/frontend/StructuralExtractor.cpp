@@ -919,7 +919,7 @@ void extractBodyStructure(
     FunctionModel& function)
 {
     const auto visit = [&](const auto& self, TSNode node, std::size_t lexicalDepth, std::size_t flowDepth) -> void {
-        if (isNodeType(node, "lambda_expression"))
+        if (isNodeType(node, "lambda_expression") || isNodeType(node, "function_definition"))
         {
             return;
         }
