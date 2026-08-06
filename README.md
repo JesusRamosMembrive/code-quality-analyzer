@@ -2,7 +2,7 @@
 
 Static analysis tool for measuring and improving the quality, maintainability, and evolution of C and C++ source projects. It targets issues that don't prevent compilation but progressively degrade design: excessively long functions, high cyclomatic complexity, deep nesting, poor naming, duplication, and more.
 
-This repository is currently in the **foundation phase**: the project builds, runs, and tests itself. It discovers C and C++ source files, but does not yet perform static analysis on them.
+This repository is currently in the **foundation phase**: the project builds, runs, and tests itself. It discovers C and C++ source files, detects their language, and parses them with tree-sitter, but does not yet perform static analysis on them.
 
 ## Requisitos
 
@@ -55,6 +55,25 @@ Cada archivo descubierto se lista con su lenguaje detectado (`C`, `C++` o `Unkno
 
 Reglas de coincidencia de `--lang-override`: a diferencia de `--exclude`, un override solo se evalúa contra archivos individuales ya descubiertos, nunca contra directorios. Un patrón sin `/` coincide con el nombre de archivo del fichero clasificado (no con un directorio); un patrón con `/` debe coincidir con la ruta relativa completa del archivo. `*` nunca cruza un `/`, y aplican las mismas mecánicas de traducción de glob (`?`, escapado, separador `/` normalizado) que `--exclude` — pero el objetivo de la coincidencia es siempre un archivo, nunca un directorio.
 
+## Parseo
+
+```bash
+./build/codeqa parse ./ruta/al/proyecto
+./build/codeqa parse ./ruta/al/proyecto --exclude vendor --lang-override "legacy/*.h=c"
+```
+
+Descubre los archivos fuente (mismas reglas que `discover`), detecta su lenguaje
+y los parsea con tree-sitter, reportando las regiones que la gramática no ha
+podido interpretar.
+
+Acepta los mismos flags que `discover`. Una cabecera `.h` sin `--lang-override`
+se parsea con la gramática de C++, que acepta prácticamente todo C válido y
+minimiza los errores falsos.
+
+Los errores de parseo son información, no un fallo: `parse` devuelve 0 aunque
+encuentre archivos rotos. El código de salida solo reflejará la calidad del
+código cuando exista el quality gate (Fase 12).
+
 ## Códigos de salida
 
 | Código | Significado |
@@ -65,4 +84,5 @@ Reglas de coincidencia de `--lang-override`: a diferencia de `--exclude`, un ove
 
 ## Estado
 
-Proyecto en fase de fundación. Descubre archivos fuente C/C++, pero todavía no los analiza.
+Proyecto en fase de fundación. Descubre archivos fuente C/C++, detecta su lenguaje y los
+parsea con tree-sitter, pero todavía no los analiza.

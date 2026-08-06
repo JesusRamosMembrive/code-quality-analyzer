@@ -5,8 +5,15 @@
 #include "codeqa/application/DiscoverProjectSources.h"
 #include "codeqa/application/GetApplicationInfo.h"
 #include "codeqa/cli/ExitCode.h"
+#include "codeqa/core/Diagnostic.h"
+#include "codeqa/core/DiagnosticSeverity.h"
 #include "codeqa/core/Language.h"
 #include "codeqa/core/LanguageDetectionResult.h"
+#include "codeqa/frontend/Grammar.h"
+#include "codeqa/frontend/ParseSourceFile.h"
+#include "codeqa/frontend/ParsedFile.h"
+#include "codeqa/frontend/SelectGrammar.h"
+#include "codeqa/frontend/TreeSitterParser.h"
 #include "codeqa/infrastructure/DiscoveredFile.h"
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/infrastructure/DiscoveryResult.h"
@@ -31,6 +38,7 @@ void printHelp(std::ostream& output)
               "Usage:\n"
               "  codeqa [options]\n"
               "  codeqa discover <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
+              "  codeqa parse <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
               "\n"
               "Options:\n"
               "  -h, --help       Show this help.\n"
@@ -38,6 +46,9 @@ void printHelp(std::ostream& output)
               "\n"
               "Commands:\n"
               "  discover <path>                    Discover C/C++ source files under <path>.\n"
+              "  parse <path>                       Discover, detect language, and parse\n"
+              "                                      C/C++ source files under <path> with\n"
+              "                                      tree-sitter.\n"
               "      --exclude <glob>                Exclude files/directories matching a glob\n"
               "                                       pattern (repeatable).\n"
               "      --lang-override <pattern>=<lang> Force the language of files matching\n"
@@ -109,6 +120,7 @@ void printLanguageListing(
     }
 
     output << '\n';
+    output << "Detected languages:\n";
 
     const codeqa::application::DetectFileLanguage detectFileLanguage;
 
@@ -146,7 +158,32 @@ std::optional<codeqa::core::Language> parseLanguageName(const std::string& langu
     return std::nullopt;
 }
 
-int runDiscover(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
+/// The arguments shared by `discover` and `parse`: a required <path>, plus repeatable
+/// --exclude and --lang-override flags.
+struct DiscoverArguments
+{
+    std::filesystem::path path;
+    std::vector<std::string> excludePatterns;
+    std::vector<codeqa::application::LanguageOverride> languageOverrides;
+};
+
+/// Outcome of parsing a subcommand's shared arguments: either a filled-in
+/// DiscoverArguments on success, or the exit code to propagate (having already written
+/// the error to errorOutput) on failure.
+struct DiscoverArgumentsOutcome
+{
+    std::optional<DiscoverArguments> arguments;
+    int exitCode{static_cast<int>(ExitCode::Success)};
+};
+
+/// Parses the argument shape shared by `discover` and `parse`
+/// (`<path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...`), reporting
+/// CLI002-CLI007 to errorOutput on failure. subcommandName is used only for the CLI002
+/// message text.
+DiscoverArgumentsOutcome parseDiscoverArguments(
+    const std::string& subcommandName,
+    const std::vector<std::string>& arguments,
+    std::ostream& errorOutput)
 {
     std::optional<std::filesystem::path> path;
     std::vector<std::string> excludePatterns;
@@ -161,7 +198,7 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
             if (index + 1 >= arguments.size())
             {
                 errorOutput << "Error [CLI004]: Missing value for '--exclude'.\n";
-                return static_cast<int>(ExitCode::InvalidArguments);
+                return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
             }
 
             excludePatterns.push_back(arguments[index + 1]);
@@ -174,7 +211,7 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
             if (index + 1 >= arguments.size())
             {
                 errorOutput << "Error [CLI006]: Missing value for '--lang-override'.\n";
-                return static_cast<int>(ExitCode::InvalidArguments);
+                return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
             }
 
             const std::string& value = arguments[index + 1];
@@ -185,7 +222,7 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
             {
                 errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
                                << "'. Expected <pattern>=c|cpp.\n";
-                return static_cast<int>(ExitCode::InvalidArguments);
+                return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
             }
 
             const std::string pattern = value.substr(0, equalsPosition);
@@ -196,7 +233,7 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
             {
                 errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
                                << "'. Expected <pattern>=c|cpp.\n";
-                return static_cast<int>(ExitCode::InvalidArguments);
+                return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
             }
 
             languageOverrides.push_back(codeqa::application::LanguageOverride{pattern, *language});
@@ -211,14 +248,14 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
         }
 
         errorOutput << "Error [CLI005]: Unexpected argument '" << token << "'.\n";
-        return static_cast<int>(ExitCode::InvalidArguments);
+        return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
     }
 
     if (!path.has_value())
     {
-        errorOutput << "Error [CLI002]: Missing required argument <path> for 'discover'.\n"
+        errorOutput << "Error [CLI002]: Missing required argument <path> for '" << subcommandName << "'.\n"
                        "Use 'codeqa --help' for usage.\n";
-        return static_cast<int>(ExitCode::InvalidArguments);
+        return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
     }
 
     std::error_code existsError;
@@ -227,18 +264,137 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
     if (!isDirectory)
     {
         errorOutput << "Error [CLI003]: Path '" << path->string() << "' does not exist or is not a directory.\n";
-        return static_cast<int>(ExitCode::InvalidArguments);
+        return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
     }
 
+    return DiscoverArgumentsOutcome{
+        DiscoverArguments{*path, excludePatterns, languageOverrides},
+        static_cast<int>(ExitCode::Success)};
+}
+
+int runDiscover(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
+{
+    const DiscoverArgumentsOutcome outcome = parseDiscoverArguments("discover", arguments, errorOutput);
+
+    if (!outcome.arguments.has_value())
+    {
+        return outcome.exitCode;
+    }
+
+    const DiscoverArguments& parsedArguments = *outcome.arguments;
+
     codeqa::infrastructure::DiscoveryOptions options;
-    options.rootPath = *path;
-    options.excludePatterns = excludePatterns;
+    options.rootPath = parsedArguments.path;
+    options.excludePatterns = parsedArguments.excludePatterns;
 
     const codeqa::application::DiscoverProjectSources discoverProjectSources;
     const codeqa::infrastructure::DiscoveryResult result = discoverProjectSources.execute(options);
 
     printDiscoveryResult(output, result);
-    printLanguageListing(output, result, languageOverrides);
+    printLanguageListing(output, result, parsedArguments.languageOverrides);
+    return static_cast<int>(ExitCode::Success);
+}
+
+const char* severityName(codeqa::core::DiagnosticSeverity severity)
+{
+    switch (severity)
+    {
+    case codeqa::core::DiagnosticSeverity::Information:
+        return "information";
+    case codeqa::core::DiagnosticSeverity::Warning:
+        return "warning";
+    case codeqa::core::DiagnosticSeverity::Error:
+        return "error";
+    }
+
+    return "error";
+}
+
+int runParse(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
+{
+    const DiscoverArgumentsOutcome outcome = parseDiscoverArguments("parse", arguments, errorOutput);
+
+    if (!outcome.arguments.has_value())
+    {
+        return outcome.exitCode;
+    }
+
+    const DiscoverArguments& parsedArguments = *outcome.arguments;
+
+    codeqa::infrastructure::DiscoveryOptions options;
+    options.rootPath = parsedArguments.path;
+    options.excludePatterns = parsedArguments.excludePatterns;
+
+    const codeqa::application::DiscoverProjectSources discoverProjectSources;
+    const codeqa::infrastructure::DiscoveryResult discoveryResult = discoverProjectSources.execute(options);
+
+    const codeqa::application::DetectFileLanguage detectFileLanguage;
+    codeqa::frontend::TreeSitterParser parser;
+
+    std::size_t filesParsedCount = 0;
+    std::size_t cCount = 0;
+    std::size_t cppCount = 0;
+
+    struct ParseDetail
+    {
+        std::filesystem::path relativePath;
+        std::vector<codeqa::core::Diagnostic> diagnostics;
+    };
+    std::vector<ParseDetail> details;
+
+    for (const codeqa::infrastructure::DiscoveredFile& file : discoveryResult.files)
+    {
+        const codeqa::core::LanguageDetectionResult detection =
+            detectFileLanguage.execute(file, parsedArguments.languageOverrides);
+        const codeqa::frontend::GrammarSelection grammarSelection =
+            codeqa::frontend::selectGrammar(detection.language);
+
+        const std::filesystem::path fullPath = parsedArguments.path / file.path;
+
+        codeqa::frontend::ParsedFile parsedFile = codeqa::frontend::parseSourceFile(
+            fullPath, grammarSelection.grammar, grammarSelection.reason, parser);
+
+        if (parsedFile.parsed)
+        {
+            ++filesParsedCount;
+
+            if (grammarSelection.grammar == codeqa::frontend::Grammar::C)
+            {
+                ++cCount;
+            }
+            else
+            {
+                ++cppCount;
+            }
+        }
+
+        if (!parsedFile.diagnostics.empty())
+        {
+            details.push_back(ParseDetail{file.path, std::move(parsedFile.diagnostics)});
+        }
+    }
+
+    output << "Files parsed: " << filesParsedCount << '\n'
+           << "C files: " << cCount << '\n'
+           << "C++ files: " << cppCount << '\n'
+           << "Parse errors: " << details.size() << '\n';
+
+    if (!details.empty())
+    {
+        output << '\n';
+
+        for (const ParseDetail& detail : details)
+        {
+            output << detail.relativePath.generic_string() << '\n';
+
+            for (const codeqa::core::Diagnostic& diagnostic : detail.diagnostics)
+            {
+                output << "  line " << diagnostic.location.line << ": " << severityName(diagnostic.severity)
+                       << '\n';
+            }
+        }
+    }
+
     return static_cast<int>(ExitCode::Success);
 }
 
@@ -272,6 +428,11 @@ int runApplication(
     if (firstArgument == "discover")
     {
         return runDiscover(arguments, output, errorOutput);
+    }
+
+    if (firstArgument == "parse")
+    {
+        return runParse(arguments, output, errorOutput);
     }
 
     errorOutput << "Error [CLI001]: Unknown option '" << firstArgument << "'.\n"

@@ -265,3 +265,80 @@ TEST_CASE("discover does not leave the output stream's formatting state mutated"
 
     std::filesystem::remove_all(root);
 }
+
+TEST_CASE("discover's per-file listing carries a Detected languages header")
+{
+    const std::filesystem::path root = makeTempDiscoverRoot();
+
+    const RunResult result = run({"discover", root.string()});
+
+    CHECK(result.output.find("\nDetected languages:\nmain.c") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("parse without a path returns CLI002")
+{
+    const RunResult result = run({"parse"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI002") != std::string::npos);
+}
+
+TEST_CASE("parse with a nonexistent path returns CLI003")
+{
+    const RunResult result = run({"parse", "this/path/does/not/exist"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI003") != std::string::npos);
+}
+
+TEST_CASE("parse on a clean directory reports no parse errors and returns Success")
+{
+    const std::filesystem::path root = makeTempDiscoverRoot();
+
+    const RunResult result = run({"parse", root.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find("Files parsed: 3") != std::string::npos);
+    CHECK(result.output.find("Parse errors: 0") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("parse reports a broken file and still returns Success")
+{
+    const std::filesystem::path root =
+        std::filesystem::temp_directory_path() / "codeqa_parse_broken_test";
+    std::filesystem::remove_all(root);
+    std::filesystem::create_directories(root);
+    std::ofstream(root / "good.c") << "int main(void) { return 0; }\n";
+    std::ofstream(root / "bad.c") << "int broken( {\n";
+
+    const RunResult result = run({"parse", root.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find("Parse errors: 1") != std::string::npos);
+    CHECK(result.output.find("bad.c") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("parse honours --lang-override")
+{
+    const std::filesystem::path root = makeTempDiscoverRoot();
+
+    const RunResult result = run({"parse", root.string(), "--lang-override", "util.h=c"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find("C files: 2") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("--help documents the parse subcommand")
+{
+    const RunResult result = run({"--help"});
+
+    CHECK(result.output.find("parse <path>") != std::string::npos);
+}
