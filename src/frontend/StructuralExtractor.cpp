@@ -1,10 +1,10 @@
 #include "codeqa/frontend/StructuralExtractor.h"
 
+#include "TreeSitterInternals.h"
+
+#include "codeqa/frontend/EmbeddedQueries.h"
 #include "codeqa/frontend/ParsedFile.h"
 #include "codeqa/frontend/TreeSitterParser.h"
-#include "codeqa/frontend/EmbeddedQueries.h"
-
-#include <tree_sitter/api.h>
 
 #include <algorithm>
 #include <cctype>
@@ -356,7 +356,11 @@ std::string enclosingClassName(TSNode node, std::string_view source)
     return {};
 }
 
-FunctionKind functionKind(TSNode candidate, const std::string& name, std::string_view source)
+FunctionKind functionKind(
+    TSNode candidate,
+    TSNode declarator,
+    const std::string& name,
+    std::string_view source)
 {
     if (isNodeType(candidate, "lambda_expression"))
     {
@@ -368,7 +372,7 @@ FunctionKind functionKind(TSNode candidate, const std::string& name, std::string
         return FunctionKind::Prototype;
     }
 
-    if (name.find("operator") != std::string::npos)
+    if (!ts_node_is_null(findDescendantOfType(declarator, "operator_name")))
     {
         return FunctionKind::Operator;
     }
@@ -440,16 +444,19 @@ std::vector<ParameterModel> parametersFor(TSNode functionDeclarator, std::string
         }
 
         const TSNode declarator = findDeclarator(parameter);
-        const std::string parameterText = nodeText(parameter, source);
         const TSNode defaultValue = findDescendantOfType(parameter, "default_value");
 
         ParameterModel model;
         model.name = declaratorName(declarator, source);
         model.passing = isFunctionPointerDeclarator(declarator)
             ? ParameterPassing::FunctionPointer
-            : (parameterText.find('&') != std::string::npos
+            : (!ts_node_is_null(findDescendantOfType(declarator, "reference_declarator"))
+                      || !ts_node_is_null(
+                          findDescendantOfType(declarator, "abstract_reference_declarator"))
                     ? ParameterPassing::Reference
-                    : (parameterText.find('*') != std::string::npos
+                    : (!ts_node_is_null(findDescendantOfType(declarator, "pointer_declarator"))
+                              || !ts_node_is_null(
+                                  findDescendantOfType(declarator, "abstract_pointer_declarator"))
                             ? ParameterPassing::Pointer
                             : ParameterPassing::Value));
         model.hasDefaultValue = !ts_node_is_null(defaultValue)
@@ -494,7 +501,7 @@ FunctionModel adaptFunction(
 
     FunctionModel model;
     model.name = name;
-    model.kind = functionKind(candidate, name, source);
+    model.kind = functionKind(candidate, declarator, name, source);
     model.range = sourceRangeForCandidate(candidate, path);
     model.parameters = parametersFor(functionDeclarator, source);
     model.isStatic = hasStandaloneToken(specifiers, "static");
@@ -563,7 +570,6 @@ ClassModel adaptType(TSNode candidate, std::string_view source, const std::files
     const ClassKind kind = classKind(candidate);
     const TSNode name = directNameChild(candidate);
     const TSNode parent = ts_node_parent(candidate);
-    const std::string text = nodeText(candidate, source);
 
     ClassModel model;
     model.name = ts_node_is_null(name) ? std::string{} : nodeText(name, source);
@@ -571,7 +577,8 @@ ClassModel adaptType(TSNode candidate, std::string_view source, const std::files
     model.range = sourceRangeForCandidate(candidate, path);
     model.isTemplate = isNodeType(parent, "template_declaration");
     model.isScopedEnum = kind == ClassKind::Enum
-        && (text.rfind("enum class", 0) == 0 || text.rfind("enum struct", 0) == 0);
+        && (!ts_node_is_null(directChildOfType(candidate, "class"))
+            || !ts_node_is_null(directChildOfType(candidate, "struct")));
     model.baseSpecifiers = baseSpecifiersFor(candidate, source);
     return model;
 }
@@ -685,8 +692,9 @@ void StructuralExtractor::extract(
     const std::filesystem::path& path,
     ParsedFile& result) const
 {
+    const TSNode root = tree.impl_->rootNode();
     QueryCursorPointer cursor(ts_query_cursor_new());
-    ts_query_cursor_exec(cursor.get(), impl_->functionsFor(grammar), ts_tree_root_node(tree.handle()));
+    ts_query_cursor_exec(cursor.get(), impl_->functionsFor(grammar), root);
 
     TSQueryMatch match{};
 
@@ -709,7 +717,7 @@ void StructuralExtractor::extract(
     if (grammar == Grammar::Cpp)
     {
         std::vector<TSNode> lambdas;
-        collectNodesOfType(ts_tree_root_node(tree.handle()), "lambda_expression", lambdas);
+        collectNodesOfType(root, "lambda_expression", lambdas);
 
         for (const TSNode lambda : lambdas)
         {
@@ -733,7 +741,7 @@ void StructuralExtractor::extract(
             result.functions.begin(), result.functions.end(), hasSameFunctionRangeAndKind),
         result.functions.end());
 
-    ts_query_cursor_exec(cursor.get(), impl_->typesFor(grammar), ts_tree_root_node(tree.handle()));
+    ts_query_cursor_exec(cursor.get(), impl_->typesFor(grammar), root);
 
     while (ts_query_cursor_next_match(cursor.get(), &match))
     {
@@ -765,7 +773,7 @@ void StructuralExtractor::extract(
         std::unique(result.classes.begin(), result.classes.end(), hasSameClassRangeAndKind),
         result.classes.end());
 
-    ts_query_cursor_exec(cursor.get(), impl_->includesFor(grammar), ts_tree_root_node(tree.handle()));
+    ts_query_cursor_exec(cursor.get(), impl_->includesFor(grammar), root);
 
     while (ts_query_cursor_next_match(cursor.get(), &match))
     {

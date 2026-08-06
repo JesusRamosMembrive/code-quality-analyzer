@@ -101,6 +101,42 @@ TEST_CASE("extracts typed parameters from C++")
     CHECK(result.functions[0].parameters[2].hasDefaultValue);
 }
 
+TEST_CASE("derives C++ parameter passing from the declarator only")
+{
+    const TempSourceFile file{
+        "parameter-declarators.cpp",
+        "#include <vector>\n"
+        "void classify(std::vector<int*> values, int value = *fallback,\n"
+        "    int flags = left & right, int* pointer, int& reference,\n"
+        "    int (*callback)(int));\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    REQUIRE(result.functions[0].parameters.size() == 6);
+    CHECK(
+        result.functions[0].parameters[0].passing
+        == codeqa::frontend::ParameterPassing::Value);
+    CHECK(
+        result.functions[0].parameters[1].passing
+        == codeqa::frontend::ParameterPassing::Value);
+    CHECK(
+        result.functions[0].parameters[2].passing
+        == codeqa::frontend::ParameterPassing::Value);
+    CHECK(
+        result.functions[0].parameters[3].passing
+        == codeqa::frontend::ParameterPassing::Pointer);
+    CHECK(
+        result.functions[0].parameters[4].passing
+        == codeqa::frontend::ParameterPassing::Reference);
+    CHECK(
+        result.functions[0].parameters[5].passing
+        == codeqa::frontend::ParameterPassing::FunctionPointer);
+}
+
 TEST_CASE("extracts a C function with a void parameter list")
 {
     const TempSourceFile file{
@@ -141,6 +177,31 @@ TEST_CASE("extracts a C++ constructor")
     REQUIRE(result.functions.size() == 1);
     CHECK(result.functions[0].name == "Counter");
     CHECK(result.functions[0].kind == codeqa::frontend::FunctionKind::Constructor);
+}
+
+TEST_CASE("classifies operators from their C++ declarators")
+{
+    const TempSourceFile file{
+        "operator-kinds.cpp",
+        "int operatorHelper() { return 1; }\n"
+        "int cooperator() { return 2; }\n"
+        "struct Number\n"
+        "{\n"
+        "    Number operator+(const Number&) const { return {}; }\n"
+        "};\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 3);
+    CHECK(result.functions[0].name == "operatorHelper");
+    CHECK(result.functions[0].kind == codeqa::frontend::FunctionKind::Free);
+    CHECK(result.functions[1].name == "cooperator");
+    CHECK(result.functions[1].kind == codeqa::frontend::FunctionKind::Free);
+    CHECK(result.functions[2].name == "operator+");
+    CHECK(result.functions[2].kind == codeqa::frontend::FunctionKind::Operator);
 }
 
 TEST_CASE("extracts a C++ lambda")
@@ -268,6 +329,29 @@ TEST_CASE("extracts types from C++ namespaces and declarations")
     CHECK(result.classes[5].name == "Mode");
     CHECK(result.classes[5].kind == codeqa::frontend::ClassKind::Enum);
     CHECK(result.classes[5].isScopedEnum);
+}
+
+TEST_CASE("detects scoped C++ enums from their syntax")
+{
+    const TempSourceFile file{
+        "scoped-enums.cpp",
+        "enum\n"
+        "class Mode { Fast };\n"
+        "enum /* comment */ class State { Ready };\n"
+        "enum Plain { Value };\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.classes.size() == 3);
+    CHECK(result.classes[0].name == "Mode");
+    CHECK(result.classes[0].isScopedEnum);
+    CHECK(result.classes[1].name == "State");
+    CHECK(result.classes[1].isScopedEnum);
+    CHECK(result.classes[2].name == "Plain");
+    CHECK_FALSE(result.classes[2].isScopedEnum);
 }
 
 TEST_CASE("extracts include dependencies")

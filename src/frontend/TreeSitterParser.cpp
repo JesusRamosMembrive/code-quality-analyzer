@@ -1,7 +1,8 @@
 #include "codeqa/frontend/TreeSitterParser.h"
 
-#include <tree_sitter/api.h>
+#include "TreeSitterInternals.h"
 
+#include <memory>
 #include <utility>
 
 extern "C" const TSLanguage* tree_sitter_c(void);
@@ -63,12 +64,12 @@ void collectSyntaxErrors(TSNode node, std::vector<SyntaxError>& errors)
 
 } // namespace
 
-SyntaxTree::SyntaxTree(TSTree* tree)
+SyntaxTree::Impl::Impl(TSTree* tree)
     : tree_(tree)
 {
 }
 
-SyntaxTree::~SyntaxTree()
+SyntaxTree::Impl::~Impl()
 {
     if (tree_ != nullptr)
     {
@@ -76,59 +77,50 @@ SyntaxTree::~SyntaxTree()
     }
 }
 
-SyntaxTree::SyntaxTree(SyntaxTree&& other) noexcept
-    : tree_(std::exchange(other.tree_, nullptr))
+TSNode SyntaxTree::Impl::rootNode() const
+{
+    return ts_tree_root_node(tree_);
+}
+
+SyntaxTree::SyntaxTree(std::unique_ptr<Impl> impl)
+    : impl_(std::move(impl))
 {
 }
 
-SyntaxTree& SyntaxTree::operator=(SyntaxTree&& other) noexcept
-{
-    if (this != &other)
-    {
-        if (tree_ != nullptr)
-        {
-            ts_tree_delete(tree_);
-        }
+SyntaxTree::~SyntaxTree() = default;
 
-        tree_ = std::exchange(other.tree_, nullptr);
-    }
+SyntaxTree::SyntaxTree(SyntaxTree&&) noexcept = default;
 
-    return *this;
-}
+SyntaxTree& SyntaxTree::operator=(SyntaxTree&&) noexcept = default;
 
 const char* SyntaxTree::rootNodeType() const
 {
-    return ts_node_type(ts_tree_root_node(tree_));
+    return ts_node_type(impl_->rootNode());
 }
 
 bool SyntaxTree::rootHasError() const
 {
-    return ts_node_has_error(ts_tree_root_node(tree_));
+    return ts_node_has_error(impl_->rootNode());
 }
 
 std::vector<SyntaxError> SyntaxTree::syntaxErrors() const
 {
     std::vector<SyntaxError> errors;
 
-    if (tree_ != nullptr)
+    if (impl_ != nullptr)
     {
-        collectSyntaxErrors(ts_tree_root_node(tree_), errors);
+        collectSyntaxErrors(impl_->rootNode(), errors);
     }
 
     return errors;
 }
 
-TSTree* SyntaxTree::handle() const
-{
-    return tree_;
-}
-
-TreeSitterParser::TreeSitterParser()
+TreeSitterParser::Impl::Impl()
     : parser_(ts_parser_new())
 {
 }
 
-TreeSitterParser::~TreeSitterParser()
+TreeSitterParser::Impl::~Impl()
 {
     if (parser_ != nullptr)
     {
@@ -136,47 +128,43 @@ TreeSitterParser::~TreeSitterParser()
     }
 }
 
-TreeSitterParser::TreeSitterParser(TreeSitterParser&& other) noexcept
-    : parser_(std::exchange(other.parser_, nullptr))
+TSParser* TreeSitterParser::Impl::parser() const
+{
+    return parser_;
+}
+
+TreeSitterParser::TreeSitterParser()
+    : impl_(std::make_unique<Impl>())
 {
 }
 
-TreeSitterParser& TreeSitterParser::operator=(TreeSitterParser&& other) noexcept
-{
-    if (this != &other)
-    {
-        if (parser_ != nullptr)
-        {
-            ts_parser_delete(parser_);
-        }
+TreeSitterParser::~TreeSitterParser() = default;
 
-        parser_ = std::exchange(other.parser_, nullptr);
-    }
+TreeSitterParser::TreeSitterParser(TreeSitterParser&&) noexcept = default;
 
-    return *this;
-}
+TreeSitterParser& TreeSitterParser::operator=(TreeSitterParser&&) noexcept = default;
 
 std::optional<SyntaxTree> TreeSitterParser::parse(Grammar grammar, std::string_view source)
 {
-    if (parser_ == nullptr)
+    if (impl_ == nullptr || impl_->parser() == nullptr)
     {
         return std::nullopt;
     }
 
-    if (!ts_parser_set_language(parser_, languageFor(grammar)))
+    if (!ts_parser_set_language(impl_->parser(), languageFor(grammar)))
     {
         return std::nullopt;
     }
 
     TSTree* tree = ts_parser_parse_string(
-        parser_, nullptr, source.data(), static_cast<uint32_t>(source.size()));
+        impl_->parser(), nullptr, source.data(), static_cast<uint32_t>(source.size()));
 
     if (tree == nullptr)
     {
         return std::nullopt;
     }
 
-    return SyntaxTree{tree};
+    return SyntaxTree{std::make_unique<SyntaxTree::Impl>(tree)};
 }
 
 } // namespace codeqa::frontend

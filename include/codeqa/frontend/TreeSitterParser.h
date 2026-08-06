@@ -3,17 +3,16 @@
 #include "codeqa/frontend/Grammar.h"
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <vector>
-
-struct TSParser;
-struct TSTree;
 
 namespace codeqa::frontend
 {
 
 class StructuralExtractor;
+class TreeSitterParser;
 
 struct SyntaxError
 {
@@ -22,12 +21,10 @@ struct SyntaxError
     bool missing{false};
 };
 
-/// Owns a parsed syntax tree. Non-copyable, movable: the underlying TSTree
-/// must be deleted exactly once.
+/// Owns a parsed syntax tree. Non-copyable and movable.
 class SyntaxTree
 {
 public:
-    explicit SyntaxTree(TSTree* tree);
     ~SyntaxTree();
 
     SyntaxTree(const SyntaxTree&) = delete;
@@ -42,13 +39,16 @@ public:
 
 private:
     friend class StructuralExtractor;
+    friend class TreeSitterParser;
 
-    [[nodiscard]] TSTree* handle() const;
+    class Impl;
 
-    TSTree* tree_{nullptr};
+    explicit SyntaxTree(std::unique_ptr<Impl> impl);
+
+    std::unique_ptr<Impl> impl_;
 };
 
-/// Owns a reusable TSParser. Non-copyable, movable.
+/// Owns a reusable parser. Non-copyable and movable.
 class TreeSitterParser
 {
 public:
@@ -64,7 +64,8 @@ public:
     [[nodiscard]] std::optional<SyntaxTree> parse(Grammar grammar, std::string_view source);
 
 private:
-    TSParser* parser_{nullptr};
+    class Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace codeqa::frontend
