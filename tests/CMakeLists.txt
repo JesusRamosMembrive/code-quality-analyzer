@@ -13,10 +13,15 @@ add_executable(codeqa_tests
     unit/SelectGrammarTest.cpp
     unit/TreeSitterParserTest.cpp
     unit/ParseSourceFileTest.cpp
+    unit/CorpusParsingTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
     ${PROJECT_SOURCE_DIR}/third_party
+)
+
+target_compile_definitions(codeqa_tests PRIVATE
+    CODEQA_CORPUS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/corpus"
 )
 
 target_link_libraries(codeqa_tests PRIVATE codeqa_core tree_sitter tree_sitter_c tree_sitter_cpp)

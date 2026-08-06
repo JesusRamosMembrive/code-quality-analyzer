@@ -88,10 +88,13 @@ rama o si cada `case` suma, y esas decisiones pertenecen a la Fase 6.
   entradas adicionales de la región rota como resultado de la recuperación de
   errores de tree-sitter. Un runner que exija igualdad de conjuntos ahí fallaría
   sobre un comportamiento correcto del parser, no sobre un error real.
-- Las `functions` (y `classes`) de los fixtures de `malformed/`, así como las
-  líneas de sus `diagnostics`, son **provisionales pendientes de la salida real
-  de tree-sitter en la Fase 4**: hoy no existe todavía un analizador que confirme
-  qué produce exactamente la recuperación de errores sobre código roto.
+- Las `functions` (y `classes`) de los fixtures de `malformed/` siguen siendo
+  **provisionales, pendientes de la extracción real de funciones y clases en la
+  Fase 4b**: el frontend de la Fase 4a solo confirma parseo y diagnósticos —
+  `ParsedFile` todavía no expone `functions` ni `classes`. Las líneas de
+  `diagnostics`, en cambio, ya no son provisionales: la Fase 4a las verificó
+  contra la salida real de tree-sitter (`tests/unit/CorpusParsingTest.cpp`),
+  y coinciden con lo que la recuperación de errores produce hoy.
 
 ### IDs no verificables: cobertura solo por presencia
 
