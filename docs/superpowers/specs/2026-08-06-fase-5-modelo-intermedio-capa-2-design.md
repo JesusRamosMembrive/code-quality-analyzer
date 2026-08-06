@@ -36,10 +36,12 @@ evaluación de expresiones y resolución del destino de las llamadas.
 solo existe para las construcciones que poseen condición; permite a la Fase 6
 calcular complejidad booleana sin consultar el parser.
 
-`CallKind` distingue `Direct`, `Member` e `Indirect`. Una llamada directa usa
-un identificador; una de miembro usa `.` o `->`; la indirecta abarca callbacks
-u otras expresiones invocables. `calleeText` conserva la grafía fuente, pero
-ningún modelo pretende identificar una función destino.
+`CallKind` distingue `Named`, `Member` e `Indirect`. Una llamada nombrada usa
+un identificador o nombre cualificado; una de miembro usa `.` o `->`; la
+indirecta abarca expresiones invocables sin nombre, como `factory()()`. Un
+callback escrito como `callback()` es `Named`: sin análisis semántico no se
+puede conocer su tipo. `calleeText` conserva la grafía fuente, pero ningún
+modelo pretende identificar una función destino.
 
 Los prototipos no tienen estas colecciones pobladas. Funciones, métodos,
 operadores y lambdas con cuerpo sí pueden tenerlas. Un cuerpo de lambda se
