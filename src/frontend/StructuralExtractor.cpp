@@ -702,6 +702,18 @@ TSNode typeDeclarator(TSNode declarator)
 
 std::vector<TSNode> declarationDeclarators(TSNode candidate)
 {
+    if (isNodeType(candidate, "for_range_loop"))
+    {
+        const TSNode declarator = childForField(candidate, "declarator");
+
+        if (ts_node_is_null(declarator))
+        {
+            return {};
+        }
+
+        return {declarator};
+    }
+
     std::vector<TSNode> declarators;
     const TSNode type = childForField(candidate, "type");
     const std::size_t typeEnd = ts_node_is_null(type) ? 0 : ts_node_end_byte(type);
@@ -857,7 +869,7 @@ std::optional<ControlFlowKind> controlFlowKind(TSNode node)
         return ControlFlowKind::Switch;
     }
 
-    if (isNodeType(node, "for_statement") || isNodeType(node, "range_based_for_statement"))
+    if (isNodeType(node, "for_statement") || isNodeType(node, "for_range_loop"))
     {
         return ControlFlowKind::For;
     }
@@ -909,7 +921,7 @@ std::optional<ControlFlowKind> controlFlowKind(TSNode node)
 
 bool isForStatement(TSNode node)
 {
-    return isNodeType(node, "for_statement") || isNodeType(node, "range_based_for_statement");
+    return isNodeType(node, "for_statement") || isNodeType(node, "for_range_loop");
 }
 
 CallKind callKind(TSNode functionExpression)
@@ -944,10 +956,12 @@ void extractBodyStructure(
             return;
         }
 
-        if (isNodeType(node, "declaration") && !subtreeContainsErrorOrMissing(node))
+        if ((isNodeType(node, "declaration") || isNodeType(node, "for_range_loop"))
+            && !subtreeContainsErrorOrMissing(node))
         {
             const TSNode parent = ts_node_parent(node);
-            const std::size_t declarationDepth = isForStatement(parent)
+            const bool isForRangeLoop = isNodeType(node, "for_range_loop");
+            const std::size_t declarationDepth = (isForRangeLoop || isForStatement(parent))
                 ? lexicalDepth + 1
                 : lexicalDepth;
 

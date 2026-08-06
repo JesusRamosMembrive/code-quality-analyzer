@@ -286,6 +286,36 @@ TEST_CASE("extracts function body locals and control flow")
     CHECK_FALSE(scan.controlFlow[9].conditionRange.has_value());
 }
 
+TEST_CASE("extracts C++ range-for iterator locals and control flow")
+{
+    const TempSourceFile file{
+        "range-for-body.cpp",
+        "void visit(const int* values, int count) {\n"
+        "    int total = 0;\n"
+        "    for (const auto& item : values) {\n"
+        "        total += item;\n"
+        "    }\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.diagnostics.empty());
+    REQUIRE(result.functions.size() == 1);
+    const codeqa::frontend::FunctionModel& visit = result.functions[0];
+    REQUIRE(visit.localVariables.size() == 2);
+    CHECK(visit.localVariables[0].name == "total");
+    CHECK(visit.localVariables[1].name == "item");
+    CHECK(visit.localVariables[1].declaredType == "const auto&");
+    CHECK_FALSE(visit.localVariables[1].hasInitializer);
+    CHECK(visit.localVariables[1].lexicalDepth == 1);
+    CHECK(visit.localVariables[0].range.begin.offset < visit.localVariables[1].range.begin.offset);
+    REQUIRE(visit.controlFlow.size() == 1);
+    CHECK(visit.controlFlow[0].kind == codeqa::frontend::ControlFlowKind::For);
+}
+
 TEST_CASE("extracts syntactic calls without resolving symbols")
 {
     const TempSourceFile file{
