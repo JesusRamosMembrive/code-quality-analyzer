@@ -85,16 +85,16 @@ el texto del mensaje.
 
 ## Límites de Fase 5
 
-Los modelos de esta fase no representan variables globales ni aliases `typedef`.
-Por ello `C-DECL-01` y `C-TYPE-04` siguen siendo capacidades estructurales
-pendientes de Fase 5: esa será la primera fase que pueda demostrar su modelo y
-su análisis propios.
+Este corpus también valida la primera capa del modelo común de Fase 5:
+archivos, diagnósticos, funciones, tipos, dependencias, variables de ámbito de
+archivo y aliases `typedef`. El flujo de control, las llamadas y las variables
+locales permanecen en la capa 2 de Fase 5.
 
 `classes/c-types.c` contiene `typedef struct Point PointAlias;`. La gramática
 actual también entrega el `struct Point` de la línea 24 como una captura
 sintáctica, y la expectativa exhaustiva la conserva para fijar la salida real
-del extractor. Esa entrada no representa `PointAlias`, no demuestra que se
-reconozca un typedef y no cambia el límite de `C-TYPE-04`.
+del extractor. Esa entrada no representa `PointAlias`; la capa de modelo común
+lo adapta por separado como un alias de tipo.
 
 ## Integridad del corpus
 
