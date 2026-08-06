@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -224,6 +225,117 @@ TEST_CASE("extracts a C++ lambda")
     CHECK(result.functions[1].kind == codeqa::frontend::FunctionKind::Lambda);
     REQUIRE(result.functions[1].parameters.size() == 1);
     CHECK(result.functions[1].parameters[0].name == "candidate");
+}
+
+TEST_CASE("extracts function body locals and control flow")
+{
+    const TempSourceFile file{
+        "body-structure.c",
+        "int helper(int value) { return value; }\n"
+        "int scan(int count) {\n"
+        "    int total = 0;\n"
+        "    for (int index = 0; index < count; ++index) {\n"
+        "        if (index ? 1 : 0) {\n"
+        "            while (total < 10) { do { ++total; } while (total < 5); break; }\n"
+        "            continue;\n"
+        "        }\n"
+        "    }\n"
+        "    switch (total) { case 0: return helper(total); default: return total; }\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    const codeqa::frontend::FunctionModel& scan = result.functions[1];
+    REQUIRE(scan.localVariables.size() == 2);
+    CHECK(scan.localVariables[0].name == "total");
+    CHECK(scan.localVariables[0].declaredType == "int");
+    CHECK(scan.localVariables[0].hasInitializer);
+    CHECK(scan.localVariables[0].lexicalDepth == 0);
+    CHECK(scan.localVariables[1].name == "index");
+    CHECK(scan.localVariables[1].declaredType == "int");
+    CHECK(scan.localVariables[1].hasInitializer);
+    CHECK(scan.localVariables[1].lexicalDepth == 1);
+
+    const std::vector<codeqa::frontend::ControlFlowKind> expectedFlow{
+        codeqa::frontend::ControlFlowKind::For,
+        codeqa::frontend::ControlFlowKind::If,
+        codeqa::frontend::ControlFlowKind::Conditional,
+        codeqa::frontend::ControlFlowKind::While,
+        codeqa::frontend::ControlFlowKind::DoWhile,
+        codeqa::frontend::ControlFlowKind::Break,
+        codeqa::frontend::ControlFlowKind::Continue,
+        codeqa::frontend::ControlFlowKind::Switch,
+        codeqa::frontend::ControlFlowKind::Case,
+        codeqa::frontend::ControlFlowKind::Return,
+        codeqa::frontend::ControlFlowKind::Default,
+        codeqa::frontend::ControlFlowKind::Return};
+    REQUIRE(scan.controlFlow.size() == expectedFlow.size());
+
+    for (std::size_t index = 0; index < expectedFlow.size(); ++index)
+    {
+        CHECK(scan.controlFlow[index].kind == expectedFlow[index]);
+    }
+
+    CHECK(scan.controlFlow[0].kind == codeqa::frontend::ControlFlowKind::For);
+    CHECK(scan.controlFlow[1].kind == codeqa::frontend::ControlFlowKind::If);
+    CHECK(scan.controlFlow[1].conditionRange.has_value());
+    CHECK_FALSE(scan.controlFlow[9].conditionRange.has_value());
+}
+
+TEST_CASE("keeps lambda body data out of the enclosing callable")
+{
+    const TempSourceFile file{
+        "lambda-body.cpp",
+        "void run() {\n"
+        "    int outer = 0;\n"
+        "    []() { int inner = 1; if (inner) { return; } }();\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    const codeqa::frontend::FunctionModel& run = result.functions[0];
+    const codeqa::frontend::FunctionModel& lambda = result.functions[1];
+    REQUIRE(run.localVariables.size() == 1);
+    CHECK(run.localVariables[0].name == "outer");
+    CHECK(run.controlFlow.empty());
+    CHECK(lambda.kind == codeqa::frontend::FunctionKind::Lambda);
+    REQUIRE(lambda.localVariables.size() == 1);
+    CHECK(lambda.localVariables[0].name == "inner");
+    REQUIRE(lambda.controlFlow.size() == 2);
+    CHECK(lambda.controlFlow[0].kind == codeqa::frontend::ControlFlowKind::If);
+    CHECK(lambda.controlFlow[1].kind == codeqa::frontend::ControlFlowKind::Return);
+}
+
+TEST_CASE("recovers reliable body data from partial files")
+{
+    const TempSourceFile file{
+        "partial-body.c",
+        "int valid(void) { int stable = 1; return stable; }\n"
+        "int broken(void) { int value = ; }\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE_FALSE(result.diagnostics.empty());
+    REQUIRE(result.functions.size() == 2);
+    const codeqa::frontend::FunctionModel& valid = result.functions[0];
+    const codeqa::frontend::FunctionModel& broken = result.functions[1];
+    REQUIRE(valid.localVariables.size() == 1);
+    CHECK(valid.localVariables[0].name == "stable");
+    REQUIRE(valid.controlFlow.size() == 1);
+    CHECK(valid.controlFlow[0].kind == codeqa::frontend::ControlFlowKind::Return);
+    CHECK(broken.localVariables.empty());
+    CHECK(broken.controlFlow.empty());
 }
 
 TEST_CASE("extracts const method prototypes and template ranges")

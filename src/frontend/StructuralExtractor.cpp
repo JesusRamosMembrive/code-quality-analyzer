@@ -487,6 +487,14 @@ bool isVariadic(TSNode functionDeclarator, std::string_view source)
         || nodeText(parameterList, source).find("...") != std::string::npos;
 }
 
+bool subtreeContainsErrorOrMissing(TSNode node);
+
+void extractBodyStructure(
+    TSNode body,
+    std::string_view source,
+    const std::filesystem::path& path,
+    FunctionModel& function);
+
 FunctionModel adaptFunction(
     TSNode candidate,
     TSNode functionDeclarator,
@@ -512,6 +520,14 @@ FunctionModel adaptFunction(
     model.parameters = parametersFor(functionDeclarator, source);
     model.isStatic = hasStandaloneToken(specifiers, "static");
     model.isVariadic = isVariadic(functionDeclarator, source);
+
+    const TSNode body = childForField(candidate, "body");
+
+    if (!ts_node_is_null(body) && !subtreeContainsErrorOrMissing(body))
+    {
+        extractBodyStructure(body, source, path, model);
+    }
+
     return model;
 }
 
@@ -802,6 +818,198 @@ bool isFunctionDeclaration(TSNode declarator)
         ? declarator
         : findFunctionDeclarator(declarator);
     return !ts_node_is_null(function) && !isFunctionPointerDeclaration(function);
+}
+
+bool subtreeContainsErrorOrMissing(TSNode node)
+{
+    if (ts_node_is_null(node))
+    {
+        return false;
+    }
+
+    if (ts_node_is_error(node) || ts_node_is_missing(node))
+    {
+        return true;
+    }
+
+    const uint32_t childCount = ts_node_child_count(node);
+
+    for (uint32_t index = 0; index < childCount; ++index)
+    {
+        if (subtreeContainsErrorOrMissing(ts_node_child(node, index)))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::optional<ControlFlowKind> controlFlowKind(TSNode node)
+{
+    if (isNodeType(node, "if_statement"))
+    {
+        return ControlFlowKind::If;
+    }
+
+    if (isNodeType(node, "switch_statement"))
+    {
+        return ControlFlowKind::Switch;
+    }
+
+    if (isNodeType(node, "for_statement") || isNodeType(node, "range_based_for_statement"))
+    {
+        return ControlFlowKind::For;
+    }
+
+    if (isNodeType(node, "while_statement"))
+    {
+        return ControlFlowKind::While;
+    }
+
+    if (isNodeType(node, "do_statement"))
+    {
+        return ControlFlowKind::DoWhile;
+    }
+
+    if (isNodeType(node, "case_statement"))
+    {
+        return ts_node_is_null(childForField(node, "value"))
+            ? ControlFlowKind::Default
+            : ControlFlowKind::Case;
+    }
+
+    if (isNodeType(node, "default_statement"))
+    {
+        return ControlFlowKind::Default;
+    }
+
+    if (isNodeType(node, "conditional_expression"))
+    {
+        return ControlFlowKind::Conditional;
+    }
+
+    if (isNodeType(node, "return_statement"))
+    {
+        return ControlFlowKind::Return;
+    }
+
+    if (isNodeType(node, "break_statement"))
+    {
+        return ControlFlowKind::Break;
+    }
+
+    if (isNodeType(node, "continue_statement"))
+    {
+        return ControlFlowKind::Continue;
+    }
+
+    return std::nullopt;
+}
+
+bool isForStatement(TSNode node)
+{
+    return isNodeType(node, "for_statement") || isNodeType(node, "range_based_for_statement");
+}
+
+void extractBodyStructure(
+    TSNode body,
+    std::string_view source,
+    const std::filesystem::path& path,
+    FunctionModel& function)
+{
+    const auto visit = [&](const auto& self, TSNode node, std::size_t lexicalDepth, std::size_t flowDepth) -> void {
+        if (isNodeType(node, "lambda_expression"))
+        {
+            return;
+        }
+
+        if (isNodeType(node, "declaration") && !subtreeContainsErrorOrMissing(node))
+        {
+            const TSNode parent = ts_node_parent(node);
+            const std::size_t declarationDepth = isForStatement(parent)
+                ? lexicalDepth + 1
+                : lexicalDepth;
+
+            for (const TSNode declarator : declarationDeclarators(node))
+            {
+                if (isFunctionDeclaration(declarator))
+                {
+                    continue;
+                }
+
+                const std::string name = declaratorName(declarator, source);
+
+                if (name.empty())
+                {
+                    continue;
+                }
+
+                LocalVariableModel local;
+                local.name = name;
+                local.declaredType = declarationType(node, declarator, source);
+                local.range = sourceRange(declarator, path);
+                local.hasInitializer = hasInitializer(declarator);
+                local.lexicalDepth = declarationDepth;
+                function.localVariables.push_back(std::move(local));
+            }
+        }
+
+        const std::optional<ControlFlowKind> kind = controlFlowKind(node);
+        const std::size_t childFlowDepth = kind.has_value() ? flowDepth + 1 : flowDepth;
+
+        if (kind.has_value() && !subtreeContainsErrorOrMissing(node))
+        {
+            ControlFlowModel flow;
+            flow.kind = *kind;
+            flow.range = sourceRange(node, path);
+            flow.nestingDepth = flowDepth;
+            const TSNode condition = childForField(node, "condition");
+
+            if (!ts_node_is_null(condition))
+            {
+                flow.conditionRange = sourceRange(condition, path);
+            }
+
+            function.controlFlow.push_back(std::move(flow));
+        }
+
+        const uint32_t childCount = ts_node_child_count(node);
+
+        for (uint32_t index = 0; index < childCount; ++index)
+        {
+            const TSNode child = ts_node_child(node, index);
+            const std::size_t childLexicalDepth = isNodeType(child, "compound_statement")
+                ? lexicalDepth + 1
+                : lexicalDepth;
+            self(self, child, childLexicalDepth, childFlowDepth);
+        }
+    };
+
+    visit(visit, body, 0, 0);
+
+    std::stable_sort(
+        function.localVariables.begin(),
+        function.localVariables.end(),
+        [](const LocalVariableModel& left, const LocalVariableModel& right) {
+            if (left.range.begin.offset != right.range.begin.offset)
+            {
+                return left.range.begin.offset < right.range.begin.offset;
+            }
+
+            return left.range.end.offset < right.range.end.offset;
+        });
+    std::stable_sort(
+        function.controlFlow.begin(),
+        function.controlFlow.end(),
+        [](const ControlFlowModel& left, const ControlFlowModel& right) {
+            if (left.range.begin.offset != right.range.begin.offset)
+            {
+                return left.range.begin.offset < right.range.begin.offset;
+            }
+
+            return left.range.end.offset < right.range.end.offset;
+        });
 }
 
 void adaptDeclaration(
