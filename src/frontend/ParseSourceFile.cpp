@@ -78,6 +78,11 @@ std::optional<std::string> readFile(const std::filesystem::path& path)
     std::ostringstream buffer;
     buffer << input.rdbuf();
 
+    if (input.bad())
+    {
+        return std::nullopt;
+    }
+
     return buffer.str();
 }
 
