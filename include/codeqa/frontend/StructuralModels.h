@@ -2,6 +2,8 @@
 
 #include "codeqa/core/SourceRange.h"
 
+#include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,6 +29,28 @@ enum class ParameterPassing
     FunctionPointer
 };
 
+enum class ControlFlowKind
+{
+    If,
+    Switch,
+    For,
+    While,
+    DoWhile,
+    Case,
+    Default,
+    Conditional,
+    Return,
+    Break,
+    Continue
+};
+
+enum class CallKind
+{
+    Named,
+    Member,
+    Indirect
+};
+
 enum class ClassKind
 {
     Class,
@@ -49,6 +73,31 @@ struct ParameterModel
     bool hasDefaultValue{false};
 };
 
+struct LocalVariableModel
+{
+    std::string name;
+    std::string declaredType;
+    core::SourceRange range;
+    bool hasInitializer{false};
+    std::size_t lexicalDepth{0};
+};
+
+struct ControlFlowModel
+{
+    ControlFlowKind kind{ControlFlowKind::If};
+    core::SourceRange range;
+    std::size_t nestingDepth{0};
+    std::optional<core::SourceRange> conditionRange;
+};
+
+struct CallModel
+{
+    std::string calleeText;
+    CallKind kind{CallKind::Named};
+    std::size_t argumentCount{0};
+    core::SourceRange range;
+};
+
 struct FunctionModel
 {
     std::string name;
@@ -57,6 +106,9 @@ struct FunctionModel
     std::vector<ParameterModel> parameters;
     bool isStatic{false};
     bool isVariadic{false};
+    std::vector<LocalVariableModel> localVariables;
+    std::vector<ControlFlowModel> controlFlow;
+    std::vector<CallModel> calls;
 };
 
 struct ClassModel

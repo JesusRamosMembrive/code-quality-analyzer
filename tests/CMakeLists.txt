@@ -20,6 +20,7 @@ add_executable(codeqa_tests
     unit/CorpusParsingTest.cpp
     unit/CorpusStructureTest.cpp
     unit/ModelTypesTest.cpp
+    unit/ModelPublicApiTest.cpp
     unit/ProjectModelBuilderTest.cpp
     unit/AnalyzeProjectTest.cpp
     unit/CorpusModelTest.cpp

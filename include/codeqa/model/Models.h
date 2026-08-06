@@ -4,6 +4,7 @@
 #include "codeqa/core/Language.h"
 #include "codeqa/core/SourceRange.h"
 
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -45,6 +46,28 @@ enum class ParameterPassing
     FunctionPointer
 };
 
+enum class ControlFlowKind
+{
+    If,
+    Switch,
+    For,
+    While,
+    DoWhile,
+    Case,
+    Default,
+    Conditional,
+    Return,
+    Break,
+    Continue
+};
+
+enum class CallKind
+{
+    Named,
+    Member,
+    Indirect
+};
+
 enum class TypeKind
 {
     Class,
@@ -66,6 +89,30 @@ struct ParameterModel
     bool hasDefaultValue{false};
 };
 
+struct LocalVariableModel
+{
+    SymbolIdentity symbol;
+    std::string declaredType;
+    bool hasInitializer{false};
+    std::size_t lexicalDepth{0};
+};
+
+struct ControlFlowModel
+{
+    ControlFlowKind kind{ControlFlowKind::If};
+    core::SourceRange range;
+    std::size_t nestingDepth{0};
+    std::optional<core::SourceRange> conditionRange;
+};
+
+struct CallModel
+{
+    std::string calleeText;
+    CallKind kind{CallKind::Named};
+    std::size_t argumentCount{0};
+    core::SourceRange range;
+};
+
 struct CallableModel
 {
     SymbolIdentity symbol;
@@ -73,6 +120,9 @@ struct CallableModel
     std::vector<ParameterModel> parameters;
     bool isStatic{false};
     bool isVariadic{false};
+    std::vector<LocalVariableModel> localVariables;
+    std::vector<ControlFlowModel> controlFlow;
+    std::vector<CallModel> calls;
 };
 
 struct CppTypeDetails
