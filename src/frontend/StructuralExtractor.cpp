@@ -122,6 +122,31 @@ TSNode childForField(TSNode node, const char* field)
     return ts_node_child_by_field_name(node, field, static_cast<uint32_t>(std::char_traits<char>::length(field)));
 }
 
+TSNode directNameChild(TSNode node)
+{
+    TSNode name = childForField(node, "name");
+
+    if (!ts_node_is_null(name))
+    {
+        return name;
+    }
+
+    const uint32_t childCount = ts_node_named_child_count(node);
+
+    for (uint32_t index = 0; index < childCount; ++index)
+    {
+        const TSNode child = ts_node_named_child(node, index);
+
+        if (isNodeType(child, "identifier") || isNodeType(child, "type_identifier")
+            || isNodeType(child, "namespace_identifier"))
+        {
+            return child;
+        }
+    }
+
+    return TSNode{};
+}
+
 std::string nodeText(TSNode node, std::string_view source)
 {
     const std::size_t start = ts_node_start_byte(node);
@@ -471,6 +496,99 @@ FunctionModel adaptFunction(
     return model;
 }
 
+ClassKind classKind(TSNode candidate)
+{
+    if (isNodeType(candidate, "class_specifier"))
+    {
+        return ClassKind::Class;
+    }
+
+    if (isNodeType(candidate, "struct_specifier"))
+    {
+        return ClassKind::Struct;
+    }
+
+    if (isNodeType(candidate, "union_specifier"))
+    {
+        return ClassKind::Union;
+    }
+
+    if (isNodeType(candidate, "enum_specifier"))
+    {
+        return ClassKind::Enum;
+    }
+
+    return ClassKind::Namespace;
+}
+
+std::vector<std::string> baseSpecifiersFor(TSNode candidate, std::string_view source)
+{
+    std::vector<std::string> bases;
+
+    if (!isNodeType(candidate, "class_specifier") && !isNodeType(candidate, "struct_specifier"))
+    {
+        return bases;
+    }
+
+    const TSNode clause = directChildOfType(candidate, "base_class_clause");
+
+    if (ts_node_is_null(clause))
+    {
+        return bases;
+    }
+
+    const uint32_t childCount = ts_node_named_child_count(clause);
+
+    for (uint32_t index = 0; index < childCount; ++index)
+    {
+        const TSNode child = ts_node_named_child(clause, index);
+
+        if (!isNodeType(child, "access_specifier"))
+        {
+            bases.push_back(trim(nodeText(child, source)));
+        }
+    }
+
+    return bases;
+}
+
+ClassModel adaptType(TSNode candidate, std::string_view source, const std::filesystem::path& path)
+{
+    const ClassKind kind = classKind(candidate);
+    const TSNode name = directNameChild(candidate);
+    const TSNode parent = ts_node_parent(candidate);
+    const std::string text = nodeText(candidate, source);
+
+    ClassModel model;
+    model.name = ts_node_is_null(name) ? std::string{} : nodeText(name, source);
+    model.kind = kind;
+    model.range = sourceRange(candidate, path);
+    model.isTemplate = isNodeType(parent, "template_declaration");
+    model.isScopedEnum = kind == ClassKind::Enum
+        && (text.rfind("enum class", 0) == 0 || text.rfind("enum struct", 0) == 0);
+    model.baseSpecifiers = baseSpecifiersFor(candidate, source);
+    return model;
+}
+
+IncludeDependency adaptInclude(
+    TSNode candidate,
+    std::string_view source,
+    const std::filesystem::path& path)
+{
+    const TSNode includePath = childForField(candidate, "path");
+    const std::string text = nodeText(includePath, source);
+    const bool hasAngleDelimiters = text.size() >= 2 && text.front() == '<' && text.back() == '>';
+    const bool hasQuoteDelimiters = text.size() >= 2 && text.front() == '"' && text.back() == '"';
+
+    IncludeDependency model;
+    model.target = hasAngleDelimiters || hasQuoteDelimiters ? text.substr(1, text.size() - 2) : text;
+    model.delimiter = hasAngleDelimiters
+        ? IncludeDelimiter::System
+        : IncludeDelimiter::Local;
+    model.range = sourceRange(candidate, path);
+    return model;
+}
+
 void collectNodesOfType(TSNode node, const char* type, std::vector<TSNode>& nodes)
 {
     if (isNodeType(node, type))
@@ -492,6 +610,18 @@ bool hasSameFunctionRangeAndKind(const FunctionModel& left, const FunctionModel&
         && left.range.end.offset == right.range.end.offset;
 }
 
+bool hasSameClassRangeAndKind(const ClassModel& left, const ClassModel& right)
+{
+    return left.kind == right.kind && left.range.begin.offset == right.range.begin.offset
+        && left.range.end.offset == right.range.end.offset;
+}
+
+bool hasSameIncludeRange(const IncludeDependency& left, const IncludeDependency& right)
+{
+    return left.range.begin.offset == right.range.begin.offset
+        && left.range.end.offset == right.range.end.offset;
+}
+
 } // namespace
 
 class StructuralExtractor::Impl
@@ -510,6 +640,16 @@ public:
     [[nodiscard]] TSQuery* functionsFor(Grammar grammar) const
     {
         return grammar == Grammar::C ? cFunctions_.get() : cppFunctions_.get();
+    }
+
+    [[nodiscard]] TSQuery* typesFor(Grammar grammar) const
+    {
+        return grammar == Grammar::C ? cTypes_.get() : cppTypes_.get();
+    }
+
+    [[nodiscard]] TSQuery* includesFor(Grammar grammar) const
+    {
+        return grammar == Grammar::C ? cIncludes_.get() : cppIncludes_.get();
     }
 
 private:
@@ -586,6 +726,69 @@ void StructuralExtractor::extract(
         std::unique(
             result.functions.begin(), result.functions.end(), hasSameFunctionRangeAndKind),
         result.functions.end());
+
+    ts_query_cursor_exec(cursor.get(), impl_->typesFor(grammar), ts_tree_root_node(tree.handle()));
+
+    while (ts_query_cursor_next_match(cursor.get(), &match))
+    {
+        for (uint16_t index = 0; index < match.capture_count; ++index)
+        {
+            const TSNode candidate = match.captures[index].node;
+
+            if (ts_node_is_error(candidate) || ts_node_is_missing(candidate))
+            {
+                continue;
+            }
+
+            result.classes.push_back(adaptType(candidate, source, path));
+        }
+    }
+
+    std::sort(
+        result.classes.begin(),
+        result.classes.end(),
+        [](const ClassModel& left, const ClassModel& right) {
+            if (left.range.begin.offset != right.range.begin.offset)
+            {
+                return left.range.begin.offset < right.range.begin.offset;
+            }
+
+            return left.range.end.offset < right.range.end.offset;
+        });
+    result.classes.erase(
+        std::unique(result.classes.begin(), result.classes.end(), hasSameClassRangeAndKind),
+        result.classes.end());
+
+    ts_query_cursor_exec(cursor.get(), impl_->includesFor(grammar), ts_tree_root_node(tree.handle()));
+
+    while (ts_query_cursor_next_match(cursor.get(), &match))
+    {
+        for (uint16_t index = 0; index < match.capture_count; ++index)
+        {
+            const TSNode candidate = match.captures[index].node;
+            const TSNode includePath = childForField(candidate, "path");
+
+            if (!ts_node_is_null(includePath))
+            {
+                result.includes.push_back(adaptInclude(candidate, source, path));
+            }
+        }
+    }
+
+    std::sort(
+        result.includes.begin(),
+        result.includes.end(),
+        [](const IncludeDependency& left, const IncludeDependency& right) {
+            if (left.range.begin.offset != right.range.begin.offset)
+            {
+                return left.range.begin.offset < right.range.begin.offset;
+            }
+
+            return left.range.end.offset < right.range.end.offset;
+        });
+    result.includes.erase(
+        std::unique(result.includes.begin(), result.includes.end(), hasSameIncludeRange),
+        result.includes.end());
 }
 
 } // namespace codeqa::frontend

@@ -164,3 +164,57 @@ TEST_CASE("extracts a C++ lambda")
     REQUIRE(result.functions[1].parameters.size() == 1);
     CHECK(result.functions[1].parameters[0].name == "candidate");
 }
+
+TEST_CASE("extracts types from C++ namespaces and declarations")
+{
+    const TempSourceFile file{
+        "types.cpp",
+        "namespace outer {\n"
+        "namespace {\n"
+        "class Base {};\n"
+        "class Derived : public Base {};\n"
+        "template <typename T> class Box {};\n"
+        "enum class Mode { Fast };\n"
+        "}\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.classes.size() == 6);
+    CHECK(result.classes[0].name == "outer");
+    CHECK(result.classes[0].kind == codeqa::frontend::ClassKind::Namespace);
+    CHECK(result.classes[1].name.empty());
+    CHECK(result.classes[1].kind == codeqa::frontend::ClassKind::Namespace);
+    CHECK(result.classes[3].name == "Derived");
+    CHECK(result.classes[3].kind == codeqa::frontend::ClassKind::Class);
+    CHECK(result.classes[3].baseSpecifiers == std::vector<std::string>{"Base"});
+    CHECK(result.classes[4].name == "Box");
+    CHECK(result.classes[4].isTemplate);
+    CHECK(result.classes[5].name == "Mode");
+    CHECK(result.classes[5].kind == codeqa::frontend::ClassKind::Enum);
+    CHECK(result.classes[5].isScopedEnum);
+}
+
+TEST_CASE("extracts include dependencies")
+{
+    const TempSourceFile file{
+        "includes.cpp",
+        "#include <vector>\n"
+        "#include \"local.h\"\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.includes.size() == 2);
+    CHECK(result.includes[0].target == "vector");
+    CHECK(result.includes[0].delimiter == codeqa::frontend::IncludeDelimiter::System);
+    CHECK(result.includes[0].range.begin.line == 1);
+    CHECK(result.includes[1].target == "local.h");
+    CHECK(result.includes[1].delimiter == codeqa::frontend::IncludeDelimiter::Local);
+    CHECK(result.includes[1].range.begin.line == 2);
+}
