@@ -13,6 +13,7 @@ add_executable(codeqa_tests
     unit/SelectGrammarTest.cpp
     unit/TreeSitterParserTest.cpp
     unit/StructuralModelsTest.cpp
+    unit/EmbeddedQueriesTest.cpp
     unit/ParseSourceFileTest.cpp
     unit/CorpusParsingTest.cpp
 )

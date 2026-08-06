@@ -1,0 +1,32 @@
+#pragma once
+
+#include <string_view>
+
+namespace codeqa::frontend::embedded_queries
+{
+
+inline constexpr std::string_view cFunctions = R"CQCF(
+@CODEQA_C_FUNCTIONS_QUERY@
+)CQCF";
+
+inline constexpr std::string_view cTypes = R"CQCT(
+@CODEQA_C_TYPES_QUERY@
+)CQCT";
+
+inline constexpr std::string_view cIncludes = R"CQCI(
+@CODEQA_C_INCLUDES_QUERY@
+)CQCI";
+
+inline constexpr std::string_view cppFunctions = R"CQPF(
+@CODEQA_CPP_FUNCTIONS_QUERY@
+)CQPF";
+
+inline constexpr std::string_view cppTypes = R"CQPT(
+@CODEQA_CPP_TYPES_QUERY@
+)CQPT";
+
+inline constexpr std::string_view cppIncludes = R"CQPI(
+@CODEQA_CPP_INCLUDES_QUERY@
+)CQPI";
+
+} // namespace codeqa::frontend::embedded_queries

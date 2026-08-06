@@ -21,6 +21,30 @@ configure_file(
     @ONLY
 )
 
+set(CODEQA_QUERY_FILES
+    ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/functions.scm
+    ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/types.scm
+    ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/includes.scm
+    ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/functions.scm
+    ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/types.scm
+    ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/includes.scm
+)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CODEQA_QUERY_FILES})
+
+file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/functions.scm CODEQA_C_FUNCTIONS_QUERY)
+file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/types.scm CODEQA_C_TYPES_QUERY)
+file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/c/includes.scm CODEQA_C_INCLUDES_QUERY)
+file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/functions.scm CODEQA_CPP_FUNCTIONS_QUERY)
+file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/types.scm CODEQA_CPP_TYPES_QUERY)
+file(READ ${PROJECT_SOURCE_DIR}/src/frontend/queries/cpp/includes.scm CODEQA_CPP_INCLUDES_QUERY)
+
+file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/generated/codeqa/frontend)
+configure_file(
+    ${PROJECT_SOURCE_DIR}/cmake/EmbeddedQueries.h.in
+    ${PROJECT_BINARY_DIR}/generated/codeqa/frontend/EmbeddedQueries.h
+    @ONLY
+)
+
 # Vendored third-party C libraries. Deliberately excluded from
 # codeqa_enable_warnings: parser.c files are generated code and would not
 # survive -Werror. Same rule already applied to doctest.
@@ -57,6 +81,7 @@ add_library(codeqa_core STATIC
     src/cli/RunApplication.cpp
     src/frontend/SelectGrammar.cpp
     src/frontend/TreeSitterParser.cpp
+    src/frontend/StructuralExtractor.cpp
     src/frontend/ParseSourceFile.cpp
     src/infrastructure/ClassifyExtension.cpp
     src/infrastructure/DefaultExclusions.cpp
