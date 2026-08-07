@@ -71,6 +71,24 @@ TEST_CASE("extracts functions and typed parameters from C")
     CHECK(result.functions[1].isVariadic);
 }
 
+TEST_CASE("does not treat the word static inside a comment as the storage specifier")
+{
+    const TempSourceFile file{
+        "commented-static.cpp",
+        "int /* static analysis */ foo()\n"
+        "{\n"
+        "    return 1;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    CHECK_FALSE(result.functions[0].isStatic);
+}
+
 TEST_CASE("extracts typed parameters from C++")
 {
     const TempSourceFile file{
@@ -468,6 +486,28 @@ TEST_CASE("recovers reliable body data from partial files")
     CHECK(broken.controlFlow.empty());
 }
 
+TEST_CASE("skips a function definition with no declarator instead of crashing")
+{
+    const TempSourceFile file{
+        "missing-declarator.cpp",
+        "void f\n"
+        "{\n"
+        "}\n"
+        "\n"
+        "int valid()\n"
+        "{\n"
+        "    return 1;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    CHECK(result.functions[0].name == "valid");
+}
+
 TEST_CASE("extracts const method prototypes and template ranges")
 {
     const TempSourceFile file{
@@ -793,6 +833,32 @@ TEST_CASE("extracts functions that return pointers")
     CHECK(result.functions[1].name == "defined");
     CHECK(result.functions[1].kind == codeqa::frontend::FunctionKind::Free);
     CHECK(result.globalVariables.empty());
+}
+
+TEST_CASE("extracts C++ prototypes that return a pointer or reference")
+{
+    const TempSourceFile file{
+        "pointer-reference-return-prototypes.cpp",
+        "int& freeRef();\n"
+        "\n"
+        "class Widget\n"
+        "{\n"
+        "public:\n"
+        "    int* getValue();\n"
+        "    const char* name() const;\n"
+        "    int& memberRef();\n"
+        "};\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 4);
+    CHECK(result.functions[0].name == "freeRef");
+    CHECK(result.functions[1].name == "getValue");
+    CHECK(result.functions[2].name == "name");
+    CHECK(result.functions[3].name == "memberRef");
 }
 
 TEST_CASE("extracts only function pointers as globals from mixed declarations")

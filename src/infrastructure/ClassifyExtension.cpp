@@ -1,22 +1,41 @@
 #include "codeqa/infrastructure/ClassifyExtension.h"
 
+#include <algorithm>
+#include <cctype>
+
 namespace codeqa::infrastructure
 {
 
+namespace
+{
+
+std::string toLower(std::string text)
+{
+    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
+
+    return text;
+}
+
+} // namespace
+
 std::optional<ExtensionCategory> classifyExtension(const std::string& extension)
 {
-    if (extension == ".c")
+    const std::string normalized = toLower(extension);
+
+    if (normalized == ".c")
     {
         return ExtensionCategory::C;
     }
 
-    if (extension == ".cc" || extension == ".cpp" || extension == ".cxx"
-        || extension == ".hpp" || extension == ".hh" || extension == ".hxx")
+    if (normalized == ".cc" || normalized == ".cpp" || normalized == ".cxx"
+        || normalized == ".hpp" || normalized == ".hh" || normalized == ".hxx")
     {
         return ExtensionCategory::Cpp;
     }
 
-    if (extension == ".h")
+    if (normalized == ".h")
     {
         return ExtensionCategory::AmbiguousHeader;
     }

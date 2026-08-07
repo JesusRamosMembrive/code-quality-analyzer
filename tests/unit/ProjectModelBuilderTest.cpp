@@ -228,6 +228,36 @@ TEST_CASE("preserves qualified global identities outside lexical scope ranges")
     CHECK(result.files[0].globalVariables[1].symbol.qualifiedName == "ns::Holder::count");
 }
 
+TEST_CASE("merges an out-of-line qualified name with an enclosing namespace it omits")
+{
+    const std::filesystem::path sourcePath{"project/source.cpp"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.parsed = true;
+    sourceFile.classes = {
+        codeqa::frontend::ClassModel{
+            "app", codeqa::frontend::ClassKind::Namespace, rangeFor(sourcePath, 1, 200)},
+        codeqa::frontend::ClassModel{
+            "Engine", codeqa::frontend::ClassKind::Class, rangeFor(sourcePath, 20, 80)}};
+    sourceFile.functions = {
+        // Prototype, inside the class body: enclosed by both `app` and `Engine`.
+        codeqa::frontend::FunctionModel{
+            "run", codeqa::frontend::FunctionKind::Method, rangeFor(sourcePath, 30, 40)},
+        // Out-of-line definition, still inside `namespace app { ... }` but physically
+        // outside the class body, so its source text only spells out "Engine::run".
+        codeqa::frontend::FunctionModel{
+            "Engine::run", codeqa::frontend::FunctionKind::Method, rangeFor(sourcePath, 100, 150)}};
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        "project", std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE(result.files[0].callables.size() == 2);
+    CHECK(result.files[0].callables[0].symbol.qualifiedName == "app::Engine::run");
+    CHECK(result.files[0].callables[1].symbol.qualifiedName == "app::Engine::run");
+}
+
 TEST_CASE("sorts every model collection by source range with stable ties")
 {
     const std::filesystem::path sourcePath{"project/source.cpp"};

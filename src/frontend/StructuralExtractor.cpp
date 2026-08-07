@@ -204,6 +204,38 @@ TSNode findFunctionDeclarator(TSNode node)
     return findDescendantOfType(node, "function_declarator");
 }
 
+std::string specifiersText(TSNode candidate, TSNode functionDeclarator, std::string_view source)
+{
+    const std::size_t rangeStart = ts_node_start_byte(candidate);
+    const std::size_t rangeEnd = ts_node_start_byte(functionDeclarator);
+    std::string text(source.substr(rangeStart, rangeEnd - rangeStart));
+    const uint32_t childCount = ts_node_child_count(candidate);
+
+    // Blank out comment nodes so a standalone-token scan (eg. for "static") can't be
+    // fooled by a keyword that only appears inside a comment, like `int /* static */ f()`.
+    for (uint32_t index = 0; index < childCount; ++index)
+    {
+        const TSNode child = ts_node_child(candidate, index);
+
+        if (!isNodeType(child, "comment"))
+        {
+            continue;
+        }
+
+        const std::size_t commentStart = ts_node_start_byte(child);
+        const std::size_t commentEnd = ts_node_end_byte(child);
+
+        if (commentStart < rangeStart || commentEnd > rangeEnd)
+        {
+            continue;
+        }
+
+        std::fill(text.begin() + (commentStart - rangeStart), text.begin() + (commentEnd - rangeStart), ' ');
+    }
+
+    return text;
+}
+
 TSNode findParameterList(TSNode functionDeclarator)
 {
     TSNode parameters = childForField(functionDeclarator, "parameters");
@@ -509,9 +541,7 @@ FunctionModel adaptFunction(
         : declaratorName(declarator, source);
     const std::string specifiers = isLambda
         ? std::string{}
-        : std::string(source.substr(
-              ts_node_start_byte(candidate),
-              ts_node_start_byte(functionDeclarator) - ts_node_start_byte(candidate)));
+        : specifiersText(candidate, functionDeclarator, source);
 
     FunctionModel model;
     model.name = name;
@@ -1263,8 +1293,15 @@ void StructuralExtractor::extract(
                 continue;
             }
 
-            result.functions.push_back(
-                adaptFunction(candidate, findFunctionDeclarator(candidate), source, path));
+            const TSNode functionDeclarator = findFunctionDeclarator(candidate);
+
+            // A malformed declarator (e.g. a missing parameter-list, `void f { }`) can leave
+            // tree-sitter's error recovery with no function_declarator descendant at all; skip
+            // it instead of handing a null TSNode to adaptFunction, which crashes.
+            if (!ts_node_is_null(functionDeclarator))
+            {
+                result.functions.push_back(adaptFunction(candidate, functionDeclarator, source, path));
+            }
         }
     }
 

@@ -158,11 +158,6 @@ std::string qualifiedNameFor(
     const std::vector<frontend::ClassModel>& classes,
     bool preserveQualifiedName)
 {
-    if (preserveQualifiedName && isQualifiedName(name))
-    {
-        return name;
-    }
-
     if (name.empty())
     {
         return {};
@@ -192,25 +187,47 @@ std::string qualifiedNameFor(
             return left->range.end.offset > right->range.end.offset;
         });
 
+    if (preserveQualifiedName && isQualifiedName(name))
+    {
+        // `name` already carries whatever qualification the frontend captured verbatim
+        // from source text (eg. an out-of-line "Engine::run" definition, which omits any
+        // enclosing namespace the definition itself never spells out). Prepend only the
+        // enclosing scopes that aren't already a leading prefix of `name`, so a namespace
+        // that lexically encloses the definition but isn't part of that text still ends up
+        // in the result, without double-prepending scopes `name` already spells out.
+        std::size_t matchedScopeCount = 0;
+        std::size_t searchPosition = 0;
+
+        for (; matchedScopeCount < enclosingScopes.size(); ++matchedScopeCount)
+        {
+            const std::string prefix = enclosingScopes[matchedScopeCount]->name + "::";
+
+            if (name.compare(searchPosition, prefix.size(), prefix) != 0)
+            {
+                break;
+            }
+
+            searchPosition += prefix.size();
+        }
+
+        std::string qualifiedName;
+
+        for (std::size_t index = matchedScopeCount; index < enclosingScopes.size(); ++index)
+        {
+            qualifiedName += enclosingScopes[index]->name + "::";
+        }
+
+        return qualifiedName + name;
+    }
+
     std::string qualifiedName;
 
     for (const frontend::ClassModel* scope : enclosingScopes)
     {
-        if (!qualifiedName.empty())
-        {
-            qualifiedName += "::";
-        }
-
-        qualifiedName += scope->name;
+        qualifiedName += scope->name + "::";
     }
 
-    if (!qualifiedName.empty())
-    {
-        qualifiedName += "::";
-    }
-
-    qualifiedName += name;
-    return qualifiedName;
+    return qualifiedName + name;
 }
 
 SymbolIdentity identityFor(

@@ -40,6 +40,21 @@ TEST_CASE("classifyExtension returns nullopt for unsupported extensions")
     CHECK_FALSE(codeqa::infrastructure::classifyExtension("").has_value());
 }
 
+TEST_CASE("classifyExtension is case-insensitive")
+{
+    const auto cExtension = codeqa::infrastructure::classifyExtension(".C");
+    REQUIRE(cExtension.has_value());
+    CHECK(*cExtension == codeqa::infrastructure::ExtensionCategory::C);
+
+    const auto cppExtension = codeqa::infrastructure::classifyExtension(".CPP");
+    REQUIRE(cppExtension.has_value());
+    CHECK(*cppExtension == codeqa::infrastructure::ExtensionCategory::Cpp);
+
+    const auto headerExtension = codeqa::infrastructure::classifyExtension(".H");
+    REQUIRE(headerExtension.has_value());
+    CHECK(*headerExtension == codeqa::infrastructure::ExtensionCategory::AmbiguousHeader);
+}
+
 TEST_CASE("isDefaultExcludedDirectoryName excludes hidden directories")
 {
     CHECK(codeqa::infrastructure::isDefaultExcludedDirectoryName(".git"));
@@ -52,6 +67,12 @@ TEST_CASE("isDefaultExcludedDirectoryName excludes build directories")
     CHECK(codeqa::infrastructure::isDefaultExcludedDirectoryName("build"));
     CHECK(codeqa::infrastructure::isDefaultExcludedDirectoryName("cmake-build-debug"));
     CHECK(codeqa::infrastructure::isDefaultExcludedDirectoryName("cmake-build-release"));
+}
+
+TEST_CASE("isDefaultExcludedDirectoryName excludes build directories regardless of case")
+{
+    CHECK(codeqa::infrastructure::isDefaultExcludedDirectoryName("Build"));
+    CHECK(codeqa::infrastructure::isDefaultExcludedDirectoryName("CMake-Build-Debug"));
 }
 
 TEST_CASE("isDefaultExcludedDirectoryName allows ordinary directories")
