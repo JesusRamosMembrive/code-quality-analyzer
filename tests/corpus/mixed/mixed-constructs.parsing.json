@@ -1,12 +1,12 @@
 {
   "constructs": ["C-PP-01", "CPP-NS-01", "CPP-TYPE-01", "CPP-TYPE-02", "CPP-TYPE-03", "CPP-FUNC-02", "CPP-FUNC-03", "CPP-FUNC-04", "CPP-FUNC-05", "CPP-FUNC-06", "CPP-FUNC-08", "CPP-PARAM-02", "CTRL-01", "CTRL-03", "CTRL-07", "CTRL-08"],
   "functions": [
-    {"name": "Engine", "kind": "constructor", "startLine": 22, "endLine": 25, "parameters": [{"name": "settings", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
+    {"name": "Engine", "kind": "constructor", "startLine": 22, "endLine": 25, "parameters": [{"name": "settings", "passing": "value", "hasDefaultValue": false, "type": "Settings"}], "isStatic": false, "isVariadic": false},
     {"name": "~Engine", "kind": "destructor", "startLine": 27, "endLine": 27, "parameters": [], "isStatic": false, "isVariadic": false},
-    {"name": "run", "kind": "prototype", "startLine": 29, "endLine": 29, "parameters": [{"name": "inputs", "passing": "reference", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
+    {"name": "run", "kind": "prototype", "startLine": 29, "endLine": 29, "parameters": [{"name": "inputs", "passing": "reference", "hasDefaultValue": false, "type": "const std::vector<int>"}], "isStatic": false, "isVariadic": false},
     {"name": "operator!", "kind": "operator", "startLine": 31, "endLine": 34, "parameters": [], "isStatic": false, "isVariadic": false},
-    {"name": "Engine::run", "kind": "method", "startLine": 40, "endLine": 56, "parameters": [{"name": "inputs", "passing": "reference", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
-    {"name": "isEmpty", "kind": "free", "startLine": 58, "endLine": 62, "parameters": [{"name": "container", "passing": "reference", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}
+    {"name": "Engine::run", "kind": "method", "startLine": 40, "endLine": 56, "parameters": [{"name": "inputs", "passing": "reference", "hasDefaultValue": false, "type": "const std::vector<int>"}], "isStatic": false, "isVariadic": false},
+    {"name": "isEmpty", "kind": "free", "startLine": 58, "endLine": 62, "parameters": [{"name": "container", "passing": "reference", "hasDefaultValue": false, "type": "const T"}], "isStatic": false, "isVariadic": false}
   ],
   "classes": [
     {"name": "app", "kind": "namespace", "startLine": 4, "endLine": 64, "isTemplate": false, "isScopedEnum": false, "bases": []},

@@ -5,11 +5,11 @@
     {"name": "~Counter", "kind": "destructor", "startLine": 12, "endLine": 15, "parameters": [], "isStatic": false, "isVariadic": false},
     {"name": "increment", "kind": "method", "startLine": 17, "endLine": 20, "parameters": [], "isStatic": false, "isVariadic": false},
     {"name": "value", "kind": "prototype", "startLine": 22, "endLine": 22, "parameters": [], "isStatic": false, "isVariadic": false},
-    {"name": "operator==", "kind": "operator", "startLine": 24, "endLine": 27, "parameters": [{"name": "other", "passing": "reference", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
+    {"name": "operator==", "kind": "operator", "startLine": 24, "endLine": 27, "parameters": [{"name": "other", "passing": "reference", "hasDefaultValue": false, "type": "const Counter"}], "isStatic": false, "isVariadic": false},
     {"name": "Counter::value", "kind": "method", "startLine": 33, "endLine": 36, "parameters": [], "isStatic": false, "isVariadic": false},
-    {"name": "countPositive", "kind": "free", "startLine": 38, "endLine": 44, "parameters": [{"name": "values", "passing": "reference", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
-    {"name": "<lambda>", "kind": "lambda", "startLine": 40, "endLine": 43, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
-    {"name": "largest", "kind": "free", "startLine": 46, "endLine": 50, "parameters": [{"name": "first", "passing": "value", "hasDefaultValue": false}, {"name": "second", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}
+    {"name": "countPositive", "kind": "free", "startLine": 38, "endLine": 44, "parameters": [{"name": "values", "passing": "reference", "hasDefaultValue": false, "type": "const std::vector<int>"}], "isStatic": false, "isVariadic": false},
+    {"name": "<lambda>", "kind": "lambda", "startLine": 40, "endLine": 43, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false},
+    {"name": "largest", "kind": "free", "startLine": 46, "endLine": 50, "parameters": [{"name": "first", "passing": "value", "hasDefaultValue": false, "type": "T"}, {"name": "second", "passing": "value", "hasDefaultValue": false, "type": "T"}], "isStatic": false, "isVariadic": false}
   ],
   "classes": [{"name": "Counter", "kind": "class", "startLine": 4, "endLine": 31, "isTemplate": false, "isScopedEnum": false, "bases": []}],
   "includes": [{"target": "algorithm", "delimiter": "system", "startLine": 1, "endLine": 2}, {"target": "vector", "delimiter": "system", "startLine": 2, "endLine": 3}],

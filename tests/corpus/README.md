@@ -35,7 +35,8 @@ de primer nivel:
         {
           "name": "left",
           "passing": "value",
-          "hasDefaultValue": false
+          "hasDefaultValue": false,
+          "type": "int"
         }
       ],
       "isStatic": false,
@@ -62,6 +63,8 @@ Cada función usa `kind` con uno de `free`, `method`, `constructor`,
 posición, incluidos los sin nombre mediante `"name": ""`; `passing` es
 `value`, `pointer`, `reference` o `function-pointer`. La elipsis de una
 función variádica no es un parámetro y se representa con `isVariadic`.
+Cada parámetro también declara `type`, el texto fuente de su tipo declarado
+sin los marcadores del declarador (`*`, `&`), que `passing` ya identifica.
 
 Cada entrada de `classes` usa `kind` (`class`, `struct`, `union`, `enum` o
 `namespace`), `isTemplate`, `isScopedEnum` y `bases`. Cada entrada de
@@ -97,6 +100,19 @@ actual también entrega el `struct Point` de la línea 24 como una captura
 sintáctica, y la expectativa exhaustiva la conserva para fijar la salida real
 del extractor. Esa entrada no representa `PointAlias`; la capa de modelo común
 lo adapta por separado como un alias de tipo.
+
+## Límites de Fase 6a
+
+`CPP-PARAM-01` y `CPP-PARAM-02` tienen ahora aserción exacta de `type` en
+`functions/cpp-functions.parsing.json`, `parameters/cpp-parameters.parsing.json`
+y `mixed/mixed-constructs.parsing.json`. `CPP-TYPE-03` se cierra en el mismo
+trabajo porque dependía de la misma ampliación de esquema.
+
+`C-PP-01`, `C-DECL-01`, `C-TYPE-04`, `C-FUNC-03`, `C-FUNC-04` y `C-FUNC-05`
+siguen sin aserción exacta: cubren typedefs, variables globales, storage
+class, la función `static` y la elipsis variádica, ninguno de los cuales
+tiene relación con parámetros, comentarios o sentencias. Cerrarlos no aporta
+nada a las métricas de la Fase 6b, así que quedan deliberadamente abiertos.
 
 ## Integridad del corpus
 

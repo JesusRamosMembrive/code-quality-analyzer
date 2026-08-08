@@ -1,9 +1,9 @@
 {
   "constructs": ["CPP-FUNC-01", "CTRL-01", "CTRL-02", "CTRL-03", "CTRL-08"],
   "functions": [
-    {"name": "flat", "kind": "free", "startLine": 1, "endLine": 4, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
-    {"name": "oneLevel", "kind": "free", "startLine": 6, "endLine": 14, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false},
-    {"name": "fourLevels", "kind": "free", "startLine": 16, "endLine": 37, "parameters": [{"name": "values", "passing": "pointer", "hasDefaultValue": false}, {"name": "count", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}
+    {"name": "flat", "kind": "free", "startLine": 1, "endLine": 4, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false},
+    {"name": "oneLevel", "kind": "free", "startLine": 6, "endLine": 14, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false},
+    {"name": "fourLevels", "kind": "free", "startLine": 16, "endLine": 37, "parameters": [{"name": "values", "passing": "pointer", "hasDefaultValue": false, "type": "const int"}, {"name": "count", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false}
   ],
   "classes": [],
   "includes": [],

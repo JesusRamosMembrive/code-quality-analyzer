@@ -1,6 +1,6 @@
 {
   "constructs": ["CPP-FUNC-01", "CTRL-01", "CTRL-08"],
-  "functions": [{"name": "wellFormed", "kind": "free", "startLine": 1, "endLine": 4, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}],
+  "functions": [{"name": "wellFormed", "kind": "free", "startLine": 1, "endLine": 4, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false}],
   "classes": [],
   "includes": [],
   "diagnostics": [{"line": 13, "severity": "error"}]

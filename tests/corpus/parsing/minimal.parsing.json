@@ -1,6 +1,6 @@
 {
   "constructs": ["C-PP-01", "C-FUNC-01", "CTRL-08"],
-  "functions": [{"name": "main", "kind": "free", "startLine": 3, "endLine": 6, "parameters": [{"name": "", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}],
+  "functions": [{"name": "main", "kind": "free", "startLine": 3, "endLine": 6, "parameters": [{"name": "", "passing": "value", "hasDefaultValue": false, "type": "void"}], "isStatic": false, "isVariadic": false}],
   "classes": [],
   "includes": [{"target": "stdio.h", "delimiter": "system", "startLine": 1, "endLine": 2}],
   "diagnostics": []

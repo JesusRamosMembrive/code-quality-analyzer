@@ -93,6 +93,26 @@ foreach(expectation IN LISTS expectationFiles)
     endforeach()
 endforeach()
 
+# --- Check 2b: every parameter that declares "passing" also declares "type" -
+# Fase 6a requires an exact "type" (declaredType) per parameter so the C++
+# runner can compare it exhaustively; a regex-only presence count is enough
+# to catch a fixture where a parameter object was extended with "passing" but
+# never got "type" added alongside it.
+
+foreach(expectation IN LISTS expectationFiles)
+    file(READ "${expectation}" expectationText)
+
+    string(REGEX MATCHALL "\"passing\"[ \t\r\n]*:" passingMatches "${expectationText}")
+    string(REGEX MATCHALL "\"type\"[ \t\r\n]*:" typeMatches "${expectationText}")
+    list(LENGTH passingMatches passingCount)
+    list(LENGTH typeMatches typeCount)
+
+    if(NOT passingCount EQUAL typeCount)
+        list(APPEND failures
+            "Expectation '${expectation}' has ${passingCount} parameter(s) with 'passing' but ${typeCount} with 'type'.")
+    endif()
+endforeach()
+
 # --- Checks 3 and 4: cited IDs exist, and are never OUT-* ------------------
 
 set(citedIds "")

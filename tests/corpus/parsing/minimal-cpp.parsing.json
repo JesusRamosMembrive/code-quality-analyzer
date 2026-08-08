@@ -1,6 +1,6 @@
 {
   "constructs": ["C-PP-01", "CPP-NS-01", "CPP-FUNC-01", "CTRL-08"],
-  "functions": [{"name": "identity", "kind": "free", "startLine": 6, "endLine": 9, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}],
+  "functions": [{"name": "identity", "kind": "free", "startLine": 6, "endLine": 9, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false}],
   "classes": [{"name": "demo", "kind": "namespace", "startLine": 3, "endLine": 11, "isTemplate": false, "isScopedEnum": false, "bases": []}],
   "includes": [{"target": "string", "delimiter": "system", "startLine": 1, "endLine": 2}],
   "diagnostics": []

@@ -39,6 +39,7 @@ struct ParameterExpectation
     std::string name;
     codeqa::frontend::ParameterPassing passing{codeqa::frontend::ParameterPassing::Value};
     bool hasDefaultValue{false};
+    std::string type;
 };
 
 struct FunctionExpectation
@@ -236,7 +237,8 @@ CorpusExpectation readExpectation(const std::filesystem::path& path)
             expected.parameters.push_back(ParameterExpectation{
                 parameter.at("name").get<std::string>(),
                 parameterPassingFrom(parameter.at("passing").get<std::string>()),
-                parameter.at("hasDefaultValue").get<bool>()});
+                parameter.at("hasDefaultValue").get<bool>(),
+                parameter.at("type").get<std::string>()});
         }
 
         expectation.functions.push_back(std::move(expected));
@@ -290,7 +292,8 @@ bool matches(const codeqa::frontend::FunctionModel& actual, const FunctionExpect
         const ParameterExpectation& expectedParameter = expected.parameters[index];
 
         if (parameter.name != expectedParameter.name || parameter.passing != expectedParameter.passing
-            || parameter.hasDefaultValue != expectedParameter.hasDefaultValue)
+            || parameter.hasDefaultValue != expectedParameter.hasDefaultValue
+            || parameter.declaredType != expectedParameter.type)
         {
             return false;
         }

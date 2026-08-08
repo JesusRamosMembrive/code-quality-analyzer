@@ -1,7 +1,7 @@
 {
   "constructs": ["C-PP-01", "C-TYPE-01", "C-TYPE-02", "C-TYPE-03", "C-TYPE-04", "C-DECL-01", "C-FUNC-01", "CTRL-08"],
   "functions": [
-    {"name": "pointSize", "kind": "free", "startLine": 26, "endLine": 29, "parameters": [{"name": "", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}
+    {"name": "pointSize", "kind": "free", "startLine": 26, "endLine": 29, "parameters": [{"name": "", "passing": "value", "hasDefaultValue": false, "type": "void"}], "isStatic": false, "isVariadic": false}
   ],
   "classes": [
     {"name": "Point", "kind": "struct", "startLine": 5, "endLine": 9, "isTemplate": false, "isScopedEnum": false, "bases": []},

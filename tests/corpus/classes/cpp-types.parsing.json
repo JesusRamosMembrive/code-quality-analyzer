@@ -4,7 +4,7 @@
     {"name": "internalHelper", "kind": "free", "startLine": 9, "endLine": 12, "parameters": [], "isStatic": false, "isVariadic": false},
     {"name": "position", "kind": "method", "startLine": 33, "endLine": 36, "parameters": [], "isStatic": false, "isVariadic": false},
     {"name": "size", "kind": "method", "startLine": 42, "endLine": 45, "parameters": [], "isStatic": false, "isVariadic": false},
-    {"name": "Box", "kind": "constructor", "startLine": 55, "endLine": 58, "parameters": [{"name": "content", "passing": "value", "hasDefaultValue": false}], "isStatic": false, "isVariadic": false}
+    {"name": "Box", "kind": "constructor", "startLine": 55, "endLine": 58, "parameters": [{"name": "content", "passing": "value", "hasDefaultValue": false, "type": "T"}], "isStatic": false, "isVariadic": false}
   ],
   "classes": [
     {"name": "outer", "kind": "namespace", "startLine": 3, "endLine": 64, "isTemplate": false, "isScopedEnum": false, "bases": []},
