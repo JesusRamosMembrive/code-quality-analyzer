@@ -89,25 +89,35 @@ atribuye sus propias sentencias solo a su callable, nunca a la envolvente.
 
 ## 4. Queries y extracción
 
+No todo en esta fase se extrae con queries `.scm`: en el código actual, las
+queries compiladas solo localizan candidatos de nivel superior (funciones,
+tipos, includes, declaraciones); todo lo que ocurre dentro o a través de un
+cuerpo ya se resuelve con recorridos manuales del CST reutilizables
+(`collectNodesOfType`, ya usado para lambdas, y el recorrido recursivo único
+de `extractBodyStructure` que hoy alimenta `localVariables`, `controlFlow` y
+`calls`). Esta fase sigue esa misma convención en vez de introducir queries
+nuevas:
+
 `src/frontend/queries/{c,cpp}/functions.scm` amplían la captura de parámetros
 para incluir el nodo de tipo ya visible en el CST (el mismo que hoy se usa
-para derivar `ParameterPassing`) y el nodo de lista de parámetros para
-`parameterListRange`, sin añadir una query nueva.
+para derivar `ParameterPassing`); `parameterListRange` no necesita ninguna
+captura nueva porque el extractor ya localiza el nodo de lista de parámetros
+para derivar `parameters` e `isVariadic`.
 
-Se añaden `src/frontend/queries/{c,cpp}/comments.scm`, que capturan nodos
-`(comment)` en cualquier posición del archivo, y
-`src/frontend/queries/{c,cpp}/statements.scm`, que capturan nodos de
-sentencia dentro del cuerpo de cada función/método/constructor/
-destructor/operador/lambda con cuerpo.
+`FileModel.comments` se puebla con un recorrido de todo el árbol (como ya
+hace `collectNodesOfType` para `lambda_expression`) buscando nodos de tipo
+`comment` — un único tipo de nodo cubre comentarios de línea y de bloque en
+ambas gramáticas, sin distinción C/C++.
 
-`StructuralExtractor.cpp` (1440 líneas antes de esta fase) recibe dos
-funciones libres nuevas y autocontenidas para comentarios y sentencias, cada
-una en su propia sección con su propio bloque de comentario de sección, en
-vez de mezclarse con la extracción de funciones existente. Si durante la
-implementación el archivo resulta difícil de navegar, se divide en un
-`StructuralExtractor` (funciones, tipos, includes — ya existente) y un
-archivo nuevo para las extracciones a nivel de archivo (comentarios); esa
-decisión se toma en el plan de implementación, no aquí.
+`CallableModel.statements` se puebla ampliando el recorrido único que ya
+existe dentro de `extractBodyStructure`: ese recorrido ya visita cada nodo
+del cuerpo a cualquier profundidad para reconocer locales, flujo y llamadas,
+así que reconocer sentencias es una comprobación adicional sobre el mismo
+nodo visitado, no una pasada nueva.
+
+No se toca `CMakeLists.txt`: no se crean archivos `.cpp`/`.h` nuevos ni
+queries `.scm` nuevas, así que no hace falta registrar nada nuevo en la
+compilación.
 
 `ProjectModelBuilder.cpp` convierte las tres colecciones nuevas de frontend a
 modelo común mediante conversiones explícitas, igual que ya hace con
@@ -157,9 +167,12 @@ distintas posiciones (dentro/fuera de funciones, junto a código), y
 sentencias anidadas a varias profundidades, incluyendo el caso del `for`
 cuyo encabezado no aporta sentencias separadas.
 `ProjectModelBuilderTest.cpp` comprueba el mapeo tipado de las tres
-colecciones nuevas. `CorpusModelTest.cpp`/`CorpusStructureTest.cpp` verifican
-las nuevas aserciones exactas de parámetros. `EmbeddedQueriesTest.cpp` se
-amplía para compilar `comments.scm` y `statements.scm`.
+colecciones nuevas — para `comments`, `parameterListRange` y `statements` es
+una copia directa, porque `core::SourceRange` no se duplica por espacio de
+nombres como sí ocurre con `ParameterModel`/`ControlFlowModel`/`CallModel`.
+`CorpusModelTest.cpp`/`CorpusStructureTest.cpp` verifican las nuevas
+aserciones exactas de parámetros. No hace falta tocar
+`EmbeddedQueriesTest.cpp`: esta fase no añade queries `.scm` nuevas.
 
 La validación final incluye compilación Debug, pruebas focalizadas, CTest,
 `codeqa parse tests/corpus` con el mismo resumen `13/4/9/2` (esta fase no
