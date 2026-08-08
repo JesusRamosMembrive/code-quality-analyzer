@@ -8,6 +8,7 @@ TEST_CASE("common model preserves typed file aggregates")
     CHECK(file.state == codeqa::model::AnalysisState::Unavailable);
     CHECK(file.callables.empty());
     CHECK(file.globalVariables.empty());
+    CHECK(file.comments.empty());
 
     codeqa::model::CallableModel callable;
     callable.symbol.name = "sum";
@@ -23,10 +24,17 @@ TEST_CASE("common model preserves typed file aggregates")
     CHECK(callable.localVariables[0].symbol.name == "index");
     CHECK_FALSE(callable.controlFlow[0].conditionRange.has_value());
     CHECK(callable.calls[0].kind == codeqa::model::CallKind::Named);
+    CHECK_FALSE(callable.parameterListRange.has_value());
+    CHECK(callable.statements.empty());
     CHECK(file.callables[0].localVariables[0].symbol.qualifiedName == "index");
     CHECK(file.callables[0].controlFlow[0].kind == codeqa::model::ControlFlowKind::For);
     CHECK(file.callables[0].calls[0].argumentCount == 1);
 
     codeqa::model::CallModel defaultCall;
     CHECK(defaultCall.kind == codeqa::model::CallKind::Named);
+
+    codeqa::model::ParameterModel defaultParameter;
+    CHECK(defaultParameter.passing == codeqa::model::ParameterPassing::Value);
+    CHECK_FALSE(defaultParameter.hasDefaultValue);
+    CHECK(defaultParameter.declaredType.empty());
 }

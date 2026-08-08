@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -104,6 +105,9 @@ void checkCollectionOrder(
     checkRangeOrder(file.typeAliases, [](const codeqa::model::TypeAliasModel& alias) -> const auto& {
         return alias.symbol.range;
     });
+    checkRangeOrder(file.comments, [](const codeqa::core::SourceRange& comment) -> const auto& {
+        return comment;
+    });
 
     checkSameOrder(file.dependencies, repeatedFile.dependencies, [](const auto& dependency) {
         return dependency.target;
@@ -123,6 +127,9 @@ void checkCollectionOrder(
     checkSameOrder(file.typeAliases, repeatedFile.typeAliases, [](const auto& alias) {
         return alias.symbol.name;
     });
+    checkSameOrder(file.comments, repeatedFile.comments, [](const auto& comment) {
+        return std::make_pair(comment.begin.offset, comment.end.offset);
+    });
 }
 
 void checkBodyOrder(
@@ -138,6 +145,21 @@ void checkBodyOrder(
         REQUIRE(callable.localVariables.size() == repeatedCallable.localVariables.size());
         REQUIRE(callable.controlFlow.size() == repeatedCallable.controlFlow.size());
         REQUIRE(callable.calls.size() == repeatedCallable.calls.size());
+        REQUIRE(callable.statements.size() == repeatedCallable.statements.size());
+
+        checkRangeOrder(callable.statements, [](const codeqa::core::SourceRange& statement) -> const auto& {
+            return statement;
+        });
+
+        CHECK(callable.parameterListRange.has_value()
+            == repeatedCallable.parameterListRange.has_value());
+        if (callable.parameterListRange.has_value())
+        {
+            CHECK(callable.parameterListRange->begin.offset
+                == repeatedCallable.parameterListRange->begin.offset);
+            CHECK(callable.parameterListRange->end.offset
+                == repeatedCallable.parameterListRange->end.offset);
+        }
 
         for (std::size_t index = 0; index < callable.localVariables.size(); ++index)
         {
@@ -177,6 +199,14 @@ void checkBodyOrder(
             CHECK(call.argumentCount == repeatedCall.argumentCount);
             CHECK(call.range.begin.offset == repeatedCall.range.begin.offset);
             CHECK(call.range.end.offset == repeatedCall.range.end.offset);
+        }
+
+        for (std::size_t index = 0; index < callable.statements.size(); ++index)
+        {
+            const auto& statement = callable.statements[index];
+            const auto& repeatedStatement = repeatedCallable.statements[index];
+            CHECK(statement.begin.offset == repeatedStatement.begin.offset);
+            CHECK(statement.end.offset == repeatedStatement.end.offset);
         }
     }
 }
