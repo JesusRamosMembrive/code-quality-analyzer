@@ -21,6 +21,49 @@ codeqa::core::SourceRange rangeFor(
 
 } // namespace
 
+TEST_CASE("copies declared parameter types, parameter list ranges, comments and statements")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/greet.cpp"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::Cpp;
+    sourceFile.grammar = codeqa::frontend::Grammar::Cpp;
+    sourceFile.parsed = true;
+    sourceFile.comments = {rangeFor(sourcePath, 0, 10)};
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "greet",
+        codeqa::frontend::FunctionKind::Free,
+        rangeFor(sourcePath, 20, 60),
+        {codeqa::frontend::ParameterModel{
+            "loud", codeqa::frontend::ParameterPassing::Value, false, "bool"}},
+        false,
+        false});
+    sourceFile.functions[0].parameterListRange = rangeFor(sourcePath, 25, 35);
+    sourceFile.functions[0].statements = {rangeFor(sourcePath, 40, 50), rangeFor(sourcePath, 50, 59)};
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE(result.files[0].comments.size() == 1);
+    CHECK(result.files[0].comments[0].begin.offset == 0);
+    CHECK(result.files[0].comments[0].end.offset == 10);
+    REQUIRE(result.files[0].callables.size() == 1);
+    const codeqa::model::CallableModel& callable = result.files[0].callables[0];
+    REQUIRE(callable.parameters.size() == 1);
+    CHECK(callable.parameters[0].declaredType == "bool");
+    REQUIRE(callable.parameterListRange.has_value());
+    CHECK(callable.parameterListRange->begin.offset == 25);
+    CHECK(callable.parameterListRange->end.offset == 35);
+    REQUIRE(callable.statements.size() == 2);
+    CHECK(callable.statements[0].begin.offset == 40);
+    CHECK(callable.statements[0].end.offset == 50);
+    CHECK(callable.statements[1].begin.offset == 50);
+    CHECK(callable.statements[1].end.offset == 59);
+}
+
 TEST_CASE("builds deterministic common project model from parsed frontend files")
 {
     const std::filesystem::path rootPath{"project"};

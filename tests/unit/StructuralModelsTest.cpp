@@ -19,6 +19,7 @@ TEST_CASE("structural models retain the attributes required by the corpus")
     CHECK(function.parameters.front().passing
         == codeqa::frontend::ParameterPassing::FunctionPointer);
     CHECK(function.parameters.front().hasDefaultValue);
+    CHECK(function.parameters.front().declaredType.empty());
     CHECK(function.isStatic);
     CHECK(function.isVariadic);
 
@@ -35,6 +36,8 @@ TEST_CASE("structural models retain the attributes required by the corpus")
     CHECK(function.localVariables[0].lexicalDepth == 1);
     CHECK_FALSE(function.controlFlow[0].conditionRange.has_value());
     CHECK(function.calls[0].kind == codeqa::frontend::CallKind::Named);
+    CHECK_FALSE(function.parameterListRange.has_value());
+    CHECK(function.statements.empty());
 
     codeqa::frontend::CallModel defaultCall;
     CHECK(defaultCall.kind == codeqa::frontend::CallKind::Named);

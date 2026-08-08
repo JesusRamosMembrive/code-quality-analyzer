@@ -268,6 +268,8 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
         return model;
     }
 
+    model.comments = file.comments;
+
     for (const frontend::IncludeDependency& dependency : file.includes)
     {
         model.dependencies.push_back(DependencyModel{
@@ -281,11 +283,16 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
         callable.kind = callableKindFor(function.kind);
         callable.isStatic = function.isStatic;
         callable.isVariadic = function.isVariadic;
+        callable.parameterListRange = function.parameterListRange;
+        callable.statements = function.statements;
 
         for (const frontend::ParameterModel& parameter : function.parameters)
         {
             callable.parameters.push_back(ParameterModel{
-                parameter.name, parameterPassingFor(parameter.passing), parameter.hasDefaultValue});
+                parameter.name,
+                parameterPassingFor(parameter.passing),
+                parameter.hasDefaultValue,
+                parameter.declaredType});
         }
 
         for (const frontend::LocalVariableModel& local : function.localVariables)

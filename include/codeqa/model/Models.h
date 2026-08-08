@@ -87,6 +87,7 @@ struct ParameterModel
     std::string name;
     ParameterPassing passing{ParameterPassing::Value};
     bool hasDefaultValue{false};
+    std::string declaredType;
 };
 
 struct LocalVariableModel
@@ -123,6 +124,8 @@ struct CallableModel
     std::vector<LocalVariableModel> localVariables;
     std::vector<ControlFlowModel> controlFlow;
     std::vector<CallModel> calls;
+    std::optional<core::SourceRange> parameterListRange;
+    std::vector<core::SourceRange> statements;
 };
 
 struct CppTypeDetails
@@ -178,6 +181,7 @@ struct FileModel
     std::vector<NamespaceModel> namespaces;
     std::vector<GlobalVariableModel> globalVariables;
     std::vector<TypeAliasModel> typeAliases;
+    std::vector<core::SourceRange> comments;
 };
 
 struct ProjectModel
