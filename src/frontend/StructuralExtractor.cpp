@@ -1288,6 +1288,27 @@ void StructuralExtractor::extract(
     ParsedFile& result) const
 {
     const TSNode root = tree.impl_->rootNode();
+
+    std::vector<TSNode> comments;
+    collectNodesOfType(root, "comment", comments);
+
+    for (const TSNode comment : comments)
+    {
+        result.comments.push_back(sourceRange(comment, path));
+    }
+
+    std::sort(
+        result.comments.begin(),
+        result.comments.end(),
+        [](const core::SourceRange& left, const core::SourceRange& right) {
+            if (left.begin.offset != right.begin.offset)
+            {
+                return left.begin.offset < right.begin.offset;
+            }
+
+            return left.end.offset < right.end.offset;
+        });
+
     QueryCursorPointer cursor(ts_query_cursor_new());
     ts_query_cursor_exec(cursor.get(), impl_->functionsFor(grammar), root);
 

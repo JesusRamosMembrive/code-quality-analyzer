@@ -2,6 +2,7 @@
 
 #include "codeqa/core/Diagnostic.h"
 #include "codeqa/core/Language.h"
+#include "codeqa/core/SourceRange.h"
 #include "codeqa/frontend/Grammar.h"
 #include "codeqa/frontend/StructuralModels.h"
 
@@ -24,6 +25,7 @@ struct ParsedFile
     std::vector<IncludeDependency> includes;
     std::vector<GlobalVariableModel> globalVariables;
     std::vector<TypeAliasModel> typeAliases;
+    std::vector<core::SourceRange> comments;
     bool parsed{false};
 };
 

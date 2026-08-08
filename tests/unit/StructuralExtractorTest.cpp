@@ -980,3 +980,27 @@ TEST_CASE("leaves the parameter list range empty for a parameterless lambda")
     REQUIRE(lambda != result.functions.end());
     CHECK_FALSE(lambda->parameterListRange.has_value());
 }
+
+TEST_CASE("collects line and block comments anywhere in the file")
+{
+    const TempSourceFile file{
+        "comments.cpp",
+        "// leading comment\n"
+        "int add(int left, int right)\n"
+        "{\n"
+        "    /* block\n"
+        "       comment */\n"
+        "    return left + right; // trailing comment\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.comments.size() == 3);
+    CHECK(result.comments[0].begin.line == 1);
+    CHECK(result.comments[1].begin.line == 4);
+    CHECK(result.comments[1].end.line == 5);
+    CHECK(result.comments[2].begin.line == 6);
+}
