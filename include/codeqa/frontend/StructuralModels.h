@@ -71,12 +71,14 @@ struct ParameterModel
     std::string name;
     ParameterPassing passing{ParameterPassing::Value};
     bool hasDefaultValue{false};
+    // Excludes declarator markers (`bool* p` -> "bool"); `passing` already carries them.
     std::string declaredType;
 };
 
 struct LocalVariableModel
 {
     std::string name;
+    // Includes declarator markers (`int* p` -> "int*"); there is no separate marker field.
     std::string declaredType;
     core::SourceRange range;
     bool hasInitializer{false};

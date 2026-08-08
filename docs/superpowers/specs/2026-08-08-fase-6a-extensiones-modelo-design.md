@@ -150,9 +150,16 @@ asuman resueltos por error en una fase futura.
 
 ## 6. Errores y determinismo
 
-Un comentario o sentencia dentro de un subárbol `ERROR`/`MISSING` se descarta
-igual que ya se descartan los candidatos ambiguos de Fase 5 capa 2: no se
-inventa estructura, y el diagnóstico de parsing correspondiente se conserva.
+Una sentencia dentro de un subárbol `ERROR`/`MISSING` se descarta igual que ya
+se descartan los candidatos ambiguos de Fase 5 capa 2: no se inventa
+estructura, y el diagnóstico de parsing correspondiente se conserva.
+
+Los comentarios, en cambio, no se filtran por errores de parsing: se recogen
+sin condiciones en todo el archivo. Un comentario es texto libre cuyo rango de
+bytes sigue siendo fiable con independencia de los errores sintácticos que lo
+rodeen, mientras que una sentencia representa estructura que sí puede
+malinterpretarse dentro de una región rota.
+
 Las tres colecciones nuevas se ordenan por inicio y fin de rango, con empates
 estables, siguiendo la convención ya establecida por `localVariables`,
 `controlFlow` y `calls`.
