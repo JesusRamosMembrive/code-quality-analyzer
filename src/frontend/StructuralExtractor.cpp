@@ -238,6 +238,11 @@ std::string specifiersText(TSNode candidate, TSNode functionDeclarator, std::str
 
 TSNode findParameterList(TSNode functionDeclarator)
 {
+    if (ts_node_is_null(functionDeclarator))
+    {
+        return TSNode{};
+    }
+
     TSNode parameters = childForField(functionDeclarator, "parameters");
 
     if (!ts_node_is_null(parameters))
@@ -463,9 +468,22 @@ core::SourceRange sourceRangeForCandidate(TSNode candidate, const std::filesyste
 std::string parameterDeclaredType(TSNode parameter, TSNode declarator, std::string_view source)
 {
     const std::size_t parameterStart = ts_node_start_byte(parameter);
-    const std::size_t typeEnd = ts_node_is_null(declarator)
-        ? ts_node_end_byte(parameter)
-        : ts_node_start_byte(declarator);
+    std::size_t typeEnd = 0;
+
+    if (!ts_node_is_null(declarator))
+    {
+        typeEnd = ts_node_start_byte(declarator);
+    }
+    else
+    {
+        // An unnamed parameter has no declarator to bound the type text. Using the whole
+        // parameter would swallow the default value of an optional_parameter_declaration
+        // (`int = 5` instead of `int`), so bound it by the `type` field instead.
+        const TSNode type = childForField(parameter, "type");
+        typeEnd = ts_node_is_null(type)
+            ? ts_node_end_byte(parameter)
+            : ts_node_end_byte(type);
+    }
 
     if (typeEnd < parameterStart || typeEnd > source.size())
     {
@@ -559,17 +577,24 @@ FunctionModel adaptFunction(
         ? std::string{}
         : specifiersText(candidate, functionDeclarator, source);
 
+    // A lambda_expression owns its body, so searching all of it for a parameter_list can
+    // latch onto an unrelated nested one (eg. an inner lambda that does take parameters).
+    // The lambda's own list lives in its `declarator` field; no field means no parameters.
+    const TSNode parameterListOwner = isLambda
+        ? childForField(candidate, "declarator")
+        : functionDeclarator;
+
     FunctionModel model;
     model.name = name;
     model.kind = functionKind(candidate, declarator, name, source);
     model.range = sourceRangeForCandidate(candidate, path);
-    model.parameters = parametersFor(functionDeclarator, source);
-    const TSNode parameterList = findParameterList(functionDeclarator);
+    model.parameters = parametersFor(parameterListOwner, source);
+    const TSNode parameterList = findParameterList(parameterListOwner);
     model.parameterListRange = ts_node_is_null(parameterList)
         ? std::nullopt
         : std::optional<core::SourceRange>(sourceRange(parameterList, path));
     model.isStatic = hasStandaloneToken(specifiers, "static");
-    model.isVariadic = isVariadic(functionDeclarator, source);
+    model.isVariadic = isVariadic(parameterListOwner, source);
 
     const TSNode body = childForField(candidate, "body");
 
@@ -1333,7 +1358,7 @@ void StructuralExtractor::extract(
         result.comments.push_back(sourceRange(comment, path));
     }
 
-    std::sort(
+    std::stable_sort(
         result.comments.begin(),
         result.comments.end(),
         [](const core::SourceRange& left, const core::SourceRange& right) {

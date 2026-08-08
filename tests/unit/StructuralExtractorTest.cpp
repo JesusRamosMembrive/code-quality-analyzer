@@ -207,6 +207,26 @@ TEST_CASE("extracts the declared type of unnamed and void C parameters")
     CHECK(result.functions[1].parameters[0].declaredType == "void");
 }
 
+TEST_CASE("excludes the default value from the declared type of an unnamed parameter")
+{
+    const TempSourceFile file{
+        "unnamed-defaulted-parameter-type.cpp",
+        "void applyDefault(int = 5)\n"
+        "{\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    REQUIRE(result.functions[0].parameters.size() == 1);
+    CHECK(result.functions[0].parameters[0].name.empty());
+    CHECK(result.functions[0].parameters[0].hasDefaultValue);
+    CHECK(result.functions[0].parameters[0].declaredType == "int");
+}
+
 TEST_CASE("extracts a C function with a void parameter list")
 {
     const TempSourceFile file{
@@ -981,6 +1001,44 @@ TEST_CASE("leaves the parameter list range empty for a parameterless lambda")
     CHECK_FALSE(lambda->parameterListRange.has_value());
 }
 
+TEST_CASE("does not borrow a nested parameter list for a parameterless lambda")
+{
+    const TempSourceFile file{
+        "lambda-nested-parameter-list.cpp",
+        "void run()\n"
+        "{\n"
+        "    auto action = []{\n"
+        "        auto nested = [](int x) { return x; };\n"
+        "        return nested(1);\n"
+        "    };\n"
+        "    action();\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    std::vector<const codeqa::frontend::FunctionModel*> lambdas;
+
+    for (const codeqa::frontend::FunctionModel& function : result.functions)
+    {
+        if (function.kind == codeqa::frontend::FunctionKind::Lambda)
+        {
+            lambdas.push_back(&function);
+        }
+    }
+
+    // Sorted by range, so the outer (parameterless) lambda comes first.
+    REQUIRE(lambdas.size() == 2);
+    CHECK_FALSE(lambdas[0]->parameterListRange.has_value());
+    CHECK(lambdas[0]->parameters.empty());
+    REQUIRE(lambdas[1]->parameterListRange.has_value());
+    CHECK(lambdas[1]->parameterListRange->begin.line == 4);
+    REQUIRE(lambdas[1]->parameters.size() == 1);
+    CHECK(lambdas[1]->parameters[0].name == "x");
+}
+
 TEST_CASE("collects line and block comments anywhere in the file")
 {
     const TempSourceFile file{
@@ -1003,6 +1061,46 @@ TEST_CASE("collects line and block comments anywhere in the file")
     CHECK(result.comments[1].begin.line == 4);
     CHECK(result.comments[1].end.line == 5);
     CHECK(result.comments[2].begin.line == 6);
+}
+
+TEST_CASE("keeps comments inside a broken parse region")
+{
+    // Pins the deliberate asymmetry documented in the Fase 6a design: statements inside an
+    // ERROR/MISSING subtree are discarded because they represent structure that may be
+    // misread, while comments are collected unconditionally -- a comment token is free text
+    // whose byte range stays reliable no matter what surrounds it.
+    const TempSourceFile file{
+        "broken-region-comments.cpp",
+        "// comment before the broken region\n"
+        "int broken(int value)\n"
+        "{\n"
+        "    if (value > 0)\n"
+        "    {\n"
+        "        // comment inside the broken region\n"
+        "        return 1;\n"
+        "\n"
+        "    return 0;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    CHECK(result.parsed);
+    CHECK_FALSE(result.diagnostics.empty());
+
+    REQUIRE(result.comments.size() == 2);
+    CHECK(result.comments[0].begin.line == 1);
+    CHECK(result.comments[1].begin.line == 6);
+
+    const auto broken = std::find_if(
+        result.functions.begin(),
+        result.functions.end(),
+        [](const codeqa::frontend::FunctionModel& function) { return function.name == "broken"; });
+
+    REQUIRE(broken != result.functions.end());
+    CHECK(broken->statements.empty());
 }
 
 TEST_CASE("counts statements at any nesting depth, excluding compound blocks")
