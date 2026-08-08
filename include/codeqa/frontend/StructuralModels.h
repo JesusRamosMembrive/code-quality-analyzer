@@ -71,6 +71,7 @@ struct ParameterModel
     std::string name;
     ParameterPassing passing{ParameterPassing::Value};
     bool hasDefaultValue{false};
+    std::string declaredType;
 };
 
 struct LocalVariableModel

@@ -460,6 +460,21 @@ core::SourceRange sourceRangeForCandidate(TSNode candidate, const std::filesyste
     return sourceRange(isNodeType(parent, "template_declaration") ? parent : candidate, path);
 }
 
+std::string parameterDeclaredType(TSNode parameter, TSNode declarator, std::string_view source)
+{
+    const std::size_t parameterStart = ts_node_start_byte(parameter);
+    const std::size_t typeEnd = ts_node_is_null(declarator)
+        ? ts_node_end_byte(parameter)
+        : ts_node_start_byte(declarator);
+
+    if (typeEnd < parameterStart || typeEnd > source.size())
+    {
+        return trim(nodeText(parameter, source));
+    }
+
+    return trim(std::string(source.substr(parameterStart, typeEnd - parameterStart)));
+}
+
 std::vector<ParameterModel> parametersFor(TSNode functionDeclarator, std::string_view source)
 {
     std::vector<ParameterModel> parameters;
@@ -500,6 +515,7 @@ std::vector<ParameterModel> parametersFor(TSNode functionDeclarator, std::string
                             : ParameterPassing::Value));
         model.hasDefaultValue = !ts_node_is_null(defaultValue)
             || isNodeType(parameter, "optional_parameter_declaration");
+        model.declaredType = parameterDeclaredType(parameter, declarator, source);
         parameters.push_back(std::move(model));
     }
 

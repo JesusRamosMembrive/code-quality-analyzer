@@ -156,6 +156,56 @@ TEST_CASE("derives C++ parameter passing from the declarator only")
         == codeqa::frontend::ParameterPassing::FunctionPointer);
 }
 
+TEST_CASE("extracts the declared type of each parameter, excluding declarator markers")
+{
+    const TempSourceFile file{
+        "parameter-types.cpp",
+        "void classify(bool flag, const bool constFlag, bool* flagPointer,\n"
+        "    bool& flagReference, int value, void (*callback)(int))\n"
+        "{\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    REQUIRE(result.functions[0].parameters.size() == 6);
+    CHECK(result.functions[0].parameters[0].declaredType == "bool");
+    CHECK(result.functions[0].parameters[1].declaredType == "const bool");
+    CHECK(result.functions[0].parameters[2].declaredType == "bool");
+    CHECK(result.functions[0].parameters[3].declaredType == "bool");
+    CHECK(result.functions[0].parameters[4].declaredType == "int");
+    CHECK(result.functions[0].parameters[5].declaredType == "void");
+}
+
+TEST_CASE("extracts the declared type of unnamed and void C parameters")
+{
+    const TempSourceFile file{
+        "unnamed-parameter-types.c",
+        "int ignoresArgument(int)\n"
+        "{\n"
+        "    return 0;\n"
+        "}\n"
+        "\n"
+        "int noArguments(void)\n"
+        "{\n"
+        "    return 0;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    REQUIRE(result.functions[0].parameters.size() == 1);
+    CHECK(result.functions[0].parameters[0].declaredType == "int");
+    REQUIRE(result.functions[1].parameters.size() == 1);
+    CHECK(result.functions[1].parameters[0].declaredType == "void");
+}
+
 TEST_CASE("extracts a C function with a void parameter list")
 {
     const TempSourceFile file{
