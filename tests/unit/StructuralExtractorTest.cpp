@@ -1004,3 +1004,59 @@ TEST_CASE("collects line and block comments anywhere in the file")
     CHECK(result.comments[1].end.line == 5);
     CHECK(result.comments[2].begin.line == 6);
 }
+
+TEST_CASE("counts statements at any nesting depth, excluding compound blocks")
+{
+    const TempSourceFile file{
+        "statement-count.cpp",
+        "int classify(int value)\n"
+        "{\n"
+        "    int result = 0;\n"
+        "\n"
+        "    if (value > 0)\n"
+        "    {\n"
+        "        result = value;\n"
+        "    }\n"
+        "\n"
+        "    return result;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    // declaration (int result = 0;), if_statement, expression_statement
+    // (result = value;), return_statement -- the compound_statement braces
+    // around the if-body do not add an entry.
+    CHECK(result.functions[0].statements.size() == 4);
+}
+
+TEST_CASE("counts a for-loop once and excludes its header clauses")
+{
+    const TempSourceFile file{
+        "for-loop-statement-count.cpp",
+        "int sum(int count)\n"
+        "{\n"
+        "    int total = 0;\n"
+        "\n"
+        "    for (int index = 0; index < count; ++index)\n"
+        "    {\n"
+        "        total += index;\n"
+        "    }\n"
+        "\n"
+        "    return total;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    // declaration (int total = 0;), for_statement (once -- its init clause
+    // "int index = 0" does not add a second entry), expression_statement
+    // (total += index;), return_statement.
+    CHECK(result.functions[0].statements.size() == 4);
+}

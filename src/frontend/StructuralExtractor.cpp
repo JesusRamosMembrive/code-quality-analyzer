@@ -974,6 +974,26 @@ bool isForStatement(TSNode node)
     return isNodeType(node, "for_statement") || isNodeType(node, "for_range_loop");
 }
 
+bool isStatementNode(TSNode node)
+{
+    if (isNodeType(node, "declaration") && isForStatement(ts_node_parent(node)))
+    {
+        // The for-loop's init clause ("int i = 0" in `for (int i = 0; ...)`)
+        // is part of the for_statement itself, which already counts as one
+        // statement; counting it again would break the "for counts once"
+        // rule from the design.
+        return false;
+    }
+
+    return isNodeType(node, "expression_statement") || isNodeType(node, "declaration")
+        || isNodeType(node, "return_statement") || isNodeType(node, "if_statement")
+        || isNodeType(node, "for_statement") || isNodeType(node, "for_range_loop")
+        || isNodeType(node, "while_statement") || isNodeType(node, "do_statement")
+        || isNodeType(node, "switch_statement") || isNodeType(node, "case_statement")
+        || isNodeType(node, "default_statement") || isNodeType(node, "break_statement")
+        || isNodeType(node, "continue_statement");
+}
+
 CallKind callKind(TSNode functionExpression)
 {
     if (isNodeType(functionExpression, "identifier") || isNodeType(functionExpression, "qualified_identifier"))
@@ -1074,6 +1094,11 @@ void extractBodyStructure(
             function.controlFlow.push_back(std::move(flow));
         }
 
+        if (isStatementNode(node) && !subtreeContainsErrorOrMissing(node))
+        {
+            function.statements.push_back(sourceRange(node, path));
+        }
+
         const uint32_t childCount = ts_node_child_count(node);
 
         for (uint32_t index = 0; index < childCount; ++index)
@@ -1120,6 +1145,17 @@ void extractBodyStructure(
             }
 
             return left.range.end.offset < right.range.end.offset;
+        });
+    std::stable_sort(
+        function.statements.begin(),
+        function.statements.end(),
+        [](const core::SourceRange& left, const core::SourceRange& right) {
+            if (left.begin.offset != right.begin.offset)
+            {
+                return left.begin.offset < right.begin.offset;
+            }
+
+            return left.end.offset < right.end.offset;
         });
 }
 

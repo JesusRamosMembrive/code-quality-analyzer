@@ -111,6 +111,7 @@ struct FunctionModel
     std::vector<ControlFlowModel> controlFlow;
     std::vector<CallModel> calls;
     std::optional<core::SourceRange> parameterListRange;
+    std::vector<core::SourceRange> statements;
 };
 
 struct ClassModel
