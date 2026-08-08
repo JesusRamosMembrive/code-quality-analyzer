@@ -1,7 +1,7 @@
 # Fase 6b — Motor de métricas: diseño
 
 Fecha: 2026-08-08
-Estado: pendiente de revisión
+Estado: revisado (segunda pasada 2026-08-08); pendiente de aprobación final
 
 ## 1. Objetivo
 
@@ -21,8 +21,12 @@ Esta fase incluye:
   fuente y produce las métricas de un `ProjectModel` completo;
 - las fórmulas exactas de tamaño, firma y complejidad descritas en la
   sección 5;
-- fixtures nuevos en `tests/fixtures/complexity/`, `tests/fixtures/nesting/`
-  y `tests/fixtures/parameters/` con resultados esperados.
+- expectativas de métricas nuevas en el corpus existente
+  (`tests/corpus/complexity/`, `tests/corpus/nesting/` y
+  `tests/corpus/parameters/`), como archivos `*.metrics.json` hermanos de
+  las fuentes ya presentes. El roadmap de Fase 0 esbozaba `tests/fixtures/`,
+  pero el corpus real del proyecto vive en `tests/corpus/` y esos tres
+  directorios ya existen con fuentes y expectativas `*.parsing.json`.
 
 No incluye: ningún comando CLI nuevo (las métricas quedan como capa de
 librería verificada por tests, igual que la Fase 5; la exposición al usuario
@@ -38,21 +42,29 @@ entrada es una función pura:
 
     FunctionMetricsModel calculateFunctionMetrics(
         const model::CallableModel& callable,
+        const std::vector<core::SourceRange>& fileComments,
         const std::vector<std::string>& sourceLines);
 
 `sourceLines` son las líneas del archivo que contiene `callable`, ya leídas
-por el llamador. Esta separación hace que todos los casos límite de
-complejidad (anidamiento, operadores booleanos, mezcla de comentario y
-código en una misma línea) sean verificables con arrays de líneas
-construidos a mano, sin fixtures de archivo ni E/S en los tests unitarios.
+por el llamador. `fileComments` es `FileModel.comments` del archivo (Fase
+6a): es imprescindible como parámetro porque tanto `commentLines` como la
+exclusión de operadores booleanos dentro de comentarios dependen de esos
+rangos, y `CallableModel` no los contiene. Esta separación hace que todos
+los casos límite de complejidad (anidamiento, operadores booleanos, mezcla
+de comentario y código en una misma línea) sean verificables con arrays de
+líneas y rangos construidos a mano, sin fixtures de archivo ni E/S en los
+tests unitarios.
 
 `codeqa::application::MeasureProject` es el único punto que toca disco:
 recorre `model::ProjectModel`, relee cada archivo una vez completo (nunca
 por función), divide el contenido en líneas, y llama a
-`calculateFunctionMetrics` por cada `CallableModel` de cada `FileModel`.
-Reutiliza la misma ruta ya validada por el descubrimiento (Fase 2); no
-vuelve a comprobar accesibilidad ni tamaño del archivo, porque ya se
-comprobó al construir el `ProjectModel`.
+`calculateFunctionMetrics` por cada `CallableModel` de cada `FileModel` —
+**excepto los de `CallableKind::Prototype`**. Un prototipo no tiene cuerpo:
+sus métricas serían ruido (complejidad 1, cero sentencias) y duplicarían la
+entrada de la definición real cuando esta existe en otro archivo. Reutiliza
+la misma ruta ya validada por el descubrimiento (Fase 2); no vuelve a
+comprobar accesibilidad ni tamaño del archivo, porque ya se comprobó al
+construir el `ProjectModel`.
 
 Se descartan dos alternativas: embeber las métricas directamente en
 `CallableModel` (mezclaría la capa de modelo, pensada para ser reutilizable
@@ -91,7 +103,8 @@ tokens ni tipos de tree-sitter).
 
     FileMetricsModel
     ├── path
-    └── functions: vector<FunctionMetricsModel>
+    ├── functions: vector<FunctionMetricsModel>
+    └── diagnostics: vector<core::Diagnostic>
 
     ProjectMetricsModel
     ├── rootPath
@@ -108,27 +121,45 @@ modelo intermedio.
 ### Tamaño
 
 Todas se calculan sobre las líneas cubiertas por `callable.symbol.range`.
+Cada línea del rango se clasifica en exactamente una categoría, evaluando
+las reglas en este orden:
+
+1. **Vacía**: la línea no contiene ningún carácter distinto de espacio en
+   blanco. Esto incluye una línea vacía en medio de un comentario de bloque:
+   la precedencia resuelve el empate a favor de vacía.
+2. **Comentario**: todos los caracteres no blancos de la línea caen dentro
+   de algún rango de `fileComments`. Nótese que la regla no es "la línea
+   intersecta un comentario": una línea con código seguido de comentario
+   (`x = 1; // nota`) tiene caracteres no blancos fuera del comentario y
+   por tanto no es línea de comentario.
+3. **Código**: cualquier otra línea.
 
 - **physicalLines**: `range.end.line - range.begin.line + 1`.
-- **commentLines**: líneas del rango que intersectan con alguna entrada de
-  `FileModel.comments`.
-- **blankLines**: líneas del rango cuyo contenido, tras recortar espacios en
-  ambos extremos, es una cadena vacía.
-- **codeLines**: `physicalLines - blankLines - commentLines`. Una línea con
-  código seguido de un comentario (`x = 1; // nota`) cuenta como línea con
-  código, no como línea de comentario: el comentario no ocupa la línea
-  completa.
+- **blankLines**: líneas clasificadas como vacías.
+- **commentLines**: líneas clasificadas como comentario.
+- **codeLines**: líneas clasificadas como código. Por construcción,
+  `physicalLines == codeLines + blankLines + commentLines`.
 - **statementCount**: `callable.statements.size()`.
 
 ### Firma
 
 - **parameterCount**: `callable.parameters.size()`.
-- **signatureLength**: número de caracteres del texto fuente entre `(` y `)`
-  de la lista de parámetros — no incluye tipo de retorno ni nombre de la
-  función.
-- **booleanParameterCount**: parámetros cuyo `declaredType`, tras quitar
-  `const`/`volatile` y espacios sobrantes, es exactamente `bool` (C++) o
-  `bool`/`_Bool` (C, vía `stdbool.h`). No se resuelven typedefs.
+- **signatureLength**: número de caracteres del texto fuente dentro de
+  `callable.parameterListRange` (Fase 6a), excluyendo los propios
+  paréntesis — no incluye tipo de retorno ni nombre de la función. Toda
+  secuencia de espacio en blanco (espacios, tabuladores, saltos de línea) se
+  cuenta como un único espacio, para que una firma partida en varias líneas
+  no mida distinto que la misma firma en una línea. Si `parameterListRange`
+  está vacío (lambda sin lista de parámetros), vale 0.
+- **booleanParameterCount**: parámetros que cumplen **ambas** condiciones:
+  su `declaredType`, tras quitar `const`/`volatile` y espacios sobrantes, es
+  exactamente `bool` (C++) o `bool`/`_Bool` (C, vía `stdbool.h`), **y** su
+  `passing` es `Value`. La segunda condición es necesaria porque
+  `declaredType` no incluye los marcadores del declarador (Fase 6a): sin
+  ella, `bool* flags` contaría como parámetro booleano. Un `bool&`/
+  `const bool&` tampoco cuenta — la métrica apunta al "boolean trap" de
+  flags por valor; la exclusión es deliberada y queda documentada aquí. No
+  se resuelven typedefs.
 
 ### Complejidad
 
@@ -147,10 +178,13 @@ Todas se calculan sobre las líneas cubiertas por `callable.symbol.range`.
   `kind == Return`.
 
 Contar `&&`/`||` dentro de un `conditionRange` escanea el texto de ese rango
-(ya disponible vía `sourceLines`) evitando los que aparezcan dentro de un
-literal de cadena o carácter contenido en el propio rango. No hace falta
-volver a consultar tree-sitter: `conditionRange` ya delimita con precisión
-dónde empieza y termina la condición.
+(ya disponible vía `sourceLines`; una condición puede abarcar varias líneas)
+excluyendo los operadores que aparezcan dentro de un literal de cadena o
+carácter contenido en el propio rango, **y también los que caigan dentro de
+un rango de `fileComments`** — `if (a /* && b */ && c)` tiene un solo
+operador, no dos. No hace falta volver a consultar tree-sitter:
+`conditionRange` delimita la condición y `fileComments` delimita los
+comentarios.
 
 ## 6. Flujo de datos
 
@@ -160,8 +194,8 @@ dónde empieza y termina la condición.
     MeasureProject.execute()
         │  relee cada archivo una vez, por FileModel.path
         ▼
-    por cada CallableModel del archivo:
-        calculateFunctionMetrics(callable, sourceLines)
+    por cada CallableModel del archivo (excepto prototipos):
+        calculateFunctionMetrics(callable, fileComments, sourceLines)
         │
         ▼
     ProjectMetricsModel
@@ -174,9 +208,16 @@ dónde empieza y termina la condición.
 Un archivo que ya forma parte de `ProjectModel` se asume legible (ya se leyó
 con éxito en Fase 2/4 para llegar hasta ahí). Si la relectura fallara de
 todos modos (archivo borrado entre el análisis y la medición), `Measure
-Project` no aborta el proyecto completo: registra un `Diagnostic` para ese
-archivo y continúa con los demás, igual que el resto del pipeline nunca deja
-que un archivo problemático bloquee a los demás.
+Project` no aborta el proyecto completo: emite el `FileMetricsModel` de ese
+archivo con `functions` vacío y un `Diagnostic` en su campo `diagnostics`, y
+continúa con los demás, igual que el resto del pipeline nunca deja que un
+archivo problemático bloquee a los demás.
+
+La relectura se hace en modo binario y la división en líneas tolera `\r\n`,
+de modo que la numeración 1-based de líneas y columnas coincide con las
+posiciones que tree-sitter registró en los rangos del modelo durante la
+Fase 4; sin esa correspondencia, la extracción de texto de `conditionRange`
+y `parameterListRange` se desplazaría.
 
 Las métricas se calculan igual en funciones cuyo rango se solape con un nodo
 `ERROR`/`MISSING`: no se excluyen aquí. La decisión de si esas funciones
@@ -198,11 +239,16 @@ Pruebas unitarias de `MeasureProject`: relectura de un archivo temporal
 real, verificando que se lee una sola vez por archivo y que un archivo
 borrado tras el análisis produce un diagnóstico sin abortar el resto.
 
-Pruebas de integración/corpus: fixtures nuevos en
-`tests/fixtures/complexity/`, `tests/fixtures/nesting/` y
-`tests/fixtures/parameters/`, cada uno con su `sample.expected.json`
-describiendo las métricas esperadas por función, verificados ejecutando
-`MeasureProject` sobre el `ProjectModel` del fixture.
+Pruebas de integración/corpus: expectativas de métricas como archivos
+`<nombre>.metrics.json` hermanos de las fuentes existentes en
+`tests/corpus/complexity/`, `tests/corpus/nesting/` y
+`tests/corpus/parameters/` (p. ej. `branching.metrics.json` junto a
+`branching.cpp`), describiendo las métricas esperadas por función. Un runner
+de corpus de métricas construye el `ProjectModel` del fixture, ejecuta
+`MeasureProject` y compara con igualdad exacta. `CheckCorpusIntegrity.cmake`
+se amplía para verificar que cada `*.metrics.json` tenga fuente hermana; la
+expectativa de métricas es opcional por fixture (solo los tres directorios
+citados la incorporan en esta fase), pero donde exista se valida completa.
 
 La validación final incluye compilación Debug, pruebas focalizadas, CTest y
 `git diff --check`.
@@ -216,6 +262,9 @@ La validación final incluye compilación Debug, pruebas focalizadas, CTest y
 - Los cálculos son reproducibles: misma entrada, mismo resultado.
 - Las métricas se calculan igualmente en funciones que se solapan con
   regiones `ERROR`/`MISSING`.
+- Los prototipos no aparecen en `ProjectMetricsModel`.
+- Un archivo cuya relectura falla produce un `FileMetricsModel` con
+  diagnóstico y sin funciones, sin abortar el resto del proyecto.
 - No existe ningún comando CLI nuevo asociado a esta fase.
 
 ## 10. Dependencias
