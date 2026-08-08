@@ -3,6 +3,7 @@
 #include "codeqa/frontend/ParseSourceFile.h"
 #include "codeqa/frontend/StructuralExtractor.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -927,4 +928,55 @@ TEST_CASE("extracts only function pointers as globals from mixed declarations")
     REQUIRE(result.globalVariables.size() == 1);
     CHECK(result.globalVariables[0].name == "fp");
     CHECK(result.globalVariables[0].declaredType == "int(*)(int)");
+}
+
+TEST_CASE("captures the parameter list range for functions and prototypes")
+{
+    const TempSourceFile file{
+        "parameter-list-range.cpp",
+        "int add(int left, int right);\n"
+        "\n"
+        "int add(int left, int right)\n"
+        "{\n"
+        "    return left + right;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+
+    for (const codeqa::frontend::FunctionModel& function : result.functions)
+    {
+        REQUIRE(function.parameterListRange.has_value());
+        CHECK(function.parameterListRange->begin.line == function.range.begin.line);
+    }
+}
+
+TEST_CASE("leaves the parameter list range empty for a parameterless lambda")
+{
+    const TempSourceFile file{
+        "lambda-no-parameters.cpp",
+        "void run()\n"
+        "{\n"
+        "    auto action = []{ return 1; };\n"
+        "    action();\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    const auto lambda = std::find_if(
+        result.functions.begin(),
+        result.functions.end(),
+        [](const codeqa::frontend::FunctionModel& function) {
+            return function.kind == codeqa::frontend::FunctionKind::Lambda;
+        });
+
+    REQUIRE(lambda != result.functions.end());
+    CHECK_FALSE(lambda->parameterListRange.has_value());
 }

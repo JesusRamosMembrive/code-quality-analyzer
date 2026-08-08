@@ -110,6 +110,7 @@ struct FunctionModel
     std::vector<LocalVariableModel> localVariables;
     std::vector<ControlFlowModel> controlFlow;
     std::vector<CallModel> calls;
+    std::optional<core::SourceRange> parameterListRange;
 };
 
 struct ClassModel

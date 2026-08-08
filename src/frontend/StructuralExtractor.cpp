@@ -564,6 +564,10 @@ FunctionModel adaptFunction(
     model.kind = functionKind(candidate, declarator, name, source);
     model.range = sourceRangeForCandidate(candidate, path);
     model.parameters = parametersFor(functionDeclarator, source);
+    const TSNode parameterList = findParameterList(functionDeclarator);
+    model.parameterListRange = ts_node_is_null(parameterList)
+        ? std::nullopt
+        : std::optional<core::SourceRange>(sourceRange(parameterList, path));
     model.isStatic = hasStandaloneToken(specifiers, "static");
     model.isVariadic = isVariadic(functionDeclarator, source);
 
