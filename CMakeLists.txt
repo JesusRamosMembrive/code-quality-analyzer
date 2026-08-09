@@ -98,6 +98,7 @@ add_library(codeqa_core STATIC
     src/infrastructure/DiscoverSourceFiles.cpp
     src/infrastructure/GlobMatcher.cpp
     src/model/ProjectModelBuilder.cpp
+    src/metrics/CalculateFunctionMetrics.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include

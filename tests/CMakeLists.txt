@@ -25,6 +25,7 @@ add_executable(codeqa_tests
     unit/AnalyzeProjectTest.cpp
     unit/CorpusModelTest.cpp
     unit/MetricsModelsTest.cpp
+    unit/CalculateFunctionMetricsTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
