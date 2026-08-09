@@ -114,6 +114,33 @@ class, la función `static` y la elipsis variádica, ninguno de los cuales
 tiene relación con parámetros, comentarios o sentencias. Cerrarlos no aporta
 nada a las métricas de la Fase 6b, así que quedan deliberadamente abiertos.
 
+## Métricas (Fase 6b)
+
+Los directorios `complexity/`, `nesting/` y `parameters/` tienen además un
+archivo hermano `<nombre>.metrics.json`, opcional por fixture (solo estos
+tres lo declaran). Cada uno describe, por función, las métricas de tamaño,
+firma y complejidad definidas en
+`docs/superpowers/specs/2026-08-08-fase-6b-motor-metricas-design.md`:
+
+```json
+{
+  "functions": [
+    {
+      "name": "classify",
+      "size": {"physicalLines": 13, "codeLines": 12, "blankLines": 1, "commentLines": 0, "statementCount": 5},
+      "signature": {"parameterCount": 2, "signatureLength": 22, "booleanParameterCount": 1},
+      "complexity": {"cyclomaticComplexity": 5, "maxConditionComplexity": 1, "maxNestingDepth": 2, "branchCount": 2, "returnCount": 3}
+    }
+  ]
+}
+```
+
+`functions` es una secuencia exhaustiva y ordenada, igual que en
+`*.parsing.json` — un `name` por entrada, sin duplicar `kind` ni rangos (ya
+cubiertos por el `.parsing.json` hermano). Los prototipos no tienen entrada:
+`MeasureProject` los excluye porque no tienen cuerpo. El runner
+(`tests/unit/CorpusMetricsTest.cpp`) compara con igualdad exacta.
+
 ## Integridad del corpus
 
 `CheckCorpusIntegrity.cmake`, ejecutado por CTest, verifica que los pares de

@@ -1,0 +1,22 @@
+{
+  "functions": [
+    {
+      "name": "flat",
+      "size": {"physicalLines": 4, "codeLines": 4, "blankLines": 0, "commentLines": 0, "statementCount": 1},
+      "signature": {"parameterCount": 1, "signatureLength": 9, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 1, "maxConditionComplexity": 0, "maxNestingDepth": 0, "branchCount": 0, "returnCount": 1}
+    },
+    {
+      "name": "oneLevel",
+      "size": {"physicalLines": 9, "codeLines": 8, "blankLines": 1, "commentLines": 0, "statementCount": 3},
+      "signature": {"parameterCount": 1, "signatureLength": 9, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 2, "maxConditionComplexity": 0, "maxNestingDepth": 1, "branchCount": 1, "returnCount": 2}
+    },
+    {
+      "name": "fourLevels",
+      "size": {"physicalLines": 22, "codeLines": 19, "blankLines": 3, "commentLines": 0, "statementCount": 8},
+      "signature": {"parameterCount": 2, "signatureLength": 28, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 5, "maxConditionComplexity": 0, "maxNestingDepth": 3, "branchCount": 4, "returnCount": 1}
+    }
+  ]
+}

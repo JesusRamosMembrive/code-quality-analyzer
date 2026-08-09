@@ -1,0 +1,34 @@
+{
+  "functions": [
+    {
+      "name": "classify",
+      "size": {"physicalLines": 13, "codeLines": 12, "blankLines": 1, "commentLines": 0, "statementCount": 5},
+      "signature": {"parameterCount": 2, "signatureLength": 22, "booleanParameterCount": 1},
+      "complexity": {"cyclomaticComplexity": 5, "maxConditionComplexity": 1, "maxNestingDepth": 2, "branchCount": 2, "returnCount": 3}
+    },
+    {
+      "name": "scan",
+      "size": {"physicalLines": 21, "codeLines": 17, "blankLines": 4, "commentLines": 0, "statementCount": 8},
+      "signature": {"parameterCount": 2, "signatureLength": 28, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 4, "maxConditionComplexity": 0, "maxNestingDepth": 2, "branchCount": 3, "returnCount": 1}
+    },
+    {
+      "name": "describe",
+      "size": {"physicalLines": 12, "codeLines": 12, "blankLines": 0, "commentLines": 0, "statementCount": 7},
+      "signature": {"parameterCount": 1, "signatureLength": 8, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 3, "maxConditionComplexity": 0, "maxNestingDepth": 2, "branchCount": 2, "returnCount": 3}
+    },
+    {
+      "name": "drain",
+      "size": {"physicalLines": 9, "codeLines": 8, "blankLines": 1, "commentLines": 0, "statementCount": 3},
+      "signature": {"parameterCount": 1, "signatureLength": 13, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 2, "maxConditionComplexity": 0, "maxNestingDepth": 0, "branchCount": 1, "returnCount": 1}
+    },
+    {
+      "name": "guarded",
+      "size": {"physicalLines": 16, "codeLines": 15, "blankLines": 1, "commentLines": 0, "statementCount": 3},
+      "signature": {"parameterCount": 1, "signatureLength": 9, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 2, "maxConditionComplexity": 0, "maxNestingDepth": 0, "branchCount": 1, "returnCount": 2}
+    }
+  ]
+}

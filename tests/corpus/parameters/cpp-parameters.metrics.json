@@ -1,0 +1,34 @@
+{
+  "functions": [
+    {
+      "name": "withDefaults",
+      "size": {"physicalLines": 4, "codeLines": 4, "blankLines": 0, "commentLines": 0, "statementCount": 1},
+      "signature": {"parameterCount": 3, "signatureLength": 52, "booleanParameterCount": 1},
+      "complexity": {"cyclomaticComplexity": 2, "maxConditionComplexity": 0, "maxNestingDepth": 1, "branchCount": 1, "returnCount": 1}
+    },
+    {
+      "name": "byReference",
+      "size": {"physicalLines": 4, "codeLines": 4, "blankLines": 0, "commentLines": 0, "statementCount": 1},
+      "signature": {"parameterCount": 2, "signatureLength": 46, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 1, "maxConditionComplexity": 0, "maxNestingDepth": 0, "branchCount": 0, "returnCount": 0}
+    },
+    {
+      "name": "byPointer",
+      "size": {"physicalLines": 4, "codeLines": 4, "blankLines": 0, "commentLines": 0, "statementCount": 1},
+      "signature": {"parameterCount": 2, "signatureLength": 29, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 1, "maxConditionComplexity": 0, "maxNestingDepth": 0, "branchCount": 0, "returnCount": 0}
+    },
+    {
+      "name": "ignoresArgument",
+      "size": {"physicalLines": 4, "codeLines": 4, "blankLines": 0, "commentLines": 0, "statementCount": 1},
+      "signature": {"parameterCount": 1, "signatureLength": 3, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 1, "maxConditionComplexity": 0, "maxNestingDepth": 0, "branchCount": 0, "returnCount": 1}
+    },
+    {
+      "name": "manyParameters",
+      "size": {"physicalLines": 4, "codeLines": 4, "blankLines": 0, "commentLines": 0, "statementCount": 1},
+      "signature": {"parameterCount": 5, "signatureLength": 55, "booleanParameterCount": 0},
+      "complexity": {"cyclomaticComplexity": 1, "maxConditionComplexity": 0, "maxNestingDepth": 0, "branchCount": 0, "returnCount": 1}
+    }
+  ]
+}

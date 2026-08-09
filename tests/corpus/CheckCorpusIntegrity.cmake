@@ -113,6 +113,25 @@ foreach(expectation IN LISTS expectationFiles)
     endif()
 endforeach()
 
+# --- Check 2c: every *.metrics.json has a sibling source ------------------
+# Unlike *.parsing.json, *.metrics.json is optional per fixture (Fase 6b
+# only adds it to complexity/, nesting/ and parameters/) -- so only the
+# metrics-to-source direction is checked, never the reverse.
+
+file(GLOB_RECURSE metricsFiles "${CODEQA_CORPUS_DIR}/*.metrics.json")
+
+foreach(metricsFile IN LISTS metricsFiles)
+    get_filename_component(metricsDirectory "${metricsFile}" DIRECTORY)
+    get_filename_component(metricsName "${metricsFile}" NAME)
+    string(REPLACE ".metrics.json" "" metricsStem "${metricsName}")
+
+    if(NOT EXISTS "${metricsDirectory}/${metricsStem}.c"
+        AND NOT EXISTS "${metricsDirectory}/${metricsStem}.cpp")
+        list(APPEND failures
+            "Metrics expectation '${metricsFile}' has no matching .c or .cpp fixture.")
+    endif()
+endforeach()
+
 # --- Checks 3 and 4: cited IDs exist, and are never OUT-* ------------------
 
 set(citedIds "")
