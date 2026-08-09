@@ -31,6 +31,7 @@ add_executable(codeqa_tests
     unit/ReadFileContentsTest.cpp
     unit/RuleTest.cpp
     unit/RulesTest.cpp
+    unit/ApplyRulesTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
