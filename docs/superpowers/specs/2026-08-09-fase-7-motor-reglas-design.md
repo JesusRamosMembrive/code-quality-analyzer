@@ -361,8 +361,14 @@ pide detección de errores de supresión.
   el pipeline real `AnalyzeProject → MeasureProject → ApplyRules`.
 - **Alcance por lenguaje**: una regla de prueba (solo en el test, nunca
   registrada en `allRules()`) que devuelve `false` para un lenguaje,
-  verificando que el motor respeta el resultado — ninguna de las 8 reglas
-  reales ejercita la rama negativa por sí sola.
+  verificando que la interfaz `Rule` despacha `appliesTo()`/`evaluate()`
+  correctamente de forma aislada. Como las 8 reglas reales devuelven `true`
+  para ambos lenguajes, ninguna ejercita la rama negativa del `if` de
+  `ApplyRules` que la consulta — verificar eso a nivel de orquestador
+  exigiría hacer inyectable la lista de reglas solo para alcanzar una
+  comprobación de una línea; se acepta como hueco de cobertura documentado
+  en vez de ampliar la API pública de `ApplyRules` sin una segunda regla
+  real que lo necesite.
 - **`readFileContents`**: cubierta indirectamente por la suite ya existente
   de `ParseSourceFileTest.cpp` y `MeasureProjectTest.cpp` (que no cambian
   de comportamiento tras la migración) más un test dedicado a la nueva
