@@ -280,6 +280,18 @@ std::size_t countBooleanOperators(
         while (index < endIndex)
         {
             const char character = text[index];
+            const std::size_t column = index + 1;
+            const bool covered = std::any_of(
+                fileComments.begin(), fileComments.end(),
+                [line, column](const codeqa::core::SourceRange& comment) {
+                    return positionInRange(line, column, comment);
+                });
+
+            if (covered)
+            {
+                ++index;
+                continue;
+            }
 
             if (inString || inChar)
             {
@@ -323,18 +335,7 @@ std::size_t countBooleanOperators(
                 && ((character == '&' && text[index + 1] == '&')
                     || (character == '|' && text[index + 1] == '|')))
             {
-                const std::size_t column = index + 1;
-                const bool covered = std::any_of(
-                    fileComments.begin(), fileComments.end(),
-                    [line, column](const codeqa::core::SourceRange& comment) {
-                        return positionInRange(line, column, comment);
-                    });
-
-                if (!covered)
-                {
-                    ++count;
-                }
-
+                ++count;
                 index += 2;
                 continue;
             }

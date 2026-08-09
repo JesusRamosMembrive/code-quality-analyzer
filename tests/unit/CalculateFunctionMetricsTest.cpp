@@ -305,3 +305,19 @@ TEST_CASE("a digit separator in a numeric literal is not mistaken for a characte
 
     CHECK(metrics.complexity.maxConditionComplexity == 1);
 }
+
+TEST_CASE("an apostrophe inside a comment inside a condition does not corrupt the operator scan")
+{
+    const std::vector<std::string> sourceLines{"if (count > 0 /* don't count zero */ && flag) { }"};
+    codeqa::model::CallableModel callable = makeCallable(1, 1, 0);
+    codeqa::model::ControlFlowModel flow = makeFlow(codeqa::model::ControlFlowKind::If, 0);
+    flow.conditionRange = lineSpan(1, 5, 1, 45);
+    callable.controlFlow = {flow};
+    const std::vector<codeqa::core::SourceRange> fileComments{lineSpan(1, 15, 1, 37)};
+
+    const codeqa::metrics::FunctionMetricsModel metrics =
+        codeqa::metrics::calculateFunctionMetrics(callable, fileComments, sourceLines);
+
+    CHECK(metrics.complexity.maxConditionComplexity == 1);
+    CHECK(metrics.complexity.cyclomaticComplexity == 3);
+}
