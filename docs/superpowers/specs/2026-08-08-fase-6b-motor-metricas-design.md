@@ -164,8 +164,12 @@ las reglas en este orden:
 ### Complejidad
 
 - **branchCount**: número de entradas en `callable.controlFlow` cuyo `kind`
-  es `If`, `For`, `While`, `DoWhile`, `Case` o `Conditional`. `Default`,
-  `Return`, `Break` y `Continue` no cuentan como rama.
+  es `If`, `For`, `While`, `DoWhile`, `Case` o `Conditional`. `Switch`,
+  `Default`, `Return`, `Break` y `Continue` no cuentan como rama. `Switch` en
+  particular queda excluido a propósito (no solo por omisión): cada `case`
+  ya aporta su propia entrada `Case`, así que contar también la entrada
+  `Switch` duplicaría la misma decisión — la convención McCabe estándar
+  cuenta las etiquetas `case`, no la cabecera `switch`.
 - **cyclomaticComplexity**: `1 + branchCount + booleanOperatorCount`, donde
   `booleanOperatorCount` es el número total de operadores `&&`/`||`
   encontrados en el texto de todos los `conditionRange` de la función.
