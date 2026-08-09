@@ -29,6 +29,15 @@ codeqa::core::SourceRange lineSpan(
     return range;
 }
 
+codeqa::model::ControlFlowModel makeFlow(
+    codeqa::model::ControlFlowKind kind, std::size_t nestingDepth)
+{
+    codeqa::model::ControlFlowModel flow;
+    flow.kind = kind;
+    flow.nestingDepth = nestingDepth;
+    return flow;
+}
+
 } // namespace
 
 TEST_CASE("size metrics classify blank, comment and code lines")
@@ -179,4 +188,106 @@ TEST_CASE("boolean parameter count requires both a bool-family type and pass-by-
 
     CHECK(metrics.signature.parameterCount == 5);
     CHECK(metrics.signature.booleanParameterCount == 2);
+}
+
+TEST_CASE("complexity metrics for an if/else-if chain with && and ||, matching classify() in the corpus")
+{
+    const std::vector<std::string> sourceLines{
+        "int classify(int value, bool strict)",
+        "{",
+        "    if (value < 0 && strict)",
+        "    {",
+        "        return -1;",
+        "    }",
+        "    else if (value == 0 || !strict)",
+        "    {",
+        "        return 0;",
+        "    }",
+        "",
+        "    return 1;",
+        "}"};
+    codeqa::model::CallableModel callable = makeCallable(1, 13, 5);
+
+    codeqa::model::ControlFlowModel outerIf = makeFlow(codeqa::model::ControlFlowKind::If, 0);
+    outerIf.conditionRange = lineSpan(3, 9, 3, 28);
+    codeqa::model::ControlFlowModel innerIf = makeFlow(codeqa::model::ControlFlowKind::If, 1);
+    innerIf.conditionRange = lineSpan(7, 14, 7, 35);
+    callable.controlFlow = {
+        outerIf, makeFlow(codeqa::model::ControlFlowKind::Return, 1), innerIf,
+        makeFlow(codeqa::model::ControlFlowKind::Return, 2), makeFlow(codeqa::model::ControlFlowKind::Return, 0)};
+
+    const codeqa::metrics::FunctionMetricsModel metrics =
+        codeqa::metrics::calculateFunctionMetrics(callable, {}, sourceLines);
+
+    CHECK(metrics.complexity.branchCount == 2);
+    CHECK(metrics.complexity.cyclomaticComplexity == 5);
+    CHECK(metrics.complexity.maxConditionComplexity == 1);
+    CHECK(metrics.complexity.maxNestingDepth == 2);
+    CHECK(metrics.complexity.returnCount == 3);
+}
+
+TEST_CASE("switch/case/default: only Case counts as a branch, matching describe() in the corpus")
+{
+    codeqa::model::CallableModel callable = makeCallable(1, 12, 7);
+    callable.controlFlow = {
+        makeFlow(codeqa::model::ControlFlowKind::Switch, 0),
+        makeFlow(codeqa::model::ControlFlowKind::Case, 1),
+        makeFlow(codeqa::model::ControlFlowKind::Return, 2),
+        makeFlow(codeqa::model::ControlFlowKind::Case, 1),
+        makeFlow(codeqa::model::ControlFlowKind::Return, 2),
+        makeFlow(codeqa::model::ControlFlowKind::Default, 1),
+        makeFlow(codeqa::model::ControlFlowKind::Return, 2)};
+
+    const codeqa::metrics::FunctionMetricsModel metrics =
+        codeqa::metrics::calculateFunctionMetrics(callable, {}, {});
+
+    CHECK(metrics.complexity.branchCount == 2);
+    CHECK(metrics.complexity.cyclomaticComplexity == 3);
+    CHECK(metrics.complexity.maxConditionComplexity == 0);
+    CHECK(metrics.complexity.maxNestingDepth == 2);
+    CHECK(metrics.complexity.returnCount == 3);
+}
+
+TEST_CASE("a function with no control flow has cyclomatic complexity 1 and depth 0")
+{
+    codeqa::model::CallableModel callable = makeCallable(1, 3, 1);
+
+    const codeqa::metrics::FunctionMetricsModel metrics =
+        codeqa::metrics::calculateFunctionMetrics(callable, {}, {});
+
+    CHECK(metrics.complexity.branchCount == 0);
+    CHECK(metrics.complexity.cyclomaticComplexity == 1);
+    CHECK(metrics.complexity.maxConditionComplexity == 0);
+    CHECK(metrics.complexity.maxNestingDepth == 0);
+    CHECK(metrics.complexity.returnCount == 0);
+}
+
+TEST_CASE("a boolean operator inside a comment inside a condition is not counted")
+{
+    const std::vector<std::string> sourceLines{"if (a /* && b */ && c) { }"};
+    codeqa::model::CallableModel callable = makeCallable(1, 1, 0);
+    codeqa::model::ControlFlowModel flow = makeFlow(codeqa::model::ControlFlowKind::If, 0);
+    flow.conditionRange = lineSpan(1, 5, 1, 22);
+    callable.controlFlow = {flow};
+    const std::vector<codeqa::core::SourceRange> fileComments{lineSpan(1, 7, 1, 17)};
+
+    const codeqa::metrics::FunctionMetricsModel metrics =
+        codeqa::metrics::calculateFunctionMetrics(callable, fileComments, sourceLines);
+
+    CHECK(metrics.complexity.maxConditionComplexity == 1);
+    CHECK(metrics.complexity.cyclomaticComplexity == 3);
+}
+
+TEST_CASE("a boolean operator inside a string literal inside a condition is not counted")
+{
+    const std::vector<std::string> sourceLines{"if (strcmp(a, \"x && y\") && ok) { }"};
+    codeqa::model::CallableModel callable = makeCallable(1, 1, 0);
+    codeqa::model::ControlFlowModel flow = makeFlow(codeqa::model::ControlFlowKind::If, 0);
+    flow.conditionRange = lineSpan(1, 5, 1, 30);
+    callable.controlFlow = {flow};
+
+    const codeqa::metrics::FunctionMetricsModel metrics =
+        codeqa::metrics::calculateFunctionMetrics(callable, {}, sourceLines);
+
+    CHECK(metrics.complexity.maxConditionComplexity == 1);
 }
