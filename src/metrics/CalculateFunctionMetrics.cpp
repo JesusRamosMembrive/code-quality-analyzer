@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <sstream>
+#include <string>
 
 namespace codeqa::metrics
 {
@@ -112,6 +114,119 @@ FunctionSizeMetrics calculateSizeMetrics(
     return metrics;
 }
 
+std::string trim(const std::string& text)
+{
+    const std::size_t begin = text.find_first_not_of(" \t\r\n\f\v");
+
+    if (begin == std::string::npos)
+    {
+        return std::string{};
+    }
+
+    const std::size_t end = text.find_last_not_of(" \t\r\n\f\v");
+    return text.substr(begin, end - begin + 1);
+}
+
+std::size_t collapsedLength(const std::string& text)
+{
+    std::size_t length = 0;
+    bool inWhitespaceRun = false;
+
+    for (const char character : text)
+    {
+        const bool isWhitespace = character == ' ' || character == '\t' || character == '\n'
+            || character == '\r' || character == '\f' || character == '\v';
+
+        if (isWhitespace)
+        {
+            if (!inWhitespaceRun)
+            {
+                ++length;
+                inWhitespaceRun = true;
+            }
+
+            continue;
+        }
+
+        inWhitespaceRun = false;
+        ++length;
+    }
+
+    return length;
+}
+
+std::string extractRangeText(const codeqa::core::SourceRange& range, const std::vector<std::string>& sourceLines)
+{
+    static const std::string emptyLine;
+    std::string result;
+
+    for (std::size_t line = range.begin.line; line <= range.end.line; ++line)
+    {
+        const std::string& text = (line - 1) < sourceLines.size() ? sourceLines[line - 1] : emptyLine;
+        const std::size_t begin = (line == range.begin.line) ? range.begin.column - 1 : 0;
+        const std::size_t end =
+            (line == range.end.line) ? std::min(text.size(), range.end.column - 1) : text.size();
+
+        if (begin < end)
+        {
+            result += text.substr(begin, end - begin);
+        }
+
+        if (line != range.end.line)
+        {
+            result += '\n';
+        }
+    }
+
+    return result;
+}
+
+bool isBooleanValueParameter(const codeqa::model::ParameterModel& parameter)
+{
+    if (parameter.passing != codeqa::model::ParameterPassing::Value)
+    {
+        return false;
+    }
+
+    std::istringstream stream(parameter.declaredType);
+    std::vector<std::string> tokens;
+    std::string token;
+
+    while (stream >> token)
+    {
+        if (token != "const" && token != "volatile")
+        {
+            tokens.push_back(token);
+        }
+    }
+
+    return tokens.size() == 1 && (tokens[0] == "bool" || tokens[0] == "_Bool");
+}
+
+FunctionSignatureMetrics calculateSignatureMetrics(
+    const codeqa::model::CallableModel& callable, const std::vector<std::string>& sourceLines)
+{
+    FunctionSignatureMetrics metrics;
+    metrics.parameterCount = callable.parameters.size();
+
+    if (callable.parameterListRange.has_value())
+    {
+        const std::string text = extractRangeText(*callable.parameterListRange, sourceLines);
+        const std::string inner = text.size() >= 2 ? text.substr(1, text.size() - 2) : std::string{};
+        metrics.signatureLength = collapsedLength(trim(inner));
+    }
+
+    for (const codeqa::model::ParameterModel& parameter : callable.parameters)
+    {
+        if (isBooleanValueParameter(parameter))
+        {
+            ++metrics.booleanParameterCount;
+        }
+    }
+
+    return metrics;
+}
+
 } // namespace
 
 FunctionMetricsModel calculateFunctionMetrics(
@@ -122,6 +237,7 @@ FunctionMetricsModel calculateFunctionMetrics(
     FunctionMetricsModel metrics;
     metrics.symbol = callable.symbol;
     metrics.size = calculateSizeMetrics(callable, fileComments, sourceLines);
+    metrics.signature = calculateSignatureMetrics(callable, sourceLines);
     return metrics;
 }
 
