@@ -224,6 +224,11 @@ TEST_CASE("complexity metrics for an if/else-if chain with && and ||, matching c
     CHECK(metrics.complexity.maxConditionComplexity == 1);
     CHECK(metrics.complexity.maxNestingDepth == 2);
     CHECK(metrics.complexity.returnCount == 3);
+    REQUIRE(metrics.complexity.maxConditionRange.has_value());
+    CHECK(metrics.complexity.maxConditionRange->begin.line == 3);
+    CHECK(metrics.complexity.maxConditionRange->begin.column == 9);
+    CHECK(metrics.complexity.maxConditionRange->end.line == 3);
+    CHECK(metrics.complexity.maxConditionRange->end.column == 28);
 }
 
 TEST_CASE("switch/case/default: only Case counts as a branch, matching describe() in the corpus")
@@ -260,6 +265,7 @@ TEST_CASE("a function with no control flow has cyclomatic complexity 1 and depth
     CHECK(metrics.complexity.maxConditionComplexity == 0);
     CHECK(metrics.complexity.maxNestingDepth == 0);
     CHECK(metrics.complexity.returnCount == 0);
+    CHECK_FALSE(metrics.complexity.maxConditionRange.has_value());
 }
 
 TEST_CASE("a boolean operator inside a comment inside a condition is not counted")

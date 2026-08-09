@@ -1,10 +1,12 @@
 #pragma once
 
 #include "codeqa/core/Diagnostic.h"
+#include "codeqa/core/SourceRange.h"
 #include "codeqa/model/Models.h"
 
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <vector>
 
 namespace codeqa::metrics
@@ -33,6 +35,7 @@ struct FunctionComplexityMetrics
     std::size_t maxNestingDepth{0};
     std::size_t branchCount{0};
     std::size_t returnCount{0};
+    std::optional<codeqa::core::SourceRange> maxConditionRange;
 };
 
 struct FunctionMetricsModel

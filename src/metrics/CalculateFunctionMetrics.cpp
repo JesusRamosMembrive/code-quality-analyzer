@@ -372,7 +372,13 @@ FunctionComplexityMetrics calculateComplexityMetrics(
         if (flow.conditionRange.has_value())
         {
             const std::size_t operators = countBooleanOperators(*flow.conditionRange, sourceLines, fileComments);
-            metrics.maxConditionComplexity = std::max(metrics.maxConditionComplexity, operators);
+
+            if (operators > metrics.maxConditionComplexity)
+            {
+                metrics.maxConditionComplexity = operators;
+                metrics.maxConditionRange = flow.conditionRange;
+            }
+
             booleanOperatorCount += operators;
         }
     }

@@ -19,6 +19,7 @@ TEST_CASE("metrics models default to zero-valued, empty state")
     CHECK(function.complexity.maxNestingDepth == 0);
     CHECK(function.complexity.branchCount == 0);
     CHECK(function.complexity.returnCount == 0);
+    CHECK_FALSE(function.complexity.maxConditionRange.has_value());
 
     codeqa::metrics::FileMetricsModel file;
     CHECK(file.path.empty());
