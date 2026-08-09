@@ -252,6 +252,36 @@ TEST_CASE("complexity.nesting points at the control-flow entry that reached the 
     CHECK(findings[0].location.column == 9);
 }
 
+TEST_CASE("complexity.nesting resolves a tie in favor of the first matching entry")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.nesting");
+    codeqa::model::CallableModel callable = makeCallable();
+
+    codeqa::model::ControlFlowModel first;
+    first.kind = codeqa::model::ControlFlowKind::If;
+    first.nestingDepth = 3;
+    first.range.begin.line = 20;
+    first.range.begin.column = 5;
+
+    codeqa::model::ControlFlowModel second;
+    second.kind = codeqa::model::ControlFlowKind::If;
+    second.nestingDepth = 3;
+    second.range.begin.line = 30;
+    second.range.begin.column = 9;
+
+    callable.controlFlow = {first, second};
+
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.complexity.maxNestingDepth = 3;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].location.line == 20);
+    CHECK(findings[0].location.column == 5);
+}
+
 TEST_CASE("all eight rules are registered and apply to both C and C++")
 {
     const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
