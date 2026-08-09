@@ -305,13 +305,33 @@ migran a la función compartida en el mismo cambio. Introduce una
 dependencia real nueva: `codeqa::frontend` pasa a depender de
 `codeqa::infrastructure` (antes no dependía de esa capa en absoluto).
 
-Dos predicados pequeños (comparación punto-en-rango para la regla de
-confianza, y el criterio de "booleano por valor" para
-`signature.consecutive-booleans`) se duplican una segunda vez desde
-`CalculateFunctionMetrics.cpp` en vez de exportarse — son de ~10 líneas
-cada uno y esta es solo su segunda aparición; se mantiene el mismo criterio
-de "regla de tres" que ya se aplicó en la revisión final de la Fase 6b para
-no extraer utilidades compartidas prematuramente.
+**Duplicaciones deliberadas: cuatro helpers, no dos.** Aparte de esos dos
+cambios sobre código ya fusionado, esta fase copia cuatro funciones
+auxiliares pequeñas de fases anteriores en vez de exportarlas a una
+ubicación compartida (no modifica su origen, solo lo duplica). Este es el
+recuento completo:
+
+| helper | origen | copia nueva en esta fase | para qué |
+|---|---|---|---|
+| `positionInRange` | `src/metrics/CalculateFunctionMetrics.cpp` | `src/application/ApplyRules.cpp` | filtro de confianza: ¿cae un diagnóstico de parseo dentro del rango de la función? (§8) |
+| `isBooleanValueParameter` | `src/metrics/CalculateFunctionMetrics.cpp` | `src/rules/Rules.cpp` | criterio de "booleano por valor" para `signature.consecutive-booleans` |
+| `extractRangeText` | `src/metrics/CalculateFunctionMetrics.cpp` | `src/application/ApplyRules.cpp` | leer el texto de un comentario para buscar la directiva de supresión (§8) |
+| `splitLines` | `src/application/MeasureProject.cpp` | `src/application/ApplyRules.cpp` | trocear el contenido del archivo en líneas (con normalización CRLF) |
+
+Los cuatro siguen por debajo del umbral de la "regla de tres" que ya se
+aplicó en la revisión final de la Fase 6b para no extraer utilidades
+compartidas prematuramente: cada uno está exactamente en su **segunda**
+aparición, ninguno en la tercera, y ninguno pasa de ~25 líneas. Las cuatro
+copias quedan anotadas en el propio código con un comentario que apunta a su
+origen y a este criterio, para que la duplicación se lea como deliberada y
+no como descuido.
+
+Este recuento (cuatro, no dos) es el dato que debe consultar quien planifique
+la siguiente fase al decidir si alguno merece ya extraerse a una ubicación
+compartida — la recomendación de la revisión final de esta fase es
+precisamente que esa decisión se tome de una vez y con los cuatro a la vista,
+en lugar de dejar que cada uno llegue a su tercera copia por separado. Esta
+fase no extrae ninguno; solo deja el inventario exacto.
 
 ## 8. Confianza ante errores de parsing y supresión inline
 

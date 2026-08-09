@@ -77,6 +77,9 @@ std::vector<Finding> singleOrEmpty(const std::optional<Finding>& finding)
 class FunctionLengthRule : public Rule
 {
 public:
+    static constexpr long long warningLimit = 50;
+    static constexpr long long highLimit = 90;
+
     [[nodiscard]] std::string id() const override { return "size.function-length"; }
 
     [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
@@ -88,8 +91,8 @@ public:
             "Function is too long.",
             "Consider splitting this function into smaller ones.",
             static_cast<long long>(context.metrics.size.physicalLines),
-            50,
-            90,
+            warningLimit,
+            highLimit,
             context.callable.symbol.range.begin,
             context.callable.symbol.qualifiedName));
     }
@@ -98,6 +101,9 @@ public:
 class LocalVariableCountRule : public Rule
 {
 public:
+    static constexpr long long warningLimit = 8;
+    static constexpr long long highLimit = 12;
+
     [[nodiscard]] std::string id() const override { return "size.local-variables"; }
 
     [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
@@ -109,8 +115,8 @@ public:
             "Function declares too many local variables.",
             "Consider extracting part of this function's logic into helper functions.",
             static_cast<long long>(context.callable.localVariables.size()),
-            8,
-            12,
+            warningLimit,
+            highLimit,
             context.callable.symbol.range.begin,
             context.callable.symbol.qualifiedName));
     }
@@ -119,6 +125,9 @@ public:
 class ParameterCountRule : public Rule
 {
 public:
+    static constexpr long long warningLimit = 4;
+    static constexpr long long highLimit = 7;
+
     [[nodiscard]] std::string id() const override { return "signature.parameter-count"; }
 
     [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
@@ -133,8 +142,8 @@ public:
             "Function has too many parameters.",
             "Consider grouping related parameters into a struct.",
             static_cast<long long>(context.metrics.signature.parameterCount),
-            4,
-            7,
+            warningLimit,
+            highLimit,
             location,
             context.callable.symbol.qualifiedName));
     }
@@ -143,6 +152,9 @@ public:
 class ConsecutiveBooleanParametersRule : public Rule
 {
 public:
+    static constexpr long long warningLimit = 2;
+    static constexpr long long highLimit = 3;
+
     [[nodiscard]] std::string id() const override { return "signature.consecutive-booleans"; }
 
     [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
@@ -174,8 +186,8 @@ public:
             "Consider replacing consecutive boolean parameters with an enum or a struct to "
             "avoid the \"boolean trap\" at call sites.",
             static_cast<long long>(longestRun),
-            2,
-            3,
+            warningLimit,
+            highLimit,
             location,
             context.callable.symbol.qualifiedName));
     }
@@ -184,6 +196,9 @@ public:
 class CyclomaticComplexityRule : public Rule
 {
 public:
+    static constexpr long long warningLimit = 10;
+    static constexpr long long highLimit = 15;
+
     [[nodiscard]] std::string id() const override { return "complexity.cyclomatic"; }
 
     [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
@@ -195,8 +210,8 @@ public:
             "Cyclomatic complexity is too high.",
             "Consider splitting this function to reduce the number of independent paths through it.",
             static_cast<long long>(context.metrics.complexity.cyclomaticComplexity),
-            10,
-            15,
+            warningLimit,
+            highLimit,
             context.callable.symbol.range.begin,
             context.callable.symbol.qualifiedName));
     }
@@ -205,6 +220,9 @@ public:
 class ReturnCountRule : public Rule
 {
 public:
+    static constexpr long long warningLimit = 4;
+    static constexpr long long highLimit = 6;
+
     [[nodiscard]] std::string id() const override { return "complexity.returns"; }
 
     [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
@@ -216,8 +234,8 @@ public:
             "Function has too many return points.",
             "Consider consolidating exit points to make control flow easier to follow.",
             static_cast<long long>(context.metrics.complexity.returnCount),
-            4,
-            6,
+            warningLimit,
+            highLimit,
             context.callable.symbol.range.begin,
             context.callable.symbol.qualifiedName));
     }
@@ -226,6 +244,9 @@ public:
 class ConditionComplexityRule : public Rule
 {
 public:
+    static constexpr long long warningLimit = 3;
+    static constexpr long long highLimit = 5;
+
     [[nodiscard]] std::string id() const override { return "complexity.condition"; }
 
     [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
@@ -242,8 +263,8 @@ public:
             "A condition in this function is too complex.",
             "Consider extracting this condition into a well-named helper function or variable.",
             static_cast<long long>(context.metrics.complexity.maxConditionComplexity),
-            3,
-            5,
+            warningLimit,
+            highLimit,
             context.metrics.complexity.maxConditionRange->begin,
             context.callable.symbol.qualifiedName));
     }
@@ -252,6 +273,9 @@ public:
 class NestingDepthRule : public Rule
 {
 public:
+    static constexpr long long warningLimit = 3;
+    static constexpr long long highLimit = 5;
+
     [[nodiscard]] std::string id() const override { return "complexity.nesting"; }
 
     [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
@@ -274,8 +298,8 @@ public:
             "This function has excessive nesting.",
             "Consider using early returns or extracting nested blocks into helper functions.",
             static_cast<long long>(context.metrics.complexity.maxNestingDepth),
-            3,
-            5,
+            warningLimit,
+            highLimit,
             location,
             context.callable.symbol.qualifiedName));
     }

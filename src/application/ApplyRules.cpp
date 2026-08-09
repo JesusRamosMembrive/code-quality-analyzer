@@ -21,6 +21,10 @@ namespace codeqa::application
 namespace
 {
 
+// Duplicated from MeasureProject.cpp deliberately -- this is its second
+// occurrence, still under the "rule of three" this project already uses to
+// decide when small helpers get shared vs. copied (see the Fase 6b final
+// review and this phase's design doc, section 7).
 std::vector<std::string> splitLines(const std::string& content)
 {
     std::vector<std::string> lines;
@@ -50,6 +54,10 @@ std::vector<std::string> splitLines(const std::string& content)
     return lines;
 }
 
+// Duplicated from CalculateFunctionMetrics.cpp deliberately -- this is its
+// second occurrence, still under the "rule of three" this project already
+// uses to decide when small predicates get shared vs. copied (see the Fase
+// 6b final review and this phase's design doc, section 7).
 bool positionInRange(std::size_t line, std::size_t column, const codeqa::core::SourceRange& range)
 {
     if (line < range.begin.line || line > range.end.line)
@@ -118,6 +126,10 @@ const codeqa::metrics::FunctionMetricsModel* functionMetricsFor(
     return nullptr;
 }
 
+// Duplicated from CalculateFunctionMetrics.cpp deliberately -- this is its
+// second occurrence, still under the "rule of three" this project already
+// uses to decide when small helpers get shared vs. copied (see the Fase 6b
+// final review and this phase's design doc, section 7).
 std::string extractRangeText(const codeqa::core::SourceRange& range, const std::vector<std::string>& sourceLines)
 {
     static const std::string emptyLine;
