@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "symbolName": "manyParameters",
+      "ruleId": "signature.parameter-count",
+      "severity": "warning",
+      "observedValue": 5,
+      "limitValue": 4,
+      "location": {"line": 23, "column": 19}
+    }
+  ]
+}

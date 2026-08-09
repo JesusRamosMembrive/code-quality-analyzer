@@ -141,6 +141,35 @@ cubiertos por el `.parsing.json` hermano). Los prototipos no tienen entrada:
 `MeasureProject` los excluye porque no tienen cuerpo. El runner
 (`tests/unit/CorpusMetricsTest.cpp`) compara con igualdad exacta.
 
+## Hallazgos (Fase 7)
+
+Los directorios `nesting/` y `parameters/` tienen además un archivo
+hermano `<nombre>.findings.json`, opcional por fixture — solo se añade
+donde alguna función realmente cruza un umbral por defecto. Cada uno
+describe, en orden, los hallazgos esperados:
+
+```json
+{
+  "findings": [
+    {
+      "symbolName": "fourLevels",
+      "ruleId": "complexity.nesting",
+      "severity": "warning",
+      "observedValue": 3,
+      "limitValue": 3,
+      "location": {"line": 26, "column": 17}
+    }
+  ]
+}
+```
+
+El runner (`tests/unit/CorpusFindingsTest.cpp`) compara con igualdad
+exacta, incluida la ubicación. Los umbrales por defecto de las 8 reglas
+están documentados en
+`docs/superpowers/specs/2026-08-09-fase-7-motor-reglas-design.md` §6 —
+ninguno está validado contra proyectos reales todavía (trabajo de la Fase
+11).
+
 ## Integridad del corpus
 
 `CheckCorpusIntegrity.cmake`, ejecutado por CTest, verifica que los pares de

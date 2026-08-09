@@ -132,6 +132,24 @@ foreach(metricsFile IN LISTS metricsFiles)
     endif()
 endforeach()
 
+# --- Check 2d: every *.findings.json has a sibling source -----------------
+# Optional per fixture, same rule as *.metrics.json: only the
+# findings-to-source direction is checked, never the reverse.
+
+file(GLOB_RECURSE findingsFiles "${CODEQA_CORPUS_DIR}/*.findings.json")
+
+foreach(findingsFile IN LISTS findingsFiles)
+    get_filename_component(findingsDirectory "${findingsFile}" DIRECTORY)
+    get_filename_component(findingsName "${findingsFile}" NAME)
+    string(REPLACE ".findings.json" "" findingsStem "${findingsName}")
+
+    if(NOT EXISTS "${findingsDirectory}/${findingsStem}.c"
+        AND NOT EXISTS "${findingsDirectory}/${findingsStem}.cpp")
+        list(APPEND failures
+            "Findings expectation '${findingsFile}' has no matching .c or .cpp fixture.")
+    endif()
+endforeach()
+
 # --- Checks 3 and 4: cited IDs exist, and are never OUT-* ------------------
 
 set(citedIds "")

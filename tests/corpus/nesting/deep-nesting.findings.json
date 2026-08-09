@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "symbolName": "fourLevels",
+      "ruleId": "complexity.nesting",
+      "severity": "warning",
+      "observedValue": 3,
+      "limitValue": 3,
+      "location": {"line": 26, "column": 17}
+    }
+  ]
+}
