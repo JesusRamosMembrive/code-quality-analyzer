@@ -98,6 +98,7 @@ add_library(codeqa_core STATIC
     src/infrastructure/DefaultExclusions.cpp
     src/infrastructure/DiscoverSourceFiles.cpp
     src/infrastructure/GlobMatcher.cpp
+    src/infrastructure/ReadFileContents.cpp
     src/model/ProjectModelBuilder.cpp
     src/metrics/CalculateFunctionMetrics.cpp
 )

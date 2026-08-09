@@ -2,12 +2,11 @@
 
 #include "codeqa/core/DiagnosticSeverity.h"
 #include "codeqa/frontend/StructuralExtractor.h"
+#include "codeqa/infrastructure/ReadFileContents.h"
 
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <optional>
-#include <system_error>
 
 namespace codeqa::frontend
 {
@@ -33,38 +32,6 @@ codeqa::core::Diagnostic makeDiagnostic(
     return diagnostic;
 }
 
-std::optional<std::string> readFile(const std::filesystem::path& path)
-{
-    std::error_code sizeError;
-    const std::uintmax_t size = std::filesystem::file_size(path, sizeError);
-
-    if (sizeError)
-    {
-        return std::nullopt;
-    }
-
-    std::ifstream input(path, std::ios::binary);
-
-    if (!input)
-    {
-        return std::nullopt;
-    }
-
-    std::string content(static_cast<std::size_t>(size), '\0');
-
-    if (size > 0)
-    {
-        input.read(content.data(), static_cast<std::streamsize>(size));
-
-        if (!input)
-        {
-            return std::nullopt;
-        }
-    }
-
-    return content;
-}
-
 } // namespace
 
 ParsedFile parseSourceFile(
@@ -82,7 +49,7 @@ ParsedFile parseSourceFile(
     result.grammar = grammar;
     result.grammarReason = grammarReason;
 
-    const std::optional<std::string> source = readFile(path);
+    const std::optional<std::string> source = codeqa::infrastructure::readFileContents(path);
 
     if (!source.has_value())
     {

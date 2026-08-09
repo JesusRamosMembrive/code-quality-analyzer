@@ -1,13 +1,12 @@
 #include "codeqa/application/MeasureProject.h"
 
 #include "codeqa/core/DiagnosticSeverity.h"
+#include "codeqa/infrastructure/ReadFileContents.h"
 #include "codeqa/metrics/CalculateFunctionMetrics.h"
 
-#include <cstdint>
-#include <fstream>
+#include <filesystem>
 #include <optional>
 #include <string>
-#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -16,41 +15,6 @@ namespace codeqa::application
 
 namespace
 {
-
-// Mirrors the binary-read helper in ParseSourceFile.cpp: same contract (raw
-// bytes, no line-ending translation), different layer (application, not
-// frontend), so it is not shared across the frontend/application boundary.
-std::optional<std::string> readFileContents(const std::filesystem::path& path)
-{
-    std::error_code sizeError;
-    const std::uintmax_t size = std::filesystem::file_size(path, sizeError);
-
-    if (sizeError)
-    {
-        return std::nullopt;
-    }
-
-    std::ifstream input(path, std::ios::binary);
-
-    if (!input)
-    {
-        return std::nullopt;
-    }
-
-    std::string content(static_cast<std::size_t>(size), '\0');
-
-    if (size > 0)
-    {
-        input.read(content.data(), static_cast<std::streamsize>(size));
-
-        if (!input)
-        {
-            return std::nullopt;
-        }
-    }
-
-    return content;
-}
 
 std::vector<std::string> splitLines(const std::string& content)
 {
@@ -105,7 +69,7 @@ codeqa::metrics::ProjectMetricsModel MeasureProject::execute(const codeqa::model
         codeqa::metrics::FileMetricsModel fileMetrics;
         fileMetrics.path = file.path;
 
-        const std::optional<std::string> content = readFileContents(file.path);
+        const std::optional<std::string> content = codeqa::infrastructure::readFileContents(file.path);
 
         if (!content.has_value())
         {
