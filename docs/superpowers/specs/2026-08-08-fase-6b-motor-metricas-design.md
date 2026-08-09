@@ -176,8 +176,31 @@ las reglas en este orden:
 - **maxConditionComplexity**: el máximo, no la suma, de operadores `&&`/`||`
   encontrados en un único `conditionRange` de la función. Identifica la
   condición individual más difícil de leer.
-- **maxNestingDepth**: el máximo de `nestingDepth` entre las entradas de
-  `callable.controlFlow`. Si la función no tiene entradas, es `0`.
+- **maxNestingDepth**: el máximo de `nestingDepth` entre **todas** las
+  entradas de `callable.controlFlow` — no solo las que cuentan como rama en
+  `branchCount`. `Return`, `Break` y `Continue` también son entradas con su
+  propio `nestingDepth` (el nivel de flujo en el que aparecen, heredado de
+  Fase 5/6a) y participan en este máximo igual que `If`/`For`/`While`. Si la
+  función no tiene entradas, es `0`. Dos consecuencias no evidentes, ya
+  observadas en el corpus real y documentadas aquí para que Fase 7 no
+  calibre umbrales sobre una lectura distinta de la que el código produce:
+  - una cadena `if` / `else if` cuenta cada `else if` sucesivo como un nivel
+    de anidamiento adicional, aunque se lea como una secuencia plana de
+    ramas mutuamente excluyentes — `classify()` (dos ramas `if`/`else if`,
+    ninguna anidada dentro de la otra en el sentido habitual) tiene
+    `maxNestingDepth == 2`, no `1`, porque cada `if_statement` incrementa la
+    profundidad de flujo para sus descendientes, y el `else if` es
+    descendiente del `if` exterior;
+  - una sentencia de control simple cuyo único contenido es un `return`
+    (`oneLevel()`) puede reportar más profundidad que una función con
+    cuatro niveles de anidamiento visual cuyo contenido más interno es una
+    asignación sin `return`/`break`/`continue` (`fourLevels()`), porque el
+    máximo depende de qué construcciones concretas aparecen como entradas,
+    no de cuántos niveles de llave `{}` hay.
+  Esta definición coincide exactamente con la implementación (no es un
+  error de código); queda documentada aquí porque la interpretación
+  "profundidad de anidamiento estructural" que un lector asumiría por el
+  nombre del campo no es la que produce.
 - **returnCount**: número de entradas en `callable.controlFlow` con
   `kind == Return`.
 
