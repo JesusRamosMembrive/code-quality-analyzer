@@ -1,6 +1,7 @@
 #include "codeqa/metrics/CalculateFunctionMetrics.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <sstream>
 #include <string>
@@ -243,6 +244,20 @@ bool countsAsBranch(codeqa::model::ControlFlowKind kind)
     }
 }
 
+bool isDigitSeparator(const std::string& text, std::size_t index)
+{
+    if (index == 0 || index + 1 >= text.size())
+    {
+        return false;
+    }
+
+    const auto isHexDigit = [](char character) {
+        return std::isxdigit(static_cast<unsigned char>(character)) != 0;
+    };
+
+    return isHexDigit(text[index - 1]) && isHexDigit(text[index + 1]);
+}
+
 std::size_t countBooleanOperators(
     const codeqa::core::SourceRange& range,
     const std::vector<std::string>& sourceLines,
@@ -293,6 +308,12 @@ std::size_t countBooleanOperators(
 
             if (character == '\'')
             {
+                if (isDigitSeparator(text, index))
+                {
+                    ++index;
+                    continue;
+                }
+
                 inChar = true;
                 ++index;
                 continue;

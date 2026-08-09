@@ -291,3 +291,17 @@ TEST_CASE("a boolean operator inside a string literal inside a condition is not 
 
     CHECK(metrics.complexity.maxConditionComplexity == 1);
 }
+
+TEST_CASE("a digit separator in a numeric literal is not mistaken for a character literal")
+{
+    const std::vector<std::string> sourceLines{"if (count > 1'000 && flag) { }"};
+    codeqa::model::CallableModel callable = makeCallable(1, 1, 0);
+    codeqa::model::ControlFlowModel flow = makeFlow(codeqa::model::ControlFlowKind::If, 0);
+    flow.conditionRange = lineSpan(1, 5, 1, 26);
+    callable.controlFlow = {flow};
+
+    const codeqa::metrics::FunctionMetricsModel metrics =
+        codeqa::metrics::calculateFunctionMetrics(callable, {}, sourceLines);
+
+    CHECK(metrics.complexity.maxConditionComplexity == 1);
+}
