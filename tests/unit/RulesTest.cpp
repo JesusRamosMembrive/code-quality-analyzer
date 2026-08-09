@@ -188,10 +188,74 @@ TEST_CASE("complexity.returns reads returnCount from the metrics")
     CHECK(rule.evaluate(codeqa::rules::RuleContext{metrics, callable}).size() == 1);
 }
 
-TEST_CASE("all six threshold rules apply to both C and C++")
+TEST_CASE("complexity.condition points at the exact condition that produced the maximum")
 {
     const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
-    REQUIRE(rules.size() == 6);
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.condition");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.complexity.maxConditionComplexity = 3;
+    codeqa::core::SourceRange conditionRange;
+    conditionRange.begin.line = 42;
+    conditionRange.begin.column = 9;
+    metrics.complexity.maxConditionRange = conditionRange;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    REQUIRE(findings[0].observedValue.has_value());
+    CHECK(*findings[0].observedValue == 3);
+    CHECK(findings[0].location.line == 42);
+    CHECK(findings[0].location.column == 9);
+}
+
+TEST_CASE("complexity.condition produces no finding when there is no condition to point at")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.condition");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.complexity.maxConditionComplexity = 10;
+
+    CHECK(rule.evaluate(codeqa::rules::RuleContext{metrics, callable}).empty());
+}
+
+TEST_CASE("complexity.nesting points at the control-flow entry that reached the maximum depth")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.nesting");
+    codeqa::model::CallableModel callable = makeCallable();
+
+    codeqa::model::ControlFlowModel outer;
+    outer.kind = codeqa::model::ControlFlowKind::If;
+    outer.nestingDepth = 0;
+    outer.range.begin.line = 20;
+    outer.range.begin.column = 5;
+
+    codeqa::model::ControlFlowModel inner;
+    inner.kind = codeqa::model::ControlFlowKind::If;
+    inner.nestingDepth = 3;
+    inner.range.begin.line = 24;
+    inner.range.begin.column = 9;
+
+    callable.controlFlow = {outer, inner};
+
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.complexity.maxNestingDepth = 3;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    REQUIRE(findings[0].observedValue.has_value());
+    CHECK(*findings[0].observedValue == 3);
+    CHECK(findings[0].location.line == 24);
+    CHECK(findings[0].location.column == 9);
+}
+
+TEST_CASE("all eight rules are registered and apply to both C and C++")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    REQUIRE(rules.size() == 8);
 
     for (const auto& rule : rules)
     {

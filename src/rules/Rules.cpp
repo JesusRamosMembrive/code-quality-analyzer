@@ -223,6 +223,64 @@ public:
     }
 };
 
+class ConditionComplexityRule : public Rule
+{
+public:
+    [[nodiscard]] std::string id() const override { return "complexity.condition"; }
+
+    [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
+
+    [[nodiscard]] std::vector<Finding> evaluate(const RuleContext& context) const override
+    {
+        if (!context.metrics.complexity.maxConditionRange.has_value())
+        {
+            return {};
+        }
+
+        return singleOrEmpty(evaluateThreshold(
+            id(),
+            "A condition in this function is too complex.",
+            "Consider extracting this condition into a well-named helper function or variable.",
+            static_cast<long long>(context.metrics.complexity.maxConditionComplexity),
+            3,
+            5,
+            context.metrics.complexity.maxConditionRange->begin,
+            context.callable.symbol.qualifiedName));
+    }
+};
+
+class NestingDepthRule : public Rule
+{
+public:
+    [[nodiscard]] std::string id() const override { return "complexity.nesting"; }
+
+    [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
+
+    [[nodiscard]] std::vector<Finding> evaluate(const RuleContext& context) const override
+    {
+        codeqa::core::SourceLocation location = context.callable.symbol.range.begin;
+
+        for (const codeqa::model::ControlFlowModel& flow : context.callable.controlFlow)
+        {
+            if (flow.nestingDepth == context.metrics.complexity.maxNestingDepth)
+            {
+                location = flow.range.begin;
+                break;
+            }
+        }
+
+        return singleOrEmpty(evaluateThreshold(
+            id(),
+            "This function has excessive nesting.",
+            "Consider using early returns or extracting nested blocks into helper functions.",
+            static_cast<long long>(context.metrics.complexity.maxNestingDepth),
+            3,
+            5,
+            location,
+            context.callable.symbol.qualifiedName));
+    }
+};
+
 } // namespace
 
 std::vector<std::unique_ptr<Rule>> allRules()
@@ -234,6 +292,8 @@ std::vector<std::unique_ptr<Rule>> allRules()
     rules.push_back(std::make_unique<ConsecutiveBooleanParametersRule>());
     rules.push_back(std::make_unique<CyclomaticComplexityRule>());
     rules.push_back(std::make_unique<ReturnCountRule>());
+    rules.push_back(std::make_unique<ConditionComplexityRule>());
+    rules.push_back(std::make_unique<NestingDepthRule>());
     return rules;
 }
 
