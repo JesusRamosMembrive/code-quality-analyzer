@@ -65,3 +65,23 @@ TEST_CASE("a pathological pattern that would overflow std::regex's complexity li
 
     CHECK_FALSE(matchesExcludePattern(pathologicalPattern, almostMatchingTarget));
 }
+
+TEST_CASE("a double-asterisk pattern crosses directory separators")
+{
+    CHECK(matchesExcludePattern("vendor/**", "vendor/foo.cpp"));
+    CHECK(matchesExcludePattern("vendor/**", "vendor/nested/foo.cpp"));
+    CHECK_FALSE(matchesExcludePattern("vendor/**", "other/foo.cpp"));
+}
+
+TEST_CASE("a double-asterisk pattern matches the roadmap's own Fase 8 example shape")
+{
+    CHECK(matchesExcludePattern("include/c_api/**", "include/c_api/socket.h"));
+    CHECK(matchesExcludePattern("include/c_api/**", "include/c_api/nested/socket.h"));
+    CHECK_FALSE(matchesExcludePattern("include/c_api/**", "include/other/socket.h"));
+}
+
+TEST_CASE("a single asterisk still does not cross a directory separator next to a double-asterisk pattern")
+{
+    CHECK_FALSE(matchesExcludePattern("vendor/*", "vendor/nested/foo.cpp"));
+    CHECK(matchesExcludePattern("vendor/*", "vendor/foo.cpp"));
+}

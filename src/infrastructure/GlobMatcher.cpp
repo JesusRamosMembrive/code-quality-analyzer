@@ -33,13 +33,27 @@ std::string translateGlobToRegex(const std::string& pattern)
     std::string regexPattern;
     regexPattern.reserve(pattern.size() * 2);
 
-    for (const char character : pattern)
+    std::size_t index = 0;
+
+    while (index < pattern.size())
     {
+        const char character = pattern[index];
+
         if (character == '*')
         {
-            regexPattern += "[^/]*";
+            std::size_t runLength = 0;
+
+            while (index < pattern.size() && pattern[index] == '*')
+            {
+                ++runLength;
+                ++index;
+            }
+
+            regexPattern += (runLength >= 2) ? ".*" : "[^/]*";
+            continue;
         }
-        else if (character == '?')
+
+        if (character == '?')
         {
             regexPattern += "[^/]";
         }
@@ -52,6 +66,8 @@ std::string translateGlobToRegex(const std::string& pattern)
         {
             regexPattern += character;
         }
+
+        ++index;
     }
 
     return regexPattern;
