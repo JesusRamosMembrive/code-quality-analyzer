@@ -2,6 +2,7 @@
 
 #include "codeqa/application/AnalyzeProject.h"
 #include "codeqa/application/ApplyRules.h"
+#include "codeqa/application/LoadProjectConfig.h"
 #include "codeqa/application/MeasureProject.h"
 #include "codeqa/config/DefaultConfig.h"
 
@@ -180,4 +181,33 @@ TEST_CASE("ApplyRules fires a finding only after its threshold is lowered via co
     const codeqa::rules::ProjectFindingsModel withLoweredThreshold = analyzeAndApplyRules(fixture.root(), config);
     REQUIRE(withLoweredThreshold.files.size() == 1);
     CHECK(hasFinding(withLoweredThreshold.files.front().findings, "signature.parameter-count"));
+}
+
+TEST_CASE("LoadProjectConfig output flows end-to-end into ApplyRules")
+{
+    const TempProject fixture;
+    fixture.addFile(
+        "sample.c",
+        "int classify(int a, int b, int c, int d, int e)\n"
+        "{\n"
+        "    if (a == 0) { return 0; }\n"
+        "    if (a == 1) { return 1; }\n"
+        "    if (a == 2) { return 2; }\n"
+        "    if (a == 3) { return 3; }\n"
+        "    return -1;\n"
+        "}\n");
+    fixture.addFile(
+        "codeqa.json",
+        R"({ "rules": { "signature.parameter-count": { "enabled": false, "params": { "warning": 4, "high": 7 } } } })");
+
+    const codeqa::application::LoadProjectConfigResult loaded =
+        codeqa::application::LoadProjectConfig{}.execute(fixture.root() / "codeqa.json");
+    REQUIRE(loaded.config.has_value());
+    CHECK_FALSE(loaded.error.has_value());
+
+    const codeqa::rules::ProjectFindingsModel findings = analyzeAndApplyRules(fixture.root(), *loaded.config);
+
+    REQUIRE(findings.files.size() == 1);
+    CHECK_FALSE(hasFinding(findings.files.front().findings, "signature.parameter-count"));
+    CHECK(hasFinding(findings.files.front().findings, "complexity.returns"));
 }

@@ -331,3 +331,162 @@ TEST_CASE("allRules applies a threshold overridden via config")
     REQUIRE(findings[0].limitValue.has_value());
     CHECK(*findings[0].limitValue == 2);
 }
+
+TEST_CASE("allRules applies a threshold overridden via config for size.function-length")
+{
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("size.function-length").warningLimit = 2;
+    config.rules.at("size.function-length").highLimit = 4;
+
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "size.function-length");
+
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.size.physicalLines = 3;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    REQUIRE(findings[0].limitValue.has_value());
+    CHECK(*findings[0].limitValue == 2);
+}
+
+TEST_CASE("allRules applies a threshold overridden via config for size.local-variables")
+{
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("size.local-variables").warningLimit = 2;
+    config.rules.at("size.local-variables").highLimit = 4;
+
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "size.local-variables");
+
+    codeqa::model::CallableModel callable = makeCallable();
+    callable.localVariables.resize(3);
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    REQUIRE(findings[0].limitValue.has_value());
+    CHECK(*findings[0].limitValue == 2);
+}
+
+TEST_CASE("allRules applies a threshold overridden via config for signature.parameter-count")
+{
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("signature.parameter-count").warningLimit = 2;
+    config.rules.at("signature.parameter-count").highLimit = 4;
+
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "signature.parameter-count");
+
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.signature.parameterCount = 3;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    REQUIRE(findings[0].limitValue.has_value());
+    CHECK(*findings[0].limitValue == 2);
+}
+
+TEST_CASE("allRules applies a threshold overridden via config for signature.consecutive-booleans")
+{
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("signature.consecutive-booleans").warningLimit = 1;
+    config.rules.at("signature.consecutive-booleans").highLimit = 2;
+
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "signature.consecutive-booleans");
+
+    codeqa::model::CallableModel callable = makeCallable();
+    callable.parameters = {
+        codeqa::model::ParameterModel{"a", codeqa::model::ParameterPassing::Value, false, "bool"}};
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    REQUIRE(findings[0].limitValue.has_value());
+    CHECK(*findings[0].limitValue == 1);
+}
+
+TEST_CASE("allRules applies a threshold overridden via config for complexity.returns")
+{
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("complexity.returns").warningLimit = 2;
+    config.rules.at("complexity.returns").highLimit = 4;
+
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.returns");
+
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.complexity.returnCount = 3;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    REQUIRE(findings[0].limitValue.has_value());
+    CHECK(*findings[0].limitValue == 2);
+}
+
+TEST_CASE("allRules applies a threshold overridden via config for complexity.condition")
+{
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("complexity.condition").warningLimit = 1;
+    config.rules.at("complexity.condition").highLimit = 3;
+
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.condition");
+
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.complexity.maxConditionComplexity = 2;
+    codeqa::core::SourceRange conditionRange;
+    conditionRange.begin.line = 42;
+    conditionRange.begin.column = 9;
+    metrics.complexity.maxConditionRange = conditionRange;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    REQUIRE(findings[0].limitValue.has_value());
+    CHECK(*findings[0].limitValue == 1);
+}
+
+TEST_CASE("allRules applies a threshold overridden via config for complexity.nesting")
+{
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("complexity.nesting").warningLimit = 1;
+    config.rules.at("complexity.nesting").highLimit = 3;
+
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.nesting");
+
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::model::ControlFlowModel flow;
+    flow.kind = codeqa::model::ControlFlowKind::If;
+    flow.nestingDepth = 2;
+    flow.range.begin.line = 24;
+    flow.range.begin.column = 9;
+    callable.controlFlow = {flow};
+
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.complexity.maxNestingDepth = 2;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    REQUIRE(findings[0].limitValue.has_value());
+    CHECK(*findings[0].limitValue == 1);
+}
