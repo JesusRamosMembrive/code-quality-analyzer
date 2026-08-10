@@ -36,6 +36,7 @@ add_executable(codeqa_tests
     unit/ConfigModelsTest.cpp
     unit/DefaultConfigTest.cpp
     unit/MergeConfigTest.cpp
+    unit/ConfigJsonTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE

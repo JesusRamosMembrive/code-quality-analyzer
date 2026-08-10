@@ -80,7 +80,7 @@ target_include_directories(tree_sitter_cpp PRIVATE
 
 add_library(nlohmann_json INTERFACE)
 target_include_directories(nlohmann_json INTERFACE
-    ${PROJECT_SOURCE_DIR}/third_party/nlohmann
+    ${PROJECT_SOURCE_DIR}/third_party
 )
 
 add_library(codeqa_core STATIC
@@ -105,12 +105,13 @@ add_library(codeqa_core STATIC
     src/rules/Rules.cpp
     src/config/DefaultConfig.cpp
     src/config/MergeConfig.cpp
+    src/config/ConfigJson.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_BINARY_DIR}/generated
 )
-target_link_libraries(codeqa_core PUBLIC tree_sitter tree_sitter_c tree_sitter_cpp)
+target_link_libraries(codeqa_core PUBLIC tree_sitter tree_sitter_c tree_sitter_cpp nlohmann_json)
 # codeqa_core and codeqa opt into strict warnings; codeqa_tests deliberately does not,
 # since the vendored third_party/doctest/doctest.h itself emits warnings (e.g. MSVC C5285)
 # that would turn into hard errors under CODEQA_WARNINGS_AS_ERRORS=ON.
