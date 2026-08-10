@@ -3,6 +3,7 @@
 #include "codeqa/application/AnalyzeProject.h"
 #include "codeqa/application/ApplyRules.h"
 #include "codeqa/application/MeasureProject.h"
+#include "codeqa/config/DefaultConfig.h"
 
 #include <nlohmann/json.hpp>
 
@@ -123,7 +124,7 @@ TEST_CASE("corpus findings match their expectations")
     const codeqa::model::ProjectModel project = codeqa::application::AnalyzeProject{}.execute(request);
     const codeqa::metrics::ProjectMetricsModel metrics = codeqa::application::MeasureProject{}.execute(project);
     const codeqa::rules::ProjectFindingsModel findings =
-        codeqa::application::ApplyRules{}.execute(project, metrics);
+        codeqa::application::ApplyRules{}.execute(project, metrics, codeqa::config::defaultConfig());
 
     for (const std::filesystem::path& sourcePath : fixturesWithFindings(corpusRoot))
     {

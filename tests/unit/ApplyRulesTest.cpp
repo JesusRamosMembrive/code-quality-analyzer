@@ -3,6 +3,7 @@
 #include "codeqa/application/AnalyzeProject.h"
 #include "codeqa/application/ApplyRules.h"
 #include "codeqa/application/MeasureProject.h"
+#include "codeqa/config/DefaultConfig.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -51,13 +52,15 @@ bool hasFinding(const std::vector<codeqa::rules::Finding>& findings, const std::
         [&ruleId](const codeqa::rules::Finding& finding) { return finding.ruleId == ruleId; });
 }
 
-codeqa::rules::ProjectFindingsModel analyzeAndApplyRules(const std::filesystem::path& root)
+codeqa::rules::ProjectFindingsModel analyzeAndApplyRules(
+    const std::filesystem::path& root,
+    const codeqa::config::ProjectConfig& config = codeqa::config::defaultConfig())
 {
     codeqa::application::AnalyzeProjectRequest request;
     request.discovery.rootPath = root;
     const codeqa::model::ProjectModel project = codeqa::application::AnalyzeProject{}.execute(request);
     const codeqa::metrics::ProjectMetricsModel metrics = codeqa::application::MeasureProject{}.execute(project);
-    return codeqa::application::ApplyRules{}.execute(project, metrics);
+    return codeqa::application::ApplyRules{}.execute(project, metrics, config);
 }
 
 } // namespace
@@ -130,4 +133,51 @@ TEST_CASE("ApplyRules does not suppress a finding when the comment names a diffe
 
     REQUIRE(findings.files.size() == 1);
     CHECK(hasFinding(findings.files.front().findings, "signature.parameter-count"));
+}
+
+TEST_CASE("ApplyRules omits findings for a rule disabled via config")
+{
+    const TempProject fixture;
+    fixture.addFile(
+        "sample.c",
+        "int classify(int a, int b, int c, int d, int e)\n"
+        "{\n"
+        "    if (a == 0) { return 0; }\n"
+        "    if (a == 1) { return 1; }\n"
+        "    if (a == 2) { return 2; }\n"
+        "    if (a == 3) { return 3; }\n"
+        "    return -1;\n"
+        "}\n");
+
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("signature.parameter-count").enabled = false;
+
+    const codeqa::rules::ProjectFindingsModel findings = analyzeAndApplyRules(fixture.root(), config);
+
+    REQUIRE(findings.files.size() == 1);
+    CHECK_FALSE(hasFinding(findings.files.front().findings, "signature.parameter-count"));
+    CHECK(hasFinding(findings.files.front().findings, "complexity.returns"));
+}
+
+TEST_CASE("ApplyRules fires a finding only after its threshold is lowered via config")
+{
+    const TempProject fixture;
+    fixture.addFile(
+        "sample.c",
+        "int add(int a, int b, int c)\n"
+        "{\n"
+        "    return a + b + c;\n"
+        "}\n");
+
+    const codeqa::rules::ProjectFindingsModel withDefaults = analyzeAndApplyRules(fixture.root());
+    REQUIRE(withDefaults.files.size() == 1);
+    CHECK_FALSE(hasFinding(withDefaults.files.front().findings, "signature.parameter-count"));
+
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("signature.parameter-count").warningLimit = 2;
+    config.rules.at("signature.parameter-count").highLimit = 3;
+
+    const codeqa::rules::ProjectFindingsModel withLoweredThreshold = analyzeAndApplyRules(fixture.root(), config);
+    REQUIRE(withLoweredThreshold.files.size() == 1);
+    CHECK(hasFinding(withLoweredThreshold.files.front().findings, "signature.parameter-count"));
 }

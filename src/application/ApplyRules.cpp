@@ -1,6 +1,5 @@
 #include "codeqa/application/ApplyRules.h"
 
-#include "codeqa/config/DefaultConfig.h"
 #include "codeqa/core/Diagnostic.h"
 #include "codeqa/core/SourceRange.h"
 #include "codeqa/infrastructure/ReadFileContents.h"
@@ -201,12 +200,13 @@ bool isSuppressed(
 } // namespace
 
 codeqa::rules::ProjectFindingsModel ApplyRules::execute(
-    const codeqa::model::ProjectModel& project, const codeqa::metrics::ProjectMetricsModel& metrics) const
+    const codeqa::model::ProjectModel& project,
+    const codeqa::metrics::ProjectMetricsModel& metrics,
+    const codeqa::config::ProjectConfig& config) const
 {
     codeqa::rules::ProjectFindingsModel result;
     result.rootPath = project.rootPath;
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
-        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
 
     for (const codeqa::model::FileModel& file : project.files)
     {
