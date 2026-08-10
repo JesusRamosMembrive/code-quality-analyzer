@@ -34,6 +34,7 @@ add_executable(codeqa_tests
     unit/ApplyRulesTest.cpp
     unit/CorpusFindingsTest.cpp
     unit/ConfigModelsTest.cpp
+    unit/DefaultConfigTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE

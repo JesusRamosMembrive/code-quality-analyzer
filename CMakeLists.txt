@@ -103,6 +103,7 @@ add_library(codeqa_core STATIC
     src/model/ProjectModelBuilder.cpp
     src/metrics/CalculateFunctionMetrics.cpp
     src/rules/Rules.cpp
+    src/config/DefaultConfig.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
