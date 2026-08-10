@@ -1,5 +1,6 @@
 #include "codeqa/application/ApplyRules.h"
 
+#include "codeqa/config/DefaultConfig.h"
 #include "codeqa/core/Diagnostic.h"
 #include "codeqa/core/SourceRange.h"
 #include "codeqa/infrastructure/ReadFileContents.h"
@@ -204,7 +205,8 @@ codeqa::rules::ProjectFindingsModel ApplyRules::execute(
 {
     codeqa::rules::ProjectFindingsModel result;
     result.rootPath = project.rootPath;
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
 
     for (const codeqa::model::FileModel& file : project.files)
     {

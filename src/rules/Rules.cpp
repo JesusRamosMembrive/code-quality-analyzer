@@ -77,8 +77,10 @@ std::vector<Finding> singleOrEmpty(const std::optional<Finding>& finding)
 class FunctionLengthRule : public Rule
 {
 public:
-    static constexpr long long warningLimit = 50;
-    static constexpr long long highLimit = 90;
+    FunctionLengthRule(long long warningLimit, long long highLimit)
+        : warningLimit_(warningLimit), highLimit_(highLimit)
+    {
+    }
 
     [[nodiscard]] std::string id() const override { return "size.function-length"; }
 
@@ -91,18 +93,24 @@ public:
             "Function is too long.",
             "Consider splitting this function into smaller ones.",
             static_cast<long long>(context.metrics.size.physicalLines),
-            warningLimit,
-            highLimit,
+            warningLimit_,
+            highLimit_,
             context.callable.symbol.range.begin,
             context.callable.symbol.qualifiedName));
     }
+
+private:
+    long long warningLimit_;
+    long long highLimit_;
 };
 
 class LocalVariableCountRule : public Rule
 {
 public:
-    static constexpr long long warningLimit = 8;
-    static constexpr long long highLimit = 12;
+    LocalVariableCountRule(long long warningLimit, long long highLimit)
+        : warningLimit_(warningLimit), highLimit_(highLimit)
+    {
+    }
 
     [[nodiscard]] std::string id() const override { return "size.local-variables"; }
 
@@ -115,18 +123,24 @@ public:
             "Function declares too many local variables.",
             "Consider extracting part of this function's logic into helper functions.",
             static_cast<long long>(context.callable.localVariables.size()),
-            warningLimit,
-            highLimit,
+            warningLimit_,
+            highLimit_,
             context.callable.symbol.range.begin,
             context.callable.symbol.qualifiedName));
     }
+
+private:
+    long long warningLimit_;
+    long long highLimit_;
 };
 
 class ParameterCountRule : public Rule
 {
 public:
-    static constexpr long long warningLimit = 4;
-    static constexpr long long highLimit = 7;
+    ParameterCountRule(long long warningLimit, long long highLimit)
+        : warningLimit_(warningLimit), highLimit_(highLimit)
+    {
+    }
 
     [[nodiscard]] std::string id() const override { return "signature.parameter-count"; }
 
@@ -142,18 +156,24 @@ public:
             "Function has too many parameters.",
             "Consider grouping related parameters into a struct.",
             static_cast<long long>(context.metrics.signature.parameterCount),
-            warningLimit,
-            highLimit,
+            warningLimit_,
+            highLimit_,
             location,
             context.callable.symbol.qualifiedName));
     }
+
+private:
+    long long warningLimit_;
+    long long highLimit_;
 };
 
 class ConsecutiveBooleanParametersRule : public Rule
 {
 public:
-    static constexpr long long warningLimit = 2;
-    static constexpr long long highLimit = 3;
+    ConsecutiveBooleanParametersRule(long long warningLimit, long long highLimit)
+        : warningLimit_(warningLimit), highLimit_(highLimit)
+    {
+    }
 
     [[nodiscard]] std::string id() const override { return "signature.consecutive-booleans"; }
 
@@ -186,18 +206,24 @@ public:
             "Consider replacing consecutive boolean parameters with an enum or a struct to "
             "avoid the \"boolean trap\" at call sites.",
             static_cast<long long>(longestRun),
-            warningLimit,
-            highLimit,
+            warningLimit_,
+            highLimit_,
             location,
             context.callable.symbol.qualifiedName));
     }
+
+private:
+    long long warningLimit_;
+    long long highLimit_;
 };
 
 class CyclomaticComplexityRule : public Rule
 {
 public:
-    static constexpr long long warningLimit = 10;
-    static constexpr long long highLimit = 15;
+    CyclomaticComplexityRule(long long warningLimit, long long highLimit)
+        : warningLimit_(warningLimit), highLimit_(highLimit)
+    {
+    }
 
     [[nodiscard]] std::string id() const override { return "complexity.cyclomatic"; }
 
@@ -210,18 +236,24 @@ public:
             "Cyclomatic complexity is too high.",
             "Consider splitting this function to reduce the number of independent paths through it.",
             static_cast<long long>(context.metrics.complexity.cyclomaticComplexity),
-            warningLimit,
-            highLimit,
+            warningLimit_,
+            highLimit_,
             context.callable.symbol.range.begin,
             context.callable.symbol.qualifiedName));
     }
+
+private:
+    long long warningLimit_;
+    long long highLimit_;
 };
 
 class ReturnCountRule : public Rule
 {
 public:
-    static constexpr long long warningLimit = 4;
-    static constexpr long long highLimit = 6;
+    ReturnCountRule(long long warningLimit, long long highLimit)
+        : warningLimit_(warningLimit), highLimit_(highLimit)
+    {
+    }
 
     [[nodiscard]] std::string id() const override { return "complexity.returns"; }
 
@@ -234,18 +266,24 @@ public:
             "Function has too many return points.",
             "Consider consolidating exit points to make control flow easier to follow.",
             static_cast<long long>(context.metrics.complexity.returnCount),
-            warningLimit,
-            highLimit,
+            warningLimit_,
+            highLimit_,
             context.callable.symbol.range.begin,
             context.callable.symbol.qualifiedName));
     }
+
+private:
+    long long warningLimit_;
+    long long highLimit_;
 };
 
 class ConditionComplexityRule : public Rule
 {
 public:
-    static constexpr long long warningLimit = 3;
-    static constexpr long long highLimit = 5;
+    ConditionComplexityRule(long long warningLimit, long long highLimit)
+        : warningLimit_(warningLimit), highLimit_(highLimit)
+    {
+    }
 
     [[nodiscard]] std::string id() const override { return "complexity.condition"; }
 
@@ -263,18 +301,24 @@ public:
             "A condition in this function is too complex.",
             "Consider extracting this condition into a well-named helper function or variable.",
             static_cast<long long>(context.metrics.complexity.maxConditionComplexity),
-            warningLimit,
-            highLimit,
+            warningLimit_,
+            highLimit_,
             context.metrics.complexity.maxConditionRange->begin,
             context.callable.symbol.qualifiedName));
     }
+
+private:
+    long long warningLimit_;
+    long long highLimit_;
 };
 
 class NestingDepthRule : public Rule
 {
 public:
-    static constexpr long long warningLimit = 3;
-    static constexpr long long highLimit = 5;
+    NestingDepthRule(long long warningLimit, long long highLimit)
+        : warningLimit_(warningLimit), highLimit_(highLimit)
+    {
+    }
 
     [[nodiscard]] std::string id() const override { return "complexity.nesting"; }
 
@@ -298,26 +342,63 @@ public:
             "This function has excessive nesting.",
             "Consider using early returns or extracting nested blocks into helper functions.",
             static_cast<long long>(context.metrics.complexity.maxNestingDepth),
-            warningLimit,
-            highLimit,
+            warningLimit_,
+            highLimit_,
             location,
             context.callable.symbol.qualifiedName));
     }
+
+private:
+    long long warningLimit_;
+    long long highLimit_;
 };
 
 } // namespace
 
-std::vector<std::unique_ptr<Rule>> allRules()
+std::vector<std::unique_ptr<Rule>> allRules(const codeqa::config::ProjectConfig& config)
 {
     std::vector<std::unique_ptr<Rule>> rules;
-    rules.push_back(std::make_unique<FunctionLengthRule>());
-    rules.push_back(std::make_unique<LocalVariableCountRule>());
-    rules.push_back(std::make_unique<ParameterCountRule>());
-    rules.push_back(std::make_unique<ConsecutiveBooleanParametersRule>());
-    rules.push_back(std::make_unique<CyclomaticComplexityRule>());
-    rules.push_back(std::make_unique<ReturnCountRule>());
-    rules.push_back(std::make_unique<ConditionComplexityRule>());
-    rules.push_back(std::make_unique<NestingDepthRule>());
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("size.function-length"); c.enabled)
+    {
+        rules.push_back(std::make_unique<FunctionLengthRule>(c.warningLimit, c.highLimit));
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("size.local-variables"); c.enabled)
+    {
+        rules.push_back(std::make_unique<LocalVariableCountRule>(c.warningLimit, c.highLimit));
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("signature.parameter-count"); c.enabled)
+    {
+        rules.push_back(std::make_unique<ParameterCountRule>(c.warningLimit, c.highLimit));
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("signature.consecutive-booleans"); c.enabled)
+    {
+        rules.push_back(std::make_unique<ConsecutiveBooleanParametersRule>(c.warningLimit, c.highLimit));
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("complexity.cyclomatic"); c.enabled)
+    {
+        rules.push_back(std::make_unique<CyclomaticComplexityRule>(c.warningLimit, c.highLimit));
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("complexity.returns"); c.enabled)
+    {
+        rules.push_back(std::make_unique<ReturnCountRule>(c.warningLimit, c.highLimit));
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("complexity.condition"); c.enabled)
+    {
+        rules.push_back(std::make_unique<ConditionComplexityRule>(c.warningLimit, c.highLimit));
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("complexity.nesting"); c.enabled)
+    {
+        rules.push_back(std::make_unique<NestingDepthRule>(c.warningLimit, c.highLimit));
+    }
+
     return rules;
 }
 

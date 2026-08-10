@@ -1,5 +1,6 @@
 #include "doctest/doctest.h"
 
+#include "codeqa/config/DefaultConfig.h"
 #include "codeqa/rules/Rules.h"
 
 #include <memory>
@@ -38,7 +39,7 @@ codeqa::model::CallableModel makeCallable()
 
 TEST_CASE("size.function-length fires only at or above its warning threshold")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "size.function-length");
     codeqa::model::CallableModel callable = makeCallable();
     codeqa::metrics::FunctionMetricsModel metrics;
@@ -70,7 +71,7 @@ TEST_CASE("size.function-length fires only at or above its warning threshold")
 
 TEST_CASE("size.local-variables reads the callable's local variable count directly")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "size.local-variables");
     codeqa::model::CallableModel callable = makeCallable();
     callable.localVariables.resize(8);
@@ -89,7 +90,7 @@ TEST_CASE("size.local-variables reads the callable's local variable count direct
 
 TEST_CASE("signature.parameter-count points at the parameter list, not the function start")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "signature.parameter-count");
     codeqa::model::CallableModel callable = makeCallable();
     codeqa::core::SourceRange parameterListRange;
@@ -110,7 +111,7 @@ TEST_CASE("signature.parameter-count points at the parameter list, not the funct
 
 TEST_CASE("signature.parameter-count falls back to the function start when there is no parameter list")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "signature.parameter-count");
     codeqa::model::CallableModel callable = makeCallable();
     codeqa::metrics::FunctionMetricsModel metrics;
@@ -125,7 +126,7 @@ TEST_CASE("signature.parameter-count falls back to the function start when there
 
 TEST_CASE("signature.consecutive-booleans finds the longest run of by-value bool parameters")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "signature.consecutive-booleans");
     codeqa::model::CallableModel callable = makeCallable();
     callable.parameters = {
@@ -146,7 +147,7 @@ TEST_CASE("signature.consecutive-booleans finds the longest run of by-value bool
 
 TEST_CASE("signature.consecutive-booleans produces no finding when no run reaches the threshold")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "signature.consecutive-booleans");
     codeqa::model::CallableModel callable = makeCallable();
     callable.parameters = {
@@ -159,7 +160,7 @@ TEST_CASE("signature.consecutive-booleans produces no finding when no run reache
 
 TEST_CASE("complexity.cyclomatic reads cyclomaticComplexity from the metrics")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.cyclomatic");
     codeqa::model::CallableModel callable = makeCallable();
     codeqa::metrics::FunctionMetricsModel metrics;
@@ -176,7 +177,7 @@ TEST_CASE("complexity.cyclomatic reads cyclomaticComplexity from the metrics")
 
 TEST_CASE("complexity.returns reads returnCount from the metrics")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.returns");
     codeqa::model::CallableModel callable = makeCallable();
     codeqa::metrics::FunctionMetricsModel metrics;
@@ -190,7 +191,7 @@ TEST_CASE("complexity.returns reads returnCount from the metrics")
 
 TEST_CASE("complexity.condition points at the exact condition that produced the maximum")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.condition");
     codeqa::model::CallableModel callable = makeCallable();
     codeqa::metrics::FunctionMetricsModel metrics;
@@ -211,7 +212,7 @@ TEST_CASE("complexity.condition points at the exact condition that produced the 
 
 TEST_CASE("complexity.condition produces no finding when there is no condition to point at")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.condition");
     codeqa::model::CallableModel callable = makeCallable();
     codeqa::metrics::FunctionMetricsModel metrics;
@@ -222,7 +223,7 @@ TEST_CASE("complexity.condition produces no finding when there is no condition t
 
 TEST_CASE("complexity.nesting points at the control-flow entry that reached the maximum depth")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.nesting");
     codeqa::model::CallableModel callable = makeCallable();
 
@@ -254,7 +255,7 @@ TEST_CASE("complexity.nesting points at the control-flow entry that reached the 
 
 TEST_CASE("complexity.nesting resolves a tie in favor of the first matching entry")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.nesting");
     codeqa::model::CallableModel callable = makeCallable();
 
@@ -284,7 +285,7 @@ TEST_CASE("complexity.nesting resolves a tie in favor of the first matching entr
 
 TEST_CASE("all eight rules are registered and apply to both C and C++")
 {
-    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules();
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
     REQUIRE(rules.size() == 8);
 
     for (const auto& rule : rules)
@@ -292,4 +293,41 @@ TEST_CASE("all eight rules are registered and apply to both C and C++")
         CHECK(rule->appliesTo(codeqa::core::Language::C));
         CHECK(rule->appliesTo(codeqa::core::Language::Cpp));
     }
+}
+
+TEST_CASE("allRules omits a rule disabled via config")
+{
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("complexity.cyclomatic").enabled = false;
+
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+
+    REQUIRE(rules.size() == 7);
+    for (const auto& rule : rules)
+    {
+        CHECK(rule->id() != "complexity.cyclomatic");
+    }
+}
+
+TEST_CASE("allRules applies a threshold overridden via config")
+{
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("complexity.cyclomatic").warningLimit = 2;
+    config.rules.at("complexity.cyclomatic").highLimit = 4;
+
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "complexity.cyclomatic");
+
+    codeqa::model::CallableModel callable;
+    callable.symbol.name = "sample";
+    callable.symbol.qualifiedName = "Sample::sample";
+    codeqa::metrics::FunctionMetricsModel metrics;
+    metrics.complexity.cyclomaticComplexity = 3;
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    REQUIRE(findings[0].limitValue.has_value());
+    CHECK(*findings[0].limitValue == 2);
 }
