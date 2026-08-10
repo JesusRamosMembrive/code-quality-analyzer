@@ -1,6 +1,7 @@
 #include "codeqa/config/ConfigJson.h"
 
 #include <algorithm>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -82,11 +83,21 @@ long long requireInteger(const Json& object, const std::string& field, const std
     {
         throw ParseFailure("Error [CONFIG004]: '" + path + "' is missing required field '" + field + "'.");
     }
-    if (!object.at(field).is_number_integer())
+
+    const Json& value = object.at(field);
+
+    if (!value.is_number_integer())
     {
         throw ParseFailure("Error [CONFIG005]: '" + path + "." + field + "' must be an integer.");
     }
-    return object.at(field).get<long long>();
+
+    if (value.is_number_unsigned()
+        && value.get<unsigned long long>() > static_cast<unsigned long long>(std::numeric_limits<long long>::max()))
+    {
+        throw ParseFailure("Error [CONFIG005]: '" + path + "." + field + "' is out of range for a signed integer.");
+    }
+
+    return value.get<long long>();
 }
 
 codeqa::core::Language parseLanguage(const std::string& text, const std::string& path)
@@ -226,9 +237,9 @@ ParseConfigResult parseConfig(const std::string& jsonText)
     }
     catch (const Json::exception& error)
     {
-        // Safety net: any nlohmann-internal exception this validation code did not
-        // anticipate (e.g. a numeric value too large for long long) still turns into
-        // a ParseConfigResult error instead of propagating out of parseConfig.
+        // Safety net: any other nlohmann-internal exception not anticipated by the checks
+        // above still turns into a ParseConfigResult error instead of propagating out of
+        // parseConfig.
         return ParseConfigResult{std::nullopt, std::string("Error [CONFIG005]: malformed value: ") + error.what()};
     }
 }
@@ -240,9 +251,22 @@ nlohmann::json toJson(const ProjectConfig& config)
 
     for (const HeaderOverrideConfig& headerOverride : config.headerOverrides)
     {
+        const char* languageText = nullptr;
+
+        switch (headerOverride.language)
+        {
+        case codeqa::core::Language::C:
+            languageText = "c";
+            break;
+        case codeqa::core::Language::Cpp:
+            languageText = "cpp";
+            break;
+        case codeqa::core::Language::Unknown:
+            throw std::logic_error("toJson: HeaderOverrideConfig.language must not be Unknown");
+        }
+
         document["languages"]["headerOverrides"].push_back(
-            {{"pattern", headerOverride.pattern},
-             {"language", headerOverride.language == codeqa::core::Language::C ? "c" : "cpp"}});
+            {{"pattern", headerOverride.pattern}, {"language", languageText}});
     }
 
     document["rules"] = Json::object();

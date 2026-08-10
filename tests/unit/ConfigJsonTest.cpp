@@ -137,6 +137,22 @@ TEST_CASE("parseConfig reports CONFIG005 for a non-boolean enabled field")
     CHECK(result.error->find("CONFIG005") != std::string::npos);
 }
 
+TEST_CASE("parseConfig reports CONFIG005 for a warning value out of range for a signed integer")
+{
+    const std::string text = R"({
+        "rules": {
+            "complexity.cyclomatic": {
+                "enabled": true, "params": { "warning": 18446744073709551615, "high": 5 }
+            }
+        }
+    })";
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG005") != std::string::npos);
+}
+
 TEST_CASE("parseConfig reports CONFIG006 for an invalid language value")
 {
     const std::string text =
@@ -176,4 +192,22 @@ TEST_CASE("toJson round-trips the default configuration through parseConfig")
         CHECK(result.config->rules.at(id).warningLimit == ruleConfig.warningLimit);
         CHECK(result.config->rules.at(id).highLimit == ruleConfig.highLimit);
     }
+}
+
+TEST_CASE("toJson round-trips header overrides for both C and C++ through parseConfig")
+{
+    codeqa::config::ProjectConfig original;
+    original.headerOverrides.push_back({"include/c_api/**", codeqa::core::Language::C});
+    original.headerOverrides.push_back({"include/cpp_api/**", codeqa::core::Language::Cpp});
+
+    const std::string serialized = codeqa::config::toJson(original).dump();
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(serialized);
+
+    REQUIRE(result.config.has_value());
+    REQUIRE(result.config->headerOverrides.size() == 2);
+    CHECK(result.config->headerOverrides[0].pattern == "include/c_api/**");
+    CHECK(result.config->headerOverrides[0].language == codeqa::core::Language::C);
+    CHECK(result.config->headerOverrides[1].pattern == "include/cpp_api/**");
+    CHECK(result.config->headerOverrides[1].language == codeqa::core::Language::Cpp);
 }

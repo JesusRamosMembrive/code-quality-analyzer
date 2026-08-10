@@ -79,7 +79,7 @@ target_include_directories(tree_sitter_cpp PRIVATE
 )
 
 add_library(nlohmann_json INTERFACE)
-target_include_directories(nlohmann_json INTERFACE
+target_include_directories(nlohmann_json SYSTEM INTERFACE
     ${PROJECT_SOURCE_DIR}/third_party
 )
 
