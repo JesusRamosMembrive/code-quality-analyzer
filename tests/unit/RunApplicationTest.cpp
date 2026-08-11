@@ -4,6 +4,8 @@
 #include "codeqa/cli/RunApplication.h"
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 
+#include <nlohmann/json.hpp>
+
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -39,6 +41,26 @@ std::filesystem::path makeTempDiscoverRoot()
     std::filesystem::create_directories(root);
     std::ofstream(root / "main.c") << "";
     std::ofstream(root / "util.cpp") << "";
+    std::ofstream(root / "util.h") << "";
+
+    return root;
+}
+
+std::filesystem::path makeTempAnalyzeRoot()
+{
+    const std::filesystem::path root = std::filesystem::temp_directory_path() / "codeqa_run_application_analyze_test";
+
+    std::filesystem::remove_all(root);
+    std::filesystem::create_directories(root);
+    std::ofstream(root / "sample.c")
+        << "int classify(int a, int b, int c, int d, int e)\n"
+           "{\n"
+           "    if (a == 0) { return 0; }\n"
+           "    if (a == 1) { return 1; }\n"
+           "    if (a == 2) { return 2; }\n"
+           "    if (a == 3) { return 3; }\n"
+           "    return -1;\n"
+           "}\n";
     std::ofstream(root / "util.h") << "";
 
     return root;
@@ -341,4 +363,123 @@ TEST_CASE("--help documents the parse subcommand")
     const RunResult result = run({"--help"});
 
     CHECK(result.output.find("parse <path>") != std::string::npos);
+}
+
+TEST_CASE("analyze without a path returns CLI002")
+{
+    const RunResult result = run({"analyze"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI002") != std::string::npos);
+}
+
+TEST_CASE("analyze with a missing --config value returns CLI008")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const RunResult result = run({"analyze", root.string(), "--config"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI008") != std::string::npos);
+}
+
+TEST_CASE("analyze with a missing --format value returns CLI009")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const RunResult result = run({"analyze", root.string(), "--format"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI009") != std::string::npos);
+}
+
+TEST_CASE("analyze with an invalid --format value returns CLI010")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const RunResult result = run({"analyze", root.string(), "--format", "xml"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI010") != std::string::npos);
+}
+
+TEST_CASE("analyze with a missing --output value returns CLI011")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const RunResult result = run({"analyze", root.string(), "--output"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI011") != std::string::npos);
+}
+
+TEST_CASE("analyze with an unwritable --output path returns CLI012")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const std::filesystem::path unwritable = root / "no-such-directory" / "report.json";
+    const RunResult result = run({"analyze", root.string(), "--output", unwritable.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI012") != std::string::npos);
+}
+
+TEST_CASE("analyze with an invalid --config file forwards the CONFIG error and returns InvalidArguments")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const std::filesystem::path configPath = root / "codeqa.json";
+    std::ofstream(configPath) << "{ not json";
+
+    const RunResult result = run({"analyze", root.string(), "--config", configPath.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CONFIG001") != std::string::npos);
+}
+
+TEST_CASE("analyze with default text format prints a report to stdout")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const RunResult result = run({"analyze", root.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find("Code Quality Analysis Report") != std::string::npos);
+    CHECK(result.output.find("signature.parameter-count") != std::string::npos);
+}
+
+TEST_CASE("analyze --format json --output writes a valid JSON report to a file")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const std::filesystem::path outputPath = root / "report.json";
+
+    const RunResult result = run({"analyze", root.string(), "--format", "json", "--output", outputPath.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.empty());
+    REQUIRE(std::filesystem::exists(outputPath));
+
+    std::ifstream reportFile(outputPath);
+    const nlohmann::json report = nlohmann::json::parse(reportFile);
+    CHECK(report.at("schemaVersion").get<int>() == 1);
+    CHECK(report.at("files").size() == 2);
+}
+
+TEST_CASE("analyze: a --lang-override wins over the same pattern's --config headerOverride")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const std::filesystem::path configPath = root / "codeqa.json";
+    std::ofstream(configPath)
+        << R"({ "languages": { "headerOverrides": [ { "pattern": "util.h", "language": "c" } ] } })";
+
+    const RunResult result = run(
+        {"analyze", root.string(), "--config", configPath.string(), "--lang-override", "util.h=cpp", "--format",
+         "json"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+
+    const nlohmann::json report = nlohmann::json::parse(result.output);
+    bool found = false;
+    for (const nlohmann::json& file : report.at("files"))
+    {
+        if (file.at("path").get<std::string>() == "util.h")
+        {
+            found = true;
+            CHECK(file.at("language").get<std::string>() == "cpp");
+        }
+    }
+    CHECK(found);
 }

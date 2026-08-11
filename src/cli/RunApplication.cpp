@@ -5,7 +5,11 @@
 #include "codeqa/application/DetectFileLanguage.h"
 #include "codeqa/application/DiscoverProjectSources.h"
 #include "codeqa/application/GetApplicationInfo.h"
+#include "codeqa/application/LoadProjectConfig.h"
+#include "codeqa/application/RunAnalysis.h"
 #include "codeqa/cli/ExitCode.h"
+#include "codeqa/config/ConfigModels.h"
+#include "codeqa/config/DefaultConfig.h"
 #include "codeqa/core/Diagnostic.h"
 #include "codeqa/core/DiagnosticSeverity.h"
 #include "codeqa/core/Language.h"
@@ -20,8 +24,13 @@
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/infrastructure/DiscoveryResult.h"
 #include "codeqa/infrastructure/ExtensionCategory.h"
+#include "codeqa/report/ReportJson.h"
+#include "codeqa/report/TextReport.h"
+
+#include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <optional>
 #include <sstream>
@@ -41,6 +50,8 @@ void printHelp(std::ostream& output)
               "  codeqa [options]\n"
               "  codeqa discover <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
               "  codeqa parse <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
+              "  codeqa analyze <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
+              "                        [--config <path>] [--format text|json] [--output <file>]\n"
               "\n"
               "Options:\n"
               "  -h, --help       Show this help.\n"
@@ -55,7 +66,14 @@ void printHelp(std::ostream& output)
               "                                       pattern (repeatable).\n"
               "      --lang-override <pattern>=<lang> Force the language of files matching\n"
               "                                       <pattern> (<lang> is 'c' or 'cpp';\n"
-              "                                       repeatable, last match wins).\n";
+              "                                       repeatable, last match wins).\n"
+              "  analyze <path>                     Run the full analysis pipeline (metrics +\n"
+              "                                      rules) and print a report.\n"
+              "      --config <path>                 Merge rule/language overrides from a\n"
+              "                                       codeqa.json file over the defaults.\n"
+              "      --format text|json               Report format (default: text).\n"
+              "      --output <file>                  Write the report to a file instead of\n"
+              "                                        stdout.\n";
 }
 
 void printVersion(std::ostream& output)
@@ -386,6 +404,245 @@ int runParse(const std::vector<std::string>& arguments, std::ostream& output, st
     return static_cast<int>(ExitCode::Success);
 }
 
+struct AnalyzeArguments
+{
+    std::filesystem::path path;
+    std::vector<std::string> excludePatterns;
+    std::vector<codeqa::application::LanguageOverride> languageOverrides;
+    std::optional<std::filesystem::path> configPath;
+    std::string format{"text"};
+    std::optional<std::filesystem::path> outputPath;
+};
+
+struct AnalyzeArgumentsOutcome
+{
+    std::optional<AnalyzeArguments> arguments;
+    int exitCode{static_cast<int>(ExitCode::Success)};
+};
+
+AnalyzeArgumentsOutcome parseAnalyzeArguments(const std::vector<std::string>& arguments, std::ostream& errorOutput)
+{
+    std::optional<std::filesystem::path> path;
+    std::vector<std::string> excludePatterns;
+    std::vector<codeqa::application::LanguageOverride> languageOverrides;
+    std::optional<std::filesystem::path> configPath;
+    std::string format = "text";
+    std::optional<std::filesystem::path> outputPath;
+
+    for (std::size_t index = 1; index < arguments.size(); ++index)
+    {
+        const std::string& token = arguments[index];
+
+        if (token == "--exclude")
+        {
+            if (index + 1 >= arguments.size())
+            {
+                errorOutput << "Error [CLI004]: Missing value for '--exclude'.\n";
+                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+            }
+
+            excludePatterns.push_back(arguments[index + 1]);
+            ++index;
+            continue;
+        }
+
+        if (token == "--lang-override")
+        {
+            if (index + 1 >= arguments.size())
+            {
+                errorOutput << "Error [CLI006]: Missing value for '--lang-override'.\n";
+                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+            }
+
+            const std::string& value = arguments[index + 1];
+            const std::size_t equalsPosition = value.find('=');
+
+            if (equalsPosition == std::string::npos || equalsPosition == 0
+                || equalsPosition == value.size() - 1)
+            {
+                errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
+                               << "'. Expected <pattern>=c|cpp.\n";
+                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+            }
+
+            const std::string pattern = value.substr(0, equalsPosition);
+            const std::string languageText = value.substr(equalsPosition + 1);
+            const std::optional<codeqa::core::Language> language = parseLanguageName(languageText);
+
+            if (!language.has_value())
+            {
+                errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
+                               << "'. Expected <pattern>=c|cpp.\n";
+                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+            }
+
+            languageOverrides.push_back(codeqa::application::LanguageOverride{pattern, *language});
+            ++index;
+            continue;
+        }
+
+        if (token == "--config")
+        {
+            if (index + 1 >= arguments.size())
+            {
+                errorOutput << "Error [CLI008]: Missing value for '--config'.\n";
+                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+            }
+
+            configPath = std::filesystem::path{arguments[index + 1]};
+            ++index;
+            continue;
+        }
+
+        if (token == "--format")
+        {
+            if (index + 1 >= arguments.size())
+            {
+                errorOutput << "Error [CLI009]: Missing value for '--format'.\n";
+                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+            }
+
+            const std::string& value = arguments[index + 1];
+
+            if (value != "text" && value != "json")
+            {
+                errorOutput << "Error [CLI010]: Invalid --format value '" << value
+                               << "'. Expected 'text' or 'json'.\n";
+                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+            }
+
+            format = value;
+            ++index;
+            continue;
+        }
+
+        if (token == "--output")
+        {
+            if (index + 1 >= arguments.size())
+            {
+                errorOutput << "Error [CLI011]: Missing value for '--output'.\n";
+                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+            }
+
+            outputPath = std::filesystem::path{arguments[index + 1]};
+            ++index;
+            continue;
+        }
+
+        if (!path.has_value())
+        {
+            path = std::filesystem::path{token};
+            continue;
+        }
+
+        errorOutput << "Error [CLI005]: Unexpected argument '" << token << "'.\n";
+        return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+    }
+
+    if (!path.has_value())
+    {
+        errorOutput << "Error [CLI002]: Missing required argument <path> for 'analyze'.\n"
+                       "Use 'codeqa --help' for usage.\n";
+        return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+    }
+
+    std::error_code existsError;
+    const bool isDirectory = std::filesystem::is_directory(*path, existsError);
+
+    if (!isDirectory)
+    {
+        errorOutput << "Error [CLI003]: Path '" << path->string() << "' does not exist or is not a directory.\n";
+        return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+    }
+
+    return AnalyzeArgumentsOutcome{
+        AnalyzeArguments{*path, excludePatterns, languageOverrides, configPath, format, outputPath},
+        static_cast<int>(ExitCode::Success)};
+}
+
+codeqa::application::LanguageOverride toLanguageOverride(const codeqa::config::HeaderOverrideConfig& headerOverride)
+{
+    return codeqa::application::LanguageOverride{headerOverride.pattern, headerOverride.language};
+}
+
+int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
+{
+    const AnalyzeArgumentsOutcome outcome = parseAnalyzeArguments(arguments, errorOutput);
+
+    if (!outcome.arguments.has_value())
+    {
+        return outcome.exitCode;
+    }
+
+    const AnalyzeArguments& parsedArguments = *outcome.arguments;
+
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+
+    if (parsedArguments.configPath.has_value())
+    {
+        const codeqa::application::LoadProjectConfigResult configResult =
+            codeqa::application::LoadProjectConfig{}.execute(*parsedArguments.configPath);
+
+        if (!configResult.config.has_value())
+        {
+            errorOutput << *configResult.error << '\n';
+            return static_cast<int>(ExitCode::InvalidArguments);
+        }
+
+        config = *configResult.config;
+    }
+
+    codeqa::application::RunAnalysisRequest request;
+    request.analysis.discovery.rootPath = parsedArguments.path;
+    request.analysis.discovery.excludePatterns = parsedArguments.excludePatterns;
+
+    for (const codeqa::config::HeaderOverrideConfig& headerOverride : config.headerOverrides)
+    {
+        request.analysis.languageOverrides.push_back(toLanguageOverride(headerOverride));
+    }
+
+    for (const codeqa::application::LanguageOverride& languageOverride : parsedArguments.languageOverrides)
+    {
+        request.analysis.languageOverrides.push_back(languageOverride);
+    }
+
+    request.config = config;
+
+    const codeqa::application::RunAnalysisResult result = codeqa::application::RunAnalysis{}.execute(request);
+
+    std::ofstream outputFile;
+    std::ostream* destination = &output;
+
+    if (parsedArguments.outputPath.has_value())
+    {
+        outputFile.open(*parsedArguments.outputPath);
+
+        if (!outputFile)
+        {
+            errorOutput << "Error [CLI012]: Could not open '" << parsedArguments.outputPath->string()
+                           << "' for writing.\n";
+            return static_cast<int>(ExitCode::InvalidArguments);
+        }
+
+        destination = &outputFile;
+    }
+
+    if (parsedArguments.format == "json")
+    {
+        const codeqa::application::GetApplicationInfo getApplicationInfo;
+        const std::string toolVersion = getApplicationInfo.execute().version;
+        const nlohmann::json report =
+            codeqa::report::toReportJson(result.model, result.metrics, result.findings, config, toolVersion);
+        *destination << report.dump(2) << '\n';
+    }
+    else
+    {
+        codeqa::report::renderText(*destination, result.model, result.metrics, result.findings);
+    }
+
+    return static_cast<int>(ExitCode::Success);
+}
+
 } // namespace
 
 int runApplication(
@@ -421,6 +678,11 @@ int runApplication(
     if (firstArgument == "parse")
     {
         return runParse(arguments, output, errorOutput);
+    }
+
+    if (firstArgument == "analyze")
+    {
+        return runAnalyze(arguments, output, errorOutput);
     }
 
     errorOutput << "Error [CLI001]: Unknown option '" << firstArgument << "'.\n"
