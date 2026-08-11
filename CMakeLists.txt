@@ -110,6 +110,7 @@ add_library(codeqa_core STATIC
     src/core/EnumJson.cpp
     src/application/RunAnalysis.cpp
     src/report/TextReport.cpp
+    src/report/FileJson.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
