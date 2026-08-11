@@ -1,5 +1,7 @@
 #include "codeqa/config/ConfigJson.h"
 
+#include "codeqa/core/EnumJson.h"
+
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
@@ -102,15 +104,14 @@ long long requireInteger(const Json& object, const std::string& field, const std
 
 codeqa::core::Language parseLanguage(const std::string& text, const std::string& path)
 {
-    if (text == "c")
+    const std::optional<codeqa::core::Language> language = codeqa::core::languageFromJsonString(text);
+
+    if (!language.has_value())
     {
-        return codeqa::core::Language::C;
+        throw ParseFailure("Error [CONFIG006]: '" + path + "' must be 'c' or 'cpp', got '" + text + "'.");
     }
-    if (text == "cpp")
-    {
-        return codeqa::core::Language::Cpp;
-    }
-    throw ParseFailure("Error [CONFIG006]: '" + path + "' must be 'c' or 'cpp', got '" + text + "'.");
+
+    return *language;
 }
 
 std::vector<HeaderOverrideConfig> parseHeaderOverrides(const Json& languages)
@@ -251,22 +252,9 @@ nlohmann::json toJson(const ProjectConfig& config)
 
     for (const HeaderOverrideConfig& headerOverride : config.headerOverrides)
     {
-        const char* languageText = nullptr;
-
-        switch (headerOverride.language)
-        {
-        case codeqa::core::Language::C:
-            languageText = "c";
-            break;
-        case codeqa::core::Language::Cpp:
-            languageText = "cpp";
-            break;
-        case codeqa::core::Language::Unknown:
-            throw std::logic_error("toJson: HeaderOverrideConfig.language must not be Unknown");
-        }
-
         document["languages"]["headerOverrides"].push_back(
-            {{"pattern", headerOverride.pattern}, {"language", languageText}});
+            {{"pattern", headerOverride.pattern},
+             {"language", codeqa::core::languageToJsonString(headerOverride.language)}});
     }
 
     document["rules"] = Json::object();

@@ -1,6 +1,7 @@
 #include "codeqa/cli/RunApplication.h"
 
 #include "codeqa/application/ApplicationInfo.h"
+#include "codeqa/core/EnumJson.h"
 #include "codeqa/application/DetectFileLanguage.h"
 #include "codeqa/application/DiscoverProjectSources.h"
 #include "codeqa/application/GetApplicationInfo.h"
@@ -296,21 +297,6 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
     return static_cast<int>(ExitCode::Success);
 }
 
-const char* severityName(codeqa::core::DiagnosticSeverity severity)
-{
-    switch (severity)
-    {
-    case codeqa::core::DiagnosticSeverity::Information:
-        return "information";
-    case codeqa::core::DiagnosticSeverity::Warning:
-        return "warning";
-    case codeqa::core::DiagnosticSeverity::Error:
-        return "error";
-    }
-
-    return "error";
-}
-
 int runParse(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
 {
     const DiscoverArgumentsOutcome outcome = parseDiscoverArguments("parse", arguments, errorOutput);
@@ -391,8 +377,8 @@ int runParse(const std::vector<std::string>& arguments, std::ostream& output, st
 
             for (const codeqa::core::Diagnostic& diagnostic : detail.diagnostics)
             {
-                output << "  line " << diagnostic.location.line << ": " << severityName(diagnostic.severity)
-                       << '\n';
+                output << "  line " << diagnostic.location.line << ": "
+                       << codeqa::core::diagnosticSeverityToJsonString(diagnostic.severity) << '\n';
             }
         }
     }

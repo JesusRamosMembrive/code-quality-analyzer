@@ -107,6 +107,7 @@ add_library(codeqa_core STATIC
     src/config/DefaultConfig.cpp
     src/config/MergeConfig.cpp
     src/config/ConfigJson.cpp
+    src/core/EnumJson.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
