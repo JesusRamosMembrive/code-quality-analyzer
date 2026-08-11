@@ -33,6 +33,7 @@ add_executable(codeqa_tests
     unit/RulesTest.cpp
     unit/ApplyRulesTest.cpp
     unit/CorpusFindingsTest.cpp
+    unit/CorpusReportTest.cpp
     unit/ConfigModelsTest.cpp
     unit/DefaultConfigTest.cpp
     unit/MergeConfigTest.cpp
