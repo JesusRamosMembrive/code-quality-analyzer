@@ -39,6 +39,7 @@ add_executable(codeqa_tests
     unit/ConfigJsonTest.cpp
     unit/LoadProjectConfigTest.cpp
     unit/EnumJsonTest.cpp
+    unit/RunAnalysisTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
