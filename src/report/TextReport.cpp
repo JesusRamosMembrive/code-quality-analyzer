@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace codeqa::report
@@ -55,6 +56,11 @@ struct LocatedFinding
     std::filesystem::path filePath;
     const codeqa::rules::Finding* finding{nullptr};
 };
+
+std::string relativeDisplayPath(const std::filesystem::path& path, const std::filesystem::path& root)
+{
+    return std::filesystem::relative(path, root).generic_string();
+}
 
 void writeSummary(
     std::ostream& output,
@@ -145,7 +151,8 @@ std::vector<LocatedFinding> collectFindingsBySeverity(
     return located;
 }
 
-void writeFindingsBySeverity(std::ostream& output, const codeqa::rules::ProjectFindingsModel& findings)
+void writeFindingsBySeverity(
+    std::ostream& output, const codeqa::rules::ProjectFindingsModel& findings, const std::filesystem::path& rootPath)
 {
     std::vector<LocatedFinding> ordered =
         collectFindingsBySeverity(findings, codeqa::core::DiagnosticSeverity::Error);
@@ -164,14 +171,15 @@ void writeFindingsBySeverity(std::ostream& output, const codeqa::rules::ProjectF
     {
         const codeqa::rules::Finding& finding = *located.finding;
         output << '[' << severityTag(finding.severity) << "] " << finding.ruleId << "  "
-               << located.filePath.generic_string() << ':' << finding.location.line << ':' << finding.location.column
-               << "  " << finding.symbolName << "\n    " << finding.description
+               << relativeDisplayPath(located.filePath, rootPath) << ':' << finding.location.line << ':'
+               << finding.location.column << "  " << finding.symbolName << "\n    " << finding.description
                << " (observed=" << (finding.observedValue.has_value() ? *finding.observedValue : 0)
                << ", limit=" << (finding.limitValue.has_value() ? *finding.limitValue : 0) << ")\n";
     }
 }
 
-void writeFindingsByFile(std::ostream& output, const codeqa::rules::ProjectFindingsModel& findings)
+void writeFindingsByFile(
+    std::ostream& output, const codeqa::rules::ProjectFindingsModel& findings, const std::filesystem::path& rootPath)
 {
     bool any = false;
     for (const codeqa::rules::FileFindingsModel& file : findings.files)
@@ -197,7 +205,7 @@ void writeFindingsByFile(std::ostream& output, const codeqa::rules::ProjectFindi
             continue;
         }
 
-        output << file.path.generic_string() << '\n';
+        output << relativeDisplayPath(file.path, rootPath) << '\n';
 
         for (const codeqa::rules::Finding& finding : file.findings)
         {
@@ -208,7 +216,8 @@ void writeFindingsByFile(std::ostream& output, const codeqa::rules::ProjectFindi
     }
 }
 
-void writeDiagnostics(std::ostream& output, const codeqa::model::ProjectModel& model)
+void writeDiagnostics(
+    std::ostream& output, const codeqa::model::ProjectModel& model, const std::filesystem::path& rootPath)
 {
     bool any = false;
     for (const codeqa::model::FileModel& file : model.files)
@@ -234,7 +243,7 @@ void writeDiagnostics(std::ostream& output, const codeqa::model::ProjectModel& m
             continue;
         }
 
-        output << file.path.generic_string() << '\n';
+        output << relativeDisplayPath(file.path, rootPath) << '\n';
 
         for (const codeqa::core::Diagnostic& diagnostic : file.diagnostics)
         {
@@ -289,9 +298,9 @@ void renderText(
 {
     output << "Code Quality Analysis Report\n=============================\n\n";
     writeSummary(output, model, metrics, findings);
-    writeFindingsBySeverity(output, findings);
-    writeFindingsByFile(output, findings);
-    writeDiagnostics(output, model);
+    writeFindingsBySeverity(output, findings, model.rootPath);
+    writeFindingsByFile(output, findings, model.rootPath);
+    writeDiagnostics(output, model, model.rootPath);
     writeResult(output, findings);
 }
 

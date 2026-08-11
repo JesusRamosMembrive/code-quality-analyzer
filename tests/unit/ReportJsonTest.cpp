@@ -4,6 +4,7 @@
 #include "codeqa/report/ReportJson.h"
 
 #include <filesystem>
+#include <stdexcept>
 
 TEST_CASE("toReportJson wraps each file's symbols with its metrics and findings, plus schema metadata")
 {
@@ -87,4 +88,26 @@ TEST_CASE("toReportJson serializes an absent observedValue/limitValue as null")
 
     CHECK(document.at("files")[0].at("findings")[0].at("observedValue").is_null());
     CHECK(document.at("files")[0].at("findings")[0].at("limitValue").is_null());
+}
+
+TEST_CASE("toReportJson throws when metrics or findings are not index-aligned with model.files")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = std::filesystem::path{"project"};
+    codeqa::model::FileModel file;
+    file.path = model.rootPath / "src" / "sample.cpp";
+    model.files.push_back(file);
+
+    // metrics.files is left empty, so its size (0) mismatches model.files.size() (1).
+    codeqa::metrics::ProjectMetricsModel metrics;
+
+    codeqa::rules::ProjectFindingsModel findings;
+    codeqa::rules::FileFindingsModel fileFindings;
+    fileFindings.path = file.path;
+    findings.files.push_back(fileFindings);
+
+    auto callToReportJson = [&]() {
+        (void)codeqa::report::toReportJson(model, metrics, findings, codeqa::config::defaultConfig(), "0.0.0");
+    };
+    CHECK_THROWS_AS(callToReportJson(), std::invalid_argument);
 }

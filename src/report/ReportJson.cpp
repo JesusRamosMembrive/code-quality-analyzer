@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <stdexcept>
 
 namespace codeqa::report
 {
@@ -72,6 +73,11 @@ nlohmann::json toReportJson(
     const codeqa::config::ProjectConfig& config,
     const std::string& toolVersion)
 {
+    if (metrics.files.size() != model.files.size() || findings.files.size() != model.files.size())
+    {
+        throw std::invalid_argument("toReportJson: model/metrics/findings must be index-aligned.");
+    }
+
     Json document;
     document["schemaVersion"] = 1;
     document["metadata"] =

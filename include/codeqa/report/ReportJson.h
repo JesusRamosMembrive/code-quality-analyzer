@@ -12,6 +12,10 @@
 namespace codeqa::report
 {
 
+/// metrics and findings must be index-aligned with model: metrics.files.size() and
+/// findings.files.size() must both equal model.files.size(), with entry i of each vector
+/// describing the same file, in the same order. Violating this precondition throws
+/// std::invalid_argument.
 [[nodiscard]] nlohmann::json toReportJson(
     const codeqa::model::ProjectModel& model,
     const codeqa::metrics::ProjectMetricsModel& metrics,

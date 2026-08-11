@@ -32,7 +32,7 @@ TEST_CASE("renderText with no diagnostics or findings reports zero and omits tho
     codeqa::model::ProjectModel model;
     model.rootPath = "project";
     codeqa::model::FileModel file;
-    file.path = "src/clean.cpp";
+    file.path = model.rootPath / "src" / "clean.cpp";
     file.language = codeqa::core::Language::Cpp;
     file.state = codeqa::model::AnalysisState::Complete;
     model.files.push_back(file);
@@ -65,10 +65,10 @@ TEST_CASE("renderText lists findings by severity with errors before warnings, th
     codeqa::model::ProjectModel model;
     model.rootPath = "project";
     codeqa::model::FileModel fileA;
-    fileA.path = "src/a.cpp";
+    fileA.path = model.rootPath / "src" / "a.cpp";
     fileA.language = codeqa::core::Language::Cpp;
     codeqa::model::FileModel fileB;
-    fileB.path = "src/b.cpp";
+    fileB.path = model.rootPath / "src" / "b.cpp";
     fileB.language = codeqa::core::Language::Cpp;
     model.files.push_back(fileA);
     model.files.push_back(fileB);
@@ -118,7 +118,7 @@ TEST_CASE("renderText lists diagnostics grouped by file")
     codeqa::model::ProjectModel model;
     model.rootPath = "project";
     codeqa::model::FileModel file;
-    file.path = "src/broken.cpp";
+    file.path = model.rootPath / "src" / "broken.cpp";
     file.language = codeqa::core::Language::Cpp;
     codeqa::core::Diagnostic diagnostic;
     diagnostic.code = "PARSE001";
