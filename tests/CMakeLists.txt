@@ -42,6 +42,7 @@ add_executable(codeqa_tests
     unit/RunAnalysisTest.cpp
     unit/TextReportTest.cpp
     unit/FileJsonTest.cpp
+    unit/ReportJsonTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE

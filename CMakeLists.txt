@@ -111,6 +111,7 @@ add_library(codeqa_core STATIC
     src/application/RunAnalysis.cpp
     src/report/TextReport.cpp
     src/report/FileJson.cpp
+    src/report/ReportJson.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
