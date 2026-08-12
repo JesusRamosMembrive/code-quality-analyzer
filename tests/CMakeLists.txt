@@ -46,6 +46,7 @@ add_executable(codeqa_tests
     unit/ReportJsonTest.cpp
     unit/HistoryTest.cpp
     unit/SaveSnapshotTest.cpp
+    unit/ListSnapshotsTest.cpp
 )
 
 target_include_directories(codeqa_tests PRIVATE
