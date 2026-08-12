@@ -611,3 +611,99 @@ TEST_CASE("--help documents that analyze saves and compares snapshots automatica
 
     CHECK(result.output.find(".codeqa/snapshots") != std::string::npos);
 }
+
+TEST_CASE("snapshot without a subcommand returns CLI013")
+{
+    const RunResult result = run({"snapshot"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI013") != std::string::npos);
+}
+
+TEST_CASE("snapshot with an unknown subcommand returns CLI014")
+{
+    const RunResult result = run({"snapshot", "delete"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI014") != std::string::npos);
+}
+
+TEST_CASE("snapshot list without a path returns CLI002")
+{
+    const RunResult result = run({"snapshot", "list"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI002") != std::string::npos);
+}
+
+TEST_CASE("snapshot list with a nonexistent path returns CLI003")
+{
+    const RunResult result = run({"snapshot", "list", "this/path/does/not/exist"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI003") != std::string::npos);
+}
+
+TEST_CASE("snapshot show without a timestamp returns CLI015")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+
+    const RunResult result = run({"snapshot", "show", root.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI015") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("snapshot show with an unknown timestamp returns CLI016")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+
+    const RunResult result = run({"snapshot", "show", root.string(), "20000101T000000Z"});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI016") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("snapshot list prints the timestamps saved by analyze")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+    run({"analyze", root.string()});
+
+    const RunResult result = run({"snapshot", "list", root.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    const std::string firstLine = result.output.substr(0, result.output.find('\n'));
+    CHECK(firstLine.size() == 16); // YYYYMMDDTHHMMSSZ
+    CHECK(result.output.find('\n') == firstLine.size());
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("snapshot show prints the exact JSON of a saved snapshot")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+    run({"analyze", root.string()});
+
+    const RunResult listResult = run({"snapshot", "list", root.string()});
+    const std::string timestamp = listResult.output.substr(0, listResult.output.find('\n'));
+
+    const RunResult showResult = run({"snapshot", "show", root.string(), timestamp});
+
+    CHECK(showResult.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    const nlohmann::json snapshot = nlohmann::json::parse(showResult.output);
+    CHECK(snapshot.at("schemaVersion").get<int>() == 1);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("--help documents the snapshot subcommand")
+{
+    const RunResult result = run({"--help"});
+
+    CHECK(result.output.find("codeqa snapshot list") != std::string::npos);
+    CHECK(result.output.find("codeqa snapshot show") != std::string::npos);
+}

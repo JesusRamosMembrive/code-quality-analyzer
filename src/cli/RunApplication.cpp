@@ -56,6 +56,8 @@ void printHelp(std::ostream& output)
               "  codeqa parse <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
               "  codeqa analyze <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
               "                        [--config <path>] [--format text|json] [--output <file>]\n"
+              "  codeqa snapshot list <path>\n"
+              "  codeqa snapshot show <path> <timestamp>\n"
               "\n"
               "Options:\n"
               "  -h, --help       Show this help.\n"
@@ -80,7 +82,10 @@ void printHelp(std::ostream& output)
               "                                       codeqa.json file over the defaults.\n"
               "      --format text|json               Report format (default: text).\n"
               "      --output <file>                  Write the report to a file instead of\n"
-              "                                        stdout.\n";
+              "                                        stdout.\n"
+              "  snapshot list <path>               List saved snapshot timestamps for <path>,\n"
+              "                                      oldest first.\n"
+              "  snapshot show <path> <timestamp>   Print the JSON of one saved snapshot.\n";
 }
 
 void printVersion(std::ostream& output)
@@ -705,6 +710,114 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
     return static_cast<int>(ExitCode::Success);
 }
 
+struct SnapshotArguments
+{
+    std::string verb;
+    std::filesystem::path path;
+    std::optional<std::string> timestamp;
+};
+
+struct SnapshotArgumentsOutcome
+{
+    std::optional<SnapshotArguments> arguments;
+    int exitCode{static_cast<int>(ExitCode::Success)};
+};
+
+SnapshotArgumentsOutcome parseSnapshotArguments(
+    const std::vector<std::string>& arguments, std::ostream& errorOutput)
+{
+    if (arguments.size() < 2)
+    {
+        errorOutput << "Error [CLI013]: Missing subcommand ('list' or 'show') for 'snapshot'.\n"
+                       "Use 'codeqa --help' for usage.\n";
+        return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+    }
+
+    const std::string& verb = arguments[1];
+
+    if (verb != "list" && verb != "show")
+    {
+        errorOutput << "Error [CLI014]: Unknown snapshot subcommand '" << verb
+                       << "'. Expected 'list' or 'show'.\n";
+        return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+    }
+
+    if (arguments.size() < 3)
+    {
+        errorOutput << "Error [CLI002]: Missing required argument <path> for 'snapshot " << verb << "'.\n"
+                       "Use 'codeqa --help' for usage.\n";
+        return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+    }
+
+    const std::filesystem::path path{arguments[2]};
+
+    std::error_code existsError;
+    if (!std::filesystem::is_directory(path, existsError))
+    {
+        errorOutput << "Error [CLI003]: Path '" << path.string() << "' does not exist or is not a directory.\n";
+        return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+    }
+
+    std::optional<std::string> timestamp;
+
+    if (verb == "show")
+    {
+        if (arguments.size() < 4)
+        {
+            errorOutput << "Error [CLI015]: Missing required argument <timestamp> for 'snapshot show'.\n";
+            return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+        }
+
+        timestamp = arguments[3];
+    }
+
+    const std::size_t expectedArgumentCount = (verb == "show") ? 4 : 3;
+
+    if (arguments.size() > expectedArgumentCount)
+    {
+        errorOutput << "Error [CLI005]: Unexpected argument '" << arguments[expectedArgumentCount] << "'.\n";
+        return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+    }
+
+    return SnapshotArgumentsOutcome{
+        SnapshotArguments{verb, path, timestamp}, static_cast<int>(ExitCode::Success)};
+}
+
+int runSnapshot(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
+{
+    const SnapshotArgumentsOutcome outcome = parseSnapshotArguments(arguments, errorOutput);
+
+    if (!outcome.arguments.has_value())
+    {
+        return outcome.exitCode;
+    }
+
+    const SnapshotArguments& parsedArguments = *outcome.arguments;
+
+    if (parsedArguments.verb == "list")
+    {
+        for (const std::string& timestamp : codeqa::application::ListSnapshots{}.execute(parsedArguments.path))
+        {
+            output << timestamp << '\n';
+        }
+
+        return static_cast<int>(ExitCode::Success);
+    }
+
+    const std::optional<nlohmann::json> snapshot =
+        codeqa::application::LoadSnapshot{}.execute(parsedArguments.path, *parsedArguments.timestamp);
+
+    if (!snapshot.has_value())
+    {
+        errorOutput << "Error [CLI016]: Snapshot '" << *parsedArguments.timestamp << "' not found for '"
+                       << parsedArguments.path.string() << "'.\n";
+        return static_cast<int>(ExitCode::InvalidArguments);
+    }
+
+    output << snapshot->dump(2) << '\n';
+    return static_cast<int>(ExitCode::Success);
+}
+
 } // namespace
 
 int runApplication(
@@ -745,6 +858,11 @@ int runApplication(
     if (firstArgument == "analyze")
     {
         return runAnalyze(arguments, output, errorOutput);
+    }
+
+    if (firstArgument == "snapshot")
+    {
+        return runSnapshot(arguments, output, errorOutput);
     }
 
     errorOutput << "Error [CLI001]: Unknown option '" << firstArgument << "'.\n"
