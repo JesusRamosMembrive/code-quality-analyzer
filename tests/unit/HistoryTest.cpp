@@ -46,7 +46,10 @@ TEST_CASE("extractFindingKeys from JSON throws on a snapshot missing the files a
 {
     const nlohmann::json malformed = nlohmann::json::object();
 
-    CHECK_THROWS_AS(codeqa::history::extractFindingKeys(malformed), nlohmann::json::exception);
+    auto callExtractFindingKeys = [&]() {
+        (void)codeqa::history::extractFindingKeys(malformed);
+    };
+    CHECK_THROWS_AS(callExtractFindingKeys(), nlohmann::json::exception);
 }
 
 TEST_CASE(
