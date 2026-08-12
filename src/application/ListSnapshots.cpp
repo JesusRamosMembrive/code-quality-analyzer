@@ -17,12 +17,33 @@ std::vector<std::string> ListSnapshots::execute(const std::filesystem::path& roo
         return timestamps;
     }
 
-    for (const std::filesystem::directory_entry& entry :
-         std::filesystem::directory_iterator(snapshotsDirectory))
+    std::error_code constructionError;
+    std::filesystem::directory_iterator it(snapshotsDirectory, constructionError);
+    const std::filesystem::directory_iterator end;
+
+    if (constructionError)
     {
-        if (entry.is_regular_file() && entry.path().extension() == ".json")
+        return timestamps;
+    }
+
+    while (it != end)
+    {
+        const std::filesystem::directory_entry entry = *it;
+
+        std::error_code typeError;
+        const bool isRegularFile = entry.is_regular_file(typeError);
+
+        if (!typeError && isRegularFile && entry.path().extension() == ".json")
         {
             timestamps.push_back(entry.path().stem().string());
+        }
+
+        std::error_code incrementError;
+        it.increment(incrementError);
+
+        if (incrementError)
+        {
+            break;
         }
     }
 
