@@ -138,9 +138,11 @@ namespace codeqa::history
 using FindingKey = std::tuple<std::string, std::string, std::string>;
 using FindingKeySet = std::set<FindingKey>;
 
-/// For the just-computed current run (findings still in memory).
-[[nodiscard]] FindingKeySet extractFindingKeys(
-    const codeqa::rules::ProjectFindingsModel& findings, const std::filesystem::path& rootPath);
+/// For the just-computed current run (findings still in memory). Relativizes each
+/// FileFindingsModel::path against findings.rootPath (ProjectFindingsModel already carries
+/// it -- ApplyRules::execute sets it from ProjectModel::rootPath -- no separate parameter
+/// needed).
+[[nodiscard]] FindingKeySet extractFindingKeys(const codeqa::rules::ProjectFindingsModel& findings);
 
 /// For a previous run loaded back from a snapshot file. Paths inside snapshotReport are
 /// already relative (toReportJson relativizes them at save time).
@@ -257,7 +259,7 @@ Cambios sobre el `runAnalyze` de Fase 9 — sin flags nuevos, sin cambios en
    elegido.
 3. `timestamps = ListSnapshots{}.execute(path)`. Si no está vacío:
    `previous = LoadSnapshot{}.execute(path, timestamps.back())`.
-   - Si `previous` tiene valor: `comparison = compareSnapshots(extractFindingKeys(result.findings, path), extractFindingKeys(*previous))`.
+   - Si `previous` tiene valor: `comparison = compareSnapshots(extractFindingKeys(result.findings), extractFindingKeys(*previous))`.
    - Si no (`nullopt`, snapshot corrupto o no legible): warning a
      `errorOutput` (`"Warning: previous snapshot '<ts>' could not be read; skipping comparison.\n"`)
      y se sigue exactamente como si no hubiera anterior.
