@@ -9,6 +9,13 @@ usa el orden de magnitud de 100 ejemplos revisados por regla) — nunca un
 umbral numérico automático. Cada fila que cambia de `experimental` a
 `stable` agrega la fecha y qué informe la respalda.
 
+Ya existen datos reales, aunque la muestra sea chica e informal: ver
+`sqlite.ledger.json` y `fmt.ledger.json` en este mismo directorio, y correr
+`GenerateValidationReport.cmake` sobre ambos para los números actuales
+(ver `VALIDATION-METHODOLOGY.md` §5). `signature.consecutive-booleans` no
+tiene todavía ningún ejemplo real en los ledgers — la regla no disparó en
+ninguno de los dos proyectos muestreados hasta ahora.
+
 | Regla | Estado | Desde | Informe que respalda la decisión |
 |---|---|---|---|
 | `size.function-length` | `experimental` | — | — |

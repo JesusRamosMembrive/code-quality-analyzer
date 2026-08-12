@@ -9,6 +9,10 @@ No forman parte de la suite automatizada. Los casos diseñados a propósito vive
 en el corpus (`tests/corpus/`); estos proyectos aportan lo que ningún fixture
 puede aportar: código que nadie escribió pensando en este analizador.
 
+El proceso que revisa hallazgos del analizador contra estos proyectos y
+produce el informe de precisión por regla está en
+`tests/corpus/VALIDATION-METHODOLOGY.md`.
+
 ## SQLite (amalgamación)
 
 | Campo | Valor |

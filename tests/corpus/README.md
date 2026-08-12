@@ -13,8 +13,10 @@ de este directorio prueban la extracción estructural de cada archivo fuente.
 | `classes/` | Clases, structs, enums, namespaces y herencia sintáctica |
 | `parameters/` | Valores por defecto, referencias y punteros |
 | `complexity/`, `nesting/` | Construcciones que la Fase 6 medirá |
+| `size/` | Construcciones de tamaño excesivo que la Fase 11 mide |
 | `malformed/` | Fuentes rotas con diagnósticos estables |
 | `mixed/` | Combinaciones de varias categorías |
+| `validation/` | Ledgers de validación contra proyectos reales (Fase 11), fuera de la suite automatizada |
 
 ## Esquema de `<nombre>.parsing.json`
 
@@ -143,10 +145,10 @@ cubiertos por el `.parsing.json` hermano). Los prototipos no tienen entrada:
 
 ## Hallazgos (Fase 7)
 
-Los directorios `nesting/` y `parameters/` tienen además un archivo
-hermano `<nombre>.findings.json`, opcional por fixture — solo se añade
-donde alguna función realmente cruza un umbral por defecto. Cada uno
-describe, en orden, los hallazgos esperados:
+Los directorios `complexity/`, `nesting/`, `parameters/` y `size/` tienen
+además un archivo hermano `<nombre>.findings.json`, opcional por fixture —
+solo se añade donde alguna función realmente cruza un umbral por defecto.
+Cada uno describe, en orden, los hallazgos esperados:
 
 ```json
 {
@@ -166,9 +168,11 @@ describe, en orden, los hallazgos esperados:
 El runner (`tests/unit/CorpusFindingsTest.cpp`) compara con igualdad
 exacta, incluida la ubicación. Los umbrales por defecto de las 8 reglas
 están documentados en
-`docs/superpowers/specs/2026-08-09-fase-7-motor-reglas-design.md` §6 —
-ninguno está validado contra proyectos reales todavía (trabajo de la Fase
-11).
+`docs/superpowers/specs/2026-08-09-fase-7-motor-reglas-design.md` §6.
+Su validación contra proyectos reales (Fase 11) vive en
+`tests/corpus/validation/RULE-STABILITY.md`, respaldada por los ledgers
+`tests/corpus/validation/sqlite.ledger.json` y
+`tests/corpus/validation/fmt.ledger.json`.
 
 ## Integridad del corpus
 
