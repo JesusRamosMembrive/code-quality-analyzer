@@ -16,15 +16,18 @@ namespace
 std::string formatTimestamp(std::chrono::system_clock::time_point now)
 {
     const std::time_t time = std::chrono::system_clock::to_time_t(now);
-    std::tm utcTm = {};
-#ifdef _WIN32
-    gmtime_s(&utcTm, &time);
-#else
-    gmtime_r(&time, &utcTm);
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+    const std::tm* utc = std::gmtime(&time);
+#ifdef _MSC_VER
+#pragma warning(pop)
 #endif
 
     std::ostringstream stream;
-    stream << std::put_time(&utcTm, "%Y%m%dT%H%M%SZ");
+    stream << std::put_time(utc, "%Y%m%dT%H%M%SZ");
     return stream.str();
 }
 
