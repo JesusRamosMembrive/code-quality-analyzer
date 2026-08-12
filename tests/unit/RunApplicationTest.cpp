@@ -66,6 +66,34 @@ std::filesystem::path makeTempAnalyzeRoot()
     return root;
 }
 
+std::filesystem::path makeTempSnapshotRoot()
+{
+    const std::filesystem::path root =
+        std::filesystem::temp_directory_path() / "codeqa_run_application_snapshot_test";
+
+    std::filesystem::remove_all(root);
+    std::filesystem::create_directories(root);
+    std::ofstream(root / "sample.c")
+        << "int classify(int a, int b, int c, int d, int e)\n"
+           "{\n"
+           "    return a + b + c + d + e;\n"
+           "}\n";
+
+    return root;
+}
+
+void rewriteSnapshotSample(const std::filesystem::path& root)
+{
+    std::ofstream(root / "sample.c")
+        << "int classify(int a, int b)\n"
+           "{\n"
+           "    if (a == 0) { return 0; }\n"
+           "    if (a == 1) { return 1; }\n"
+           "    if (a == 2) { return 2; }\n"
+           "    return b;\n"
+           "}\n";
+}
+
 } // namespace
 
 TEST_CASE("--help prints usage and returns success")
@@ -482,4 +510,104 @@ TEST_CASE("analyze: a --lang-override wins over the same pattern's --config head
         }
     }
     CHECK(found);
+}
+
+TEST_CASE("analyze's first run has no previous snapshot to compare against")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+
+    const RunResult result = run({"analyze", root.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find(" new, ") == std::string::npos);
+    CHECK(result.errorOutput.empty());
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("analyze saves a snapshot under <path>/.codeqa/snapshots")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+
+    const RunResult result = run({"analyze", root.string()});
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+
+    const std::filesystem::path snapshotsDir = root / ".codeqa" / "snapshots";
+    REQUIRE(std::filesystem::is_directory(snapshotsDir));
+
+    std::size_t fileCount = 0;
+    std::filesystem::path savedFile;
+    for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(snapshotsDir))
+    {
+        ++fileCount;
+        savedFile = entry.path();
+    }
+    CHECK(fileCount == 1);
+
+    std::ifstream savedStream(savedFile);
+    const nlohmann::json saved = nlohmann::json::parse(savedStream);
+    CHECK(saved.at("schemaVersion").get<int>() == 1);
+    savedStream.close(); // Windows can't remove_all() over a still-open file handle.
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("analyze's second run against an unchanged project reports the finding as existing")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+
+    run({"analyze", root.string()});
+    const RunResult second = run({"analyze", root.string()});
+
+    CHECK(second.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(second.output.find("Findings: 0 new, 1 existing, 0 resolved.") != std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("analyze's second run after a real code change reports one new and one resolved finding")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+
+    run({"analyze", root.string()});
+    rewriteSnapshotSample(root);
+    const RunResult second = run({"analyze", root.string(), "--format", "json"});
+
+    CHECK(second.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    const nlohmann::json report = nlohmann::json::parse(second.output);
+    REQUIRE(report.contains("comparison"));
+    CHECK(report.at("comparison").at("new").get<int>() == 1);
+    CHECK(report.at("comparison").at("existing").get<int>() == 0);
+    CHECK(report.at("comparison").at("resolved").get<int>() == 1);
+    CHECK_FALSE(report.at("comparison").at("previousTimestamp").get<std::string>().empty());
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("analyze warns and skips comparison when the previous snapshot is corrupt")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+
+    run({"analyze", root.string()});
+
+    const std::filesystem::path snapshotsDir = root / ".codeqa" / "snapshots";
+    for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(snapshotsDir))
+    {
+        std::ofstream(entry.path()) << "{ not json";
+    }
+
+    const RunResult second = run({"analyze", root.string()});
+
+    CHECK(second.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(second.errorOutput.find("could not be read") != std::string::npos);
+    CHECK(second.output.find(" new, ") == std::string::npos);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("--help documents that analyze saves and compares snapshots automatically")
+{
+    const RunResult result = run({"--help"});
+
+    CHECK(result.output.find(".codeqa/snapshots") != std::string::npos);
 }

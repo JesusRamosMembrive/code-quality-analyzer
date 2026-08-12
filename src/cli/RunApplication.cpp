@@ -6,6 +6,9 @@
 #include "codeqa/application/DiscoverProjectSources.h"
 #include "codeqa/application/GetApplicationInfo.h"
 #include "codeqa/application/LoadProjectConfig.h"
+#include "codeqa/application/ListSnapshots.h"
+#include "codeqa/application/LoadSnapshot.h"
+#include "codeqa/application/SaveSnapshot.h"
 #include "codeqa/application/RunAnalysis.h"
 #include "codeqa/cli/ExitCode.h"
 #include "codeqa/config/ConfigModels.h"
@@ -20,6 +23,7 @@
 #include "codeqa/frontend/SelectGrammar.h"
 #include "codeqa/frontend/StructuralExtractor.h"
 #include "codeqa/frontend/TreeSitterParser.h"
+#include "codeqa/history/CompareSnapshots.h"
 #include "codeqa/infrastructure/DiscoveredFile.h"
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/infrastructure/DiscoveryResult.h"
@@ -68,7 +72,10 @@ void printHelp(std::ostream& output)
               "                                       <pattern> (<lang> is 'c' or 'cpp';\n"
               "                                       repeatable, last match wins).\n"
               "  analyze <path>                     Run the full analysis pipeline (metrics +\n"
-              "                                      rules) and print a report.\n"
+              "                                      rules) and print a report. Also saves a\n"
+              "                                      snapshot under <path>/.codeqa/snapshots/\n"
+              "                                      and compares it against the previous one\n"
+              "                                      automatically.\n"
               "      --config <path>                 Merge rule/language overrides from a\n"
               "                                       codeqa.json file over the defaults.\n"
               "      --format text|json               Report format (default: text).\n"
@@ -610,6 +617,11 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
 
     const codeqa::application::RunAnalysisResult result = codeqa::application::RunAnalysis{}.execute(request);
 
+    const codeqa::application::GetApplicationInfo getApplicationInfo;
+    const std::string toolVersion = getApplicationInfo.execute().version;
+    const nlohmann::json reportJson =
+        codeqa::report::toReportJson(result.model, result.metrics, result.findings, config, toolVersion);
+
     std::ofstream outputFile;
     std::ostream* destination = &output;
 
@@ -627,17 +639,67 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
         destination = &outputFile;
     }
 
+    const std::vector<std::string> previousSnapshots =
+        codeqa::application::ListSnapshots{}.execute(parsedArguments.path);
+    std::optional<codeqa::history::SnapshotComparison> comparison;
+    std::string previousTimestamp;
+
+    if (!previousSnapshots.empty())
+    {
+        previousTimestamp = previousSnapshots.back();
+        const std::optional<nlohmann::json> previousReport =
+            codeqa::application::LoadSnapshot{}.execute(parsedArguments.path, previousTimestamp);
+
+        if (!previousReport.has_value())
+        {
+            errorOutput << "Warning: previous snapshot '" << previousTimestamp
+                           << "' could not be read; skipping comparison.\n";
+        }
+        else
+        {
+            try
+            {
+                comparison = codeqa::history::compareSnapshots(
+                    codeqa::history::extractFindingKeys(result.findings),
+                    codeqa::history::extractFindingKeys(*previousReport));
+            }
+            catch (const nlohmann::json::exception&)
+            {
+                errorOutput << "Warning: previous snapshot '" << previousTimestamp
+                               << "' has an unexpected shape; skipping comparison.\n";
+            }
+        }
+    }
+
     if (parsedArguments.format == "json")
     {
-        const codeqa::application::GetApplicationInfo getApplicationInfo;
-        const std::string toolVersion = getApplicationInfo.execute().version;
-        const nlohmann::json report =
-            codeqa::report::toReportJson(result.model, result.metrics, result.findings, config, toolVersion);
-        *destination << report.dump(2) << '\n';
+        nlohmann::json displayJson = reportJson;
+
+        if (comparison.has_value())
+        {
+            displayJson["comparison"] = {
+                {"previousTimestamp", previousTimestamp},
+                {"new", comparison->newCount},
+                {"existing", comparison->existingCount},
+                {"resolved", comparison->resolvedCount}};
+        }
+
+        *destination << displayJson.dump(2) << '\n';
     }
     else
     {
         codeqa::report::renderText(*destination, result.model, result.metrics, result.findings);
+
+        if (comparison.has_value())
+        {
+            *destination << "\nFindings: " << comparison->newCount << " new, " << comparison->existingCount
+                         << " existing, " << comparison->resolvedCount << " resolved.\n";
+        }
+    }
+
+    if (!codeqa::application::SaveSnapshot{}.execute(parsedArguments.path, reportJson).has_value())
+    {
+        errorOutput << "Warning: could not save snapshot.\n";
     }
 
     return static_cast<int>(ExitCode::Success);
