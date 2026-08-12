@@ -1,6 +1,8 @@
 {
   "project": "sample",
   "projectVersion": "0.0.0",
+  "toolVersion": "0.1.0",
+  "analyzedAt": "2026-01-01",
   "findings": [
     {"ruleId": "complexity.cyclomatic", "file": "a.cpp", "symbolName": "f1", "location": {"line": 1, "column": 1}, "severity": "warning", "observedValue": 12, "limitValue": 10, "proposal": {"verdict": "accepted", "by": "agent", "rationale": "real complexity"}, "decision": {"verdict": "accepted", "by": "human", "date": "2026-01-01", "notes": ""}},
     {"ruleId": "complexity.cyclomatic", "file": "a.cpp", "symbolName": "f2", "location": {"line": 10, "column": 1}, "severity": "warning", "observedValue": 11, "limitValue": 10, "proposal": {"verdict": "accepted", "by": "agent", "rationale": "real complexity"}, "decision": {"verdict": "accepted", "by": "human", "date": "2026-01-01", "notes": ""}},

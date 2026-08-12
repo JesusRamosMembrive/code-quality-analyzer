@@ -1,6 +1,8 @@
 {
   "project": "fmt",
   "projectVersion": "10.2.1",
+  "toolVersion": "0.1.0",
+  "analyzedAt": "2026-08-12",
   "findings": [
     {
       "ruleId": "complexity.cyclomatic",
@@ -137,7 +139,8 @@
         "verdict": "rejected",
         "by": "ramos",
         "date": "2026-08-12",
-        "notes": ""
+        "notes": "",
+        "category": "analyzer-defect"
       }
     },
     {

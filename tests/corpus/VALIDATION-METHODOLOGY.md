@@ -7,6 +7,10 @@ pensado para que alguien que no vivió la sesión original pueda repetir el
 proceso — incluido correrlo más adelante contra un codebase que no puede
 aparecer en este repositorio.
 
+> **Advertencia:** `codeqa analyze` escribe `<path>/.codeqa/snapshots/` dentro
+> del árbol analizado, sin opción para desactivarlo. Tenerlo en cuenta antes
+> de correrlo contra un codebase que no se puede tocar de otra forma.
+
 ## 1. Obtener el proyecto real
 
 Bajar exactamente la versión fijada en `REAL-PROJECTS.md` a un directorio
@@ -50,6 +54,8 @@ Cada hallazgo revisado se agrega a `tests/corpus/validation/<proyecto>.ledger.js
 {
   "project": "sqlite",
   "projectVersion": "3.46.0",
+  "toolVersion": "0.1.0",
+  "analyzedAt": "2026-08-12",
   "findings": [
     {
       "ruleId": "complexity.cyclomatic",
@@ -68,12 +74,35 @@ Cada hallazgo revisado se agrega a `tests/corpus/validation/<proyecto>.ledger.js
         "verdict": "accepted",
         "by": "human",
         "date": "2026-08-12",
-        "notes": ""
+        "notes": "",
+        "category": "analyzer-defect"
       }
     }
   ]
 }
 ```
+
+`toolVersion` es el string de `codeqa --version` que produjo estos hallazgos,
+y `analyzedAt` es la fecha (`YYYY-MM-DD`) en que corrió `codeqa analyze` —
+sin estos dos campos, datos acumulados a lo largo del tiempo podrían mezclar
+corridas de versiones incompatibles del analizador sin forma de notarlo.
+
+`decision.category` es opcional. El valor `"analyzer-defect"` marca un
+rechazo que ocurre porque `codeqa` calculó un valor incorrecto (un bug de la
+herramienta), no porque la regla sea imprecisa como juicio de diseño; si el
+campo está ausente, el rechazo/aceptación es un juicio de precisión de regla
+ordinario (el valor implícito por defecto). Una entrada marcada
+`analyzer-defect` también debería reportarse como bug de `codeqa_core` por
+separado — el ledger deja constancia de que ocurrió, pero no reemplaza
+reportar el bug. `GenerateValidationReport.cmake` no necesita cambios para
+esto: ya ignora los campos que no lee, así que `category` es puramente
+aditivo hoy; una fase futura puede enseñarle al informe a desglosar estas
+entradas por separado cuando haya suficientes datos para que importe.
+
+`decision.by`/`proposal.by` (cuando corresponde a un humano) es un
+identificador humano — un nombre real o nombre de usuario — no
+necesariamente el literal `"human"`; el ejemplo de esquema de arriba solo
+usa ese string como placeholder.
 
 Un hallazgo revisado sin ayuda de agente tiene `proposal.by == "human"` y
 `proposal`/`decision` coinciden. `tests/corpus/validation/*.ledger.json` no
@@ -81,6 +110,8 @@ forma parte de la suite automatizada (`ctest`/`codeqa_tests`) — requiere
 juicio humano, no debería bloquear un build.
 
 ## 5. Generar el informe
+
+El siguiente comando está escrito relativo a la raíz del repositorio:
 
 ```
 cmake "-DCODEQA_LEDGER_FILES=tests/corpus/validation/sqlite.ledger.json;tests/corpus/validation/fmt.ledger.json" -P tests/corpus/GenerateValidationReport.cmake
