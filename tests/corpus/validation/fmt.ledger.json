@@ -1,0 +1,190 @@
+{
+  "project": "fmt",
+  "projectVersion": "10.2.1",
+  "findings": [
+    {
+      "ruleId": "complexity.cyclomatic",
+      "file": "include/fmt/chrono.h",
+      "symbolName": "detail::parse_chrono_format",
+      "location": {
+        "line": 672,
+        "column": 1
+      },
+      "severity": "error",
+      "observedValue": 78,
+      "limitValue": 15,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "Parser de especificadores de formato al estilo strftime: cada case del switch es una única llamada de despacho a un método del handler (on_year, on_full_month, on_dec_month, etc.), sin lógica de rama propia. Complejidad mecánica de tabla de despacho, no orgánica."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "complexity.cyclomatic",
+      "file": "include/fmt/format.h",
+      "symbolName": "write_int_data::parse_float_type_spec",
+      "location": {
+        "line": 2434,
+        "column": 1
+      },
+      "severity": "warning",
+      "observedValue": 10,
+      "limitValue": 10,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "Switch mecánico que mapea presentation_type a float_format/sign, un case por especificador. Nota adicional: el symbolName está mal calificado por un bug de scope del analizador -- parse_float_type_spec es una función libre en namespace detail, no un miembro de write_int_data, cuyo struct ya cerró ~450 líneas antes (línea 1979); el prefijo 'write_int_data::' se filtra a decenas de funciones no relacionadas más adelante en el archivo."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "complexity.nesting",
+      "file": "include/fmt/compile.h",
+      "symbolName": "compile_format_string",
+      "location": {
+        "line": 390,
+        "column": 11
+      },
+      "severity": "error",
+      "observedValue": 8,
+      "limitValue": 5,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "El anidamiento proviene de una cadena de 'if constexpr' para parsear cadenas de formato en tiempo de compilación; son ramas mutuamente excluyentes que el compilador descarta, no anidamiento de control de flujo en tiempo de ejecución. La métrica de anidamiento no distingue hoy 'if constexpr' de un 'if' normal."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "complexity.returns",
+      "file": "include/fmt/printf.h",
+      "symbolName": "detail::parse_printf_presentation_type",
+      "location": {
+        "line": 378,
+        "column": 1
+      },
+      "severity": "error",
+      "observedValue": 16,
+      "limitValue": 6,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "Tabla de mapeo carácter-a-enum implementada como switch con un return de una línea por case (p.ej. 'd'->pt::dec, 'x'->pt::hex_lower); mapeo mecánico sin lógica independiente por rama."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "signature.parameter-count",
+      "file": "include/fmt/format.h",
+      "symbolName": "write_int_data::write_significand",
+      "location": {
+        "line": 2583,
+        "column": 39
+      },
+      "severity": "warning",
+      "observedValue": 6,
+      "limitValue": 4,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "Función libre de formateo numérico de bajo nivel (mal calificada como miembro de write_int_data por el mismo bug de scope del analizador); cada parámetro (iterador de salida, significando, tamaños, separador decimal, agrupación) es independiente y necesario, análogo al caso de constructor tipo builder ya aceptado como falso positivo en el ledger de ejemplo."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "size.function-length",
+      "file": "include/fmt/format.h",
+      "symbolName": "abort_fuzzing_if",
+      "location": {
+        "line": 279,
+        "column": 1
+      },
+      "severity": "error",
+      "observedValue": 574,
+      "limitValue": 90,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "abort_fuzzing_if (líneas 282-287) es una función de 6 líneas. La 'location' del finding (línea 279) apunta a la macro FMT_BEGIN_NAMESPACE que la precede, y el rango calculado se extiende 574 líneas más allá del cuerpo real. Segunda instancia del mismo bug de cálculo de rango bajo directivas de preprocesador ya visto en winWrite (sqlite3.c); no es un problema real de tamaño."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "size.function-length",
+      "file": "include/fmt/format.h",
+      "symbolName": "write_int_data::write_int",
+      "location": {
+        "line": 2080,
+        "column": 1
+      },
+      "severity": "warning",
+      "observedValue": 56,
+      "limitValue": 50,
+      "proposal": {
+        "verdict": "accepted",
+        "by": "agent",
+        "rationale": "Función real (líneas ~2080-2132, ~53 líneas) que formatea enteros con agrupación de dígitos para los cuatro casos de presentación dec/hex/bin/oct; ligeramente por encima del límite pero el tamaño refleja esos cuatro casos, no un artefacto del analizador. (El symbolName sí arrastra el prefijo erróneo 'write_int_data::' por el mismo bug de scope reportado en otros hallazgos de este archivo.)"
+      },
+      "decision": {
+        "verdict": "accepted",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "size.local-variables",
+      "file": "include/fmt/format.h",
+      "symbolName": "write_int_data::format_float",
+      "location": {
+        "line": 3277,
+        "column": 1
+      },
+      "severity": "error",
+      "observedValue": 37,
+      "limitValue": 12,
+      "proposal": {
+        "verdict": "accepted",
+        "by": "agent",
+        "rationale": "format_float es una función libre real de ~309 líneas (confirmado por el finding de size.function-length sobre el mismo símbolo, observedValue=309) que implementa la conversión float-a-string con lógica Dragon4/Grisu, precisión y agrupación; 37 variables locales reflejan la variedad genuina de casos manejados. El symbolName arrastra el prefijo 'write_int_data::' por el mismo bug de scope del analizador."
+      },
+      "decision": {
+        "verdict": "accepted",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    }
+  ]
+}

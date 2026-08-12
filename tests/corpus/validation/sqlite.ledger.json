@@ -1,0 +1,236 @@
+{
+  "project": "sqlite",
+  "projectVersion": "3.46.0",
+  "findings": [
+    {
+      "ruleId": "complexity.cyclomatic",
+      "file": "sqlite3.c",
+      "symbolName": "yy_reduce",
+      "location": {
+        "line": 176092,
+        "column": 1
+      },
+      "severity": "error",
+      "observedValue": 423,
+      "limitValue": 15,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "Función generada por el generador de parsers Lemon: despacha cada regla de reducción de la gramática mediante un switch gigante con un case por regla. La complejidad no proviene de diseño humano sino de la generación automática de código, análogo al caso de dispatch por tabla ya documentado como falso positivo."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "complexity.cyclomatic",
+      "file": "sqlite3.c",
+      "symbolName": "isDate",
+      "location": {
+        "line": 25313,
+        "column": 1
+      },
+      "severity": "error",
+      "observedValue": 15,
+      "limitValue": 15,
+      "proposal": {
+        "verdict": "accepted",
+        "by": "agent",
+        "rationale": "Función escrita a mano que valida y combina múltiples formatos de fecha/hora (numérico, texto, argumentos variables, normalización de YMD); cada rama maneja un caso de entrada genuinamente distinto. Complejidad real, justo en el límite."
+      },
+      "decision": {
+        "verdict": "accepted",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "complexity.condition",
+      "file": "sqlite3.c",
+      "symbolName": "sqlite3OsFileControl",
+      "location": {
+        "line": 26169,
+        "column": 5
+      },
+      "severity": "warning",
+      "observedValue": 3,
+      "limitValue": 3,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "La condición es una lista de exclusión de cuatro códigos de operación (op != A && op != B && ...) formateada un término por línea dentro de un bloque #ifdef SQLITE_TEST; muy legible pese a alcanzar el umbral de tres operadores booleanos."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "complexity.nesting",
+      "file": "sqlite3.c",
+      "symbolName": "rbuObjIterGetIndexWhere",
+      "location": {
+        "line": 220424,
+        "column": 33
+      },
+      "severity": "error",
+      "observedValue": 12,
+      "limitValue": 5,
+      "proposal": {
+        "verdict": "accepted",
+        "by": "agent",
+        "rationale": "Parser manual de una expresión SQL (paréntesis, comillas, corchetes, comentarios de línea y de bloque) dentro de la extensión RBU; el anidamiento profundo refleja la variedad real de casos léxicos que debe reconocer carácter a carácter, no un artefacto de parsing."
+      },
+      "decision": {
+        "verdict": "accepted",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "complexity.returns",
+      "file": "sqlite3.c",
+      "symbolName": "jsonbValidityCheck",
+      "location": {
+        "line": 206165,
+        "column": 1
+      },
+      "severity": "error",
+      "observedValue": 50,
+      "limitValue": 6,
+      "proposal": {
+        "verdict": "accepted",
+        "by": "agent",
+        "rationale": "Validador de JSONB a nivel de bytes con un return distinto por cada punto de fallo, usado para reportar el offset exacto del error. Patrón de guardas defendible, pero 50 salidas en una sola función siguen siendo complejidad real que se beneficiaría de dividirse por tipo de valor (INT, FLOAT, STRING, etc.)."
+      },
+      "decision": {
+        "verdict": "accepted",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "complexity.returns",
+      "file": "sqlite3.c",
+      "symbolName": "parseHhMmSs",
+      "location": {
+        "line": 24422,
+        "column": 1
+      },
+      "severity": "warning",
+      "observedValue": 4,
+      "limitValue": 4,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "Cuatro guardas de parseo típicas en una función corta (~34 líneas); patrón idiomático de manejo de errores en C, fácil de leer pese a tocar justo el umbral de advertencia."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "signature.parameter-count",
+      "file": "sqlite3.c",
+      "symbolName": "sqlite3GenerateConstraintChecks",
+      "location": {
+        "line": 134759,
+        "column": 52
+      },
+      "severity": "error",
+      "observedValue": 13,
+      "limitValue": 7,
+      "proposal": {
+        "verdict": "accepted",
+        "by": "agent",
+        "rationale": "13 parámetros en una función interna de generación de bytecode para INSERT/UPDATE; muy por encima del límite. Es un caso real donde agrupar en un struct de contexto (como sugiere la propia recomendación de la regla) mejoraría la legibilidad."
+      },
+      "decision": {
+        "verdict": "accepted",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "signature.parameter-count",
+      "file": "sqlite3.c",
+      "symbolName": "sqlite3_status64",
+      "location": {
+        "line": 23952,
+        "column": 32
+      },
+      "severity": "warning",
+      "observedValue": 4,
+      "limitValue": 4,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "Es la API pública documentada sqlite3_status64() (op, pCurrent, pHighwater, resetFlag); cambiar su firma rompería compatibilidad binaria con consumidores externos. Cada parámetro es necesario e independiente."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "size.function-length",
+      "file": "sqlite3.c",
+      "symbolName": "winWrite",
+      "location": {
+        "line": 49451,
+        "column": 1
+      },
+      "severity": "error",
+      "observedValue": 19703,
+      "limitValue": 90,
+      "proposal": {
+        "verdict": "rejected",
+        "by": "agent",
+        "rationale": "La función real (líneas 49451-49555) tiene ~105 líneas, no 19703. El patrón '#if ... { #else { #endif' (dos llaves de apertura textuales mutuamente excluyentes según la rama de compilación) confunde el conteo de rango del analizador, que arrastra el 'cierre' de la función cientos de líneas más adelante hasta código no relacionado (cerca de sqlite3WalFrames). Artefacto de parsing bajo preprocesador denso, no un problema real de tamaño de función."
+      },
+      "decision": {
+        "verdict": "rejected",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    },
+    {
+      "ruleId": "size.local-variables",
+      "file": "sqlite3.c",
+      "symbolName": "sqlite3Pragma",
+      "location": {
+        "line": 139124,
+        "column": 1
+      },
+      "severity": "error",
+      "observedValue": 223,
+      "limitValue": 12,
+      "proposal": {
+        "verdict": "accepted",
+        "by": "agent",
+        "rationale": "sqlite3Pragma despacha todos los PRAGMA soportados y mide ~2350 líneas (confirmado por el finding de size.function-length sobre el mismo símbolo, observedValue=2353); cada rama declara sus propias variables locales, así que 223 refleja la variedad real de bloques manejados, no un artefacto de parsing."
+      },
+      "decision": {
+        "verdict": "accepted",
+        "by": "ramos",
+        "date": "2026-08-12",
+        "notes": ""
+      }
+    }
+  ]
+}
