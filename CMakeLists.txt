@@ -112,6 +112,7 @@ add_library(codeqa_core STATIC
     src/report/TextReport.cpp
     src/report/FileJson.cpp
     src/report/ReportJson.cpp
+    src/history/CompareSnapshots.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
