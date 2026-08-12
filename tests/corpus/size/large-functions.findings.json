@@ -1,0 +1,20 @@
+{
+  "findings": [
+    {
+      "symbolName": "longFunction",
+      "ruleId": "size.function-length",
+      "severity": "warning",
+      "observedValue": 53,
+      "limitValue": 50,
+      "location": {"line": 1, "column": 1}
+    },
+    {
+      "symbolName": "manyLocals",
+      "ruleId": "size.local-variables",
+      "severity": "warning",
+      "observedValue": 8,
+      "limitValue": 8,
+      "location": {"line": 55, "column": 1}
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "constructs": ["CPP-FUNC-01", "CTRL-01", "CTRL-07", "CTRL-08"],
+  "functions": [
+    {"name": "manyBranches", "kind": "free", "startLine": 1, "endLine": 43, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false},
+    {"name": "earlyReturns", "kind": "free", "startLine": 45, "endLine": 63, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false},
+    {"name": "inRange", "kind": "free", "startLine": 65, "endLine": 73, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}, {"name": "lower", "passing": "value", "hasDefaultValue": false, "type": "int"}, {"name": "upper", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false}
+  ],
+  "classes": [],
+  "includes": [],
+  "diagnostics": []
+}

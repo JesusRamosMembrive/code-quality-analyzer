@@ -1,0 +1,28 @@
+{
+  "findings": [
+    {
+      "symbolName": "manyBranches",
+      "ruleId": "complexity.cyclomatic",
+      "severity": "warning",
+      "observedValue": 10,
+      "limitValue": 10,
+      "location": {"line": 1, "column": 1}
+    },
+    {
+      "symbolName": "earlyReturns",
+      "ruleId": "complexity.returns",
+      "severity": "warning",
+      "observedValue": 4,
+      "limitValue": 4,
+      "location": {"line": 45, "column": 1}
+    },
+    {
+      "symbolName": "inRange",
+      "ruleId": "complexity.condition",
+      "severity": "warning",
+      "observedValue": 3,
+      "limitValue": 3,
+      "location": {"line": 67, "column": 8}
+    }
+  ]
+}

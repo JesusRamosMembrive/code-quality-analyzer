@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "symbolName": "enableFeatures",
+      "ruleId": "signature.consecutive-booleans",
+      "severity": "warning",
+      "observedValue": 2,
+      "limitValue": 2,
+      "location": {"line": 1, "column": 20}
+    }
+  ]
+}

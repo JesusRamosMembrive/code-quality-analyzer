@@ -111,7 +111,12 @@ const codeqa::rules::FileFindingsModel& fileFindingsNamed(
 
 std::vector<std::filesystem::path> fixturesWithFindings(const std::filesystem::path& corpusRoot)
 {
-    return {corpusRoot / "nesting" / "deep-nesting.cpp", corpusRoot / "parameters" / "cpp-parameters.cpp"};
+    return {
+        corpusRoot / "nesting" / "deep-nesting.cpp",
+        corpusRoot / "parameters" / "cpp-parameters.cpp",
+        corpusRoot / "size" / "large-functions.cpp",
+        corpusRoot / "parameters" / "consecutive-booleans.cpp",
+        corpusRoot / "complexity" / "thresholds.cpp"};
 }
 
 } // namespace

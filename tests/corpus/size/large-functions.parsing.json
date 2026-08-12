@@ -1,0 +1,10 @@
+{
+  "constructs": ["CPP-FUNC-01", "CTRL-08"],
+  "functions": [
+    {"name": "longFunction", "kind": "free", "startLine": 1, "endLine": 53, "parameters": [{"name": "seed", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false},
+    {"name": "manyLocals", "kind": "free", "startLine": 55, "endLine": 66, "parameters": [], "isStatic": false, "isVariadic": false}
+  ],
+  "classes": [],
+  "includes": [],
+  "diagnostics": []
+}

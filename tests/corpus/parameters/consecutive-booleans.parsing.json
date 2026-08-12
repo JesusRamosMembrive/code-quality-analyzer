@@ -1,0 +1,9 @@
+{
+  "constructs": ["CPP-FUNC-01"],
+  "functions": [
+    {"name": "enableFeatures", "kind": "free", "startLine": 1, "endLine": 3, "parameters": [{"name": "verbose", "passing": "value", "hasDefaultValue": false, "type": "bool"}, {"name": "strict", "passing": "value", "hasDefaultValue": false, "type": "bool"}, {"name": "retries", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false}
+  ],
+  "classes": [],
+  "includes": [],
+  "diagnostics": []
+}
