@@ -1,0 +1,12 @@
+{
+  "project": "sample",
+  "projectVersion": "0.0.0",
+  "findings": [
+    {"ruleId": "complexity.cyclomatic", "file": "a.cpp", "symbolName": "f1", "location": {"line": 1, "column": 1}, "severity": "warning", "observedValue": 12, "limitValue": 10, "proposal": {"verdict": "accepted", "by": "agent", "rationale": "real complexity"}, "decision": {"verdict": "accepted", "by": "human", "date": "2026-01-01", "notes": ""}},
+    {"ruleId": "complexity.cyclomatic", "file": "a.cpp", "symbolName": "f2", "location": {"line": 10, "column": 1}, "severity": "warning", "observedValue": 11, "limitValue": 10, "proposal": {"verdict": "accepted", "by": "agent", "rationale": "real complexity"}, "decision": {"verdict": "accepted", "by": "human", "date": "2026-01-01", "notes": ""}},
+    {"ruleId": "complexity.cyclomatic", "file": "a.cpp", "symbolName": "f3", "location": {"line": 20, "column": 1}, "severity": "error", "observedValue": 16, "limitValue": 15, "proposal": {"verdict": "accepted", "by": "agent", "rationale": "real complexity"}, "decision": {"verdict": "accepted", "by": "human", "date": "2026-01-01", "notes": ""}},
+    {"ruleId": "complexity.cyclomatic", "file": "a.cpp", "symbolName": "f4", "location": {"line": 30, "column": 1}, "severity": "warning", "observedValue": 10, "limitValue": 10, "proposal": {"verdict": "rejected", "by": "agent", "rationale": "table-driven dispatch"}, "decision": {"verdict": "rejected", "by": "human", "date": "2026-01-01", "notes": "confirmed: generated dispatch table, not organic complexity"}},
+    {"ruleId": "signature.parameter-count", "file": "b.cpp", "symbolName": "g1", "location": {"line": 1, "column": 10}, "severity": "warning", "observedValue": 5, "limitValue": 4, "proposal": {"verdict": "accepted", "by": "human", "rationale": ""}, "decision": {"verdict": "accepted", "by": "human", "date": "2026-01-01", "notes": ""}},
+    {"ruleId": "signature.parameter-count", "file": "b.cpp", "symbolName": "g2", "location": {"line": 10, "column": 10}, "severity": "warning", "observedValue": 4, "limitValue": 4, "proposal": {"verdict": "rejected", "by": "human", "rationale": ""}, "decision": {"verdict": "rejected", "by": "human", "date": "2026-01-01", "notes": "builder-pattern constructor, each param independently meaningful"}}
+  ]
+}
