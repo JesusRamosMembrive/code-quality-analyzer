@@ -5,7 +5,8 @@
 
 #include <nlohmann/json.hpp>
 
-#include <set>
+#include <cstddef>
+#include <map>
 #include <string>
 #include <tuple>
 
@@ -15,7 +16,12 @@ namespace codeqa::history
 /// (ruleId, symbolName, file path relative to rootPath). No line/column: moving unrelated
 /// code shouldn't make a still-live finding look resolved+new.
 using FindingKey = std::tuple<std::string, std::string, std::string>;
-using FindingKeySet = std::set<FindingKey>;
+
+/// Maps each distinct FindingKey to how many findings share it. A plain set would collapse
+/// e.g. two C++ overloads or two lambdas (both named "<lambda>") that violate the same rule
+/// in the same file into one key -- the map preserves that multiplicity so compareSnapshots
+/// can report the correct new/existing/resolved counts instead of undercounting.
+using FindingKeySet = std::map<FindingKey, std::size_t>;
 
 /// For the just-computed current run (findings still in memory). Relativizes each
 /// FileFindingsModel::path against findings.rootPath (ProjectFindingsModel already carries

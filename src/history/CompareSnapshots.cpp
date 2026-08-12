@@ -1,5 +1,6 @@
 #include "codeqa/history/CompareSnapshots.h"
 
+#include <algorithm>
 #include <filesystem>
 
 namespace codeqa::history
@@ -16,7 +17,7 @@ FindingKeySet extractFindingKeys(const codeqa::rules::ProjectFindingsModel& find
 
         for (const codeqa::rules::Finding& finding : file.findings)
         {
-            keys.emplace(finding.ruleId, finding.symbolName, relativePath);
+            ++keys[FindingKey{finding.ruleId, finding.symbolName, relativePath}];
         }
     }
 
@@ -33,8 +34,8 @@ FindingKeySet extractFindingKeys(const nlohmann::json& snapshotReport)
 
         for (const nlohmann::json& finding : file.at("findings"))
         {
-            keys.emplace(
-                finding.at("ruleId").get<std::string>(), finding.at("symbolName").get<std::string>(), path);
+            ++keys[FindingKey{
+                finding.at("ruleId").get<std::string>(), finding.at("symbolName").get<std::string>(), path}];
         }
     }
 
@@ -45,24 +46,23 @@ SnapshotComparison compareSnapshots(const FindingKeySet& current, const FindingK
 {
     SnapshotComparison result;
 
-    for (const FindingKey& key : current)
+    for (const auto& [key, currentCount] : current)
     {
-        if (previous.count(key) > 0)
-        {
-            ++result.existingCount;
-        }
-        else
-        {
-            ++result.newCount;
-        }
+        const auto previousEntry = previous.find(key);
+        const std::size_t previousCount = previousEntry != previous.end() ? previousEntry->second : 0;
+        const std::size_t matched = std::min(currentCount, previousCount);
+
+        result.existingCount += matched;
+        result.newCount += currentCount - matched;
     }
 
-    for (const FindingKey& key : previous)
+    for (const auto& [key, previousCount] : previous)
     {
-        if (current.count(key) == 0)
-        {
-            ++result.resolvedCount;
-        }
+        const auto currentEntry = current.find(key);
+        const std::size_t currentCount = currentEntry != current.end() ? currentEntry->second : 0;
+        const std::size_t matched = std::min(currentCount, previousCount);
+
+        result.resolvedCount += previousCount - matched;
     }
 
     return result;

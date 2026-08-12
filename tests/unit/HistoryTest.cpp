@@ -20,7 +20,34 @@ TEST_CASE("extractFindingKeys from a ProjectFindingsModel relativizes each file'
     const codeqa::history::FindingKeySet keys = codeqa::history::extractFindingKeys(findings);
 
     REQUIRE(keys.size() == 1);
-    CHECK(*keys.begin() == codeqa::history::FindingKey{"complexity.cyclomatic", "Foo::bar", "src/foo.cpp"});
+    const codeqa::history::FindingKey key{"complexity.cyclomatic", "Foo::bar", "src/foo.cpp"};
+    REQUIRE(keys.count(key) == 1);
+    CHECK(keys.at(key) == 1);
+}
+
+TEST_CASE("extractFindingKeys from a ProjectFindingsModel counts repeated findings sharing the same key")
+{
+    codeqa::rules::ProjectFindingsModel findings;
+    findings.rootPath = std::filesystem::path{"project"};
+
+    codeqa::rules::FileFindingsModel fileFindings;
+    fileFindings.path = findings.rootPath / "src" / "foo.cpp";
+
+    codeqa::rules::Finding overloadOne;
+    overloadOne.ruleId = "signature.parameter-count";
+    overloadOne.symbolName = "process";
+    codeqa::rules::Finding overloadTwo;
+    overloadTwo.ruleId = "signature.parameter-count";
+    overloadTwo.symbolName = "process";
+    fileFindings.findings.push_back(overloadOne);
+    fileFindings.findings.push_back(overloadTwo);
+    findings.files.push_back(fileFindings);
+
+    const codeqa::history::FindingKeySet keys = codeqa::history::extractFindingKeys(findings);
+
+    REQUIRE(keys.size() == 1);
+    const codeqa::history::FindingKey key{"signature.parameter-count", "process", "src/foo.cpp"};
+    CHECK(keys.at(key) == 2);
 }
 
 TEST_CASE("extractFindingKeys from JSON reads ruleId/symbolName/path from a toReportJson-shaped document")
@@ -39,7 +66,9 @@ TEST_CASE("extractFindingKeys from JSON reads ruleId/symbolName/path from a toRe
     const codeqa::history::FindingKeySet keys = codeqa::history::extractFindingKeys(snapshot);
 
     REQUIRE(keys.size() == 1);
-    CHECK(*keys.begin() == codeqa::history::FindingKey{"complexity.cyclomatic", "Foo::bar", "src/foo.cpp"});
+    const codeqa::history::FindingKey key{"complexity.cyclomatic", "Foo::bar", "src/foo.cpp"};
+    REQUIRE(keys.count(key) == 1);
+    CHECK(keys.at(key) == 1);
 }
 
 TEST_CASE("extractFindingKeys from JSON throws on a snapshot missing the files array")
@@ -60,8 +89,8 @@ TEST_CASE(
     const codeqa::history::FindingKey added{"complexity.returns", "Foo::baz", "src/foo.cpp"};
     const codeqa::history::FindingKey removed{"signature.parameter-count", "Foo::qux", "src/foo.cpp"};
 
-    const codeqa::history::FindingKeySet current{shared, added};
-    const codeqa::history::FindingKeySet previous{shared, removed};
+    const codeqa::history::FindingKeySet current{{shared, 1}, {added, 1}};
+    const codeqa::history::FindingKeySet previous{{shared, 1}, {removed, 1}};
 
     const codeqa::history::SnapshotComparison comparison = codeqa::history::compareSnapshots(current, previous);
 
@@ -78,4 +107,18 @@ TEST_CASE("compareSnapshots on two empty sets reports all zero counts")
     CHECK(comparison.newCount == 0);
     CHECK(comparison.existingCount == 0);
     CHECK(comparison.resolvedCount == 0);
+}
+
+TEST_CASE("compareSnapshots resolves only the excess occurrences when multiplicity drops")
+{
+    const codeqa::history::FindingKey key{"signature.parameter-count", "process", "src/foo.cpp"};
+
+    const codeqa::history::FindingKeySet current{{key, 1}};
+    const codeqa::history::FindingKeySet previous{{key, 3}};
+
+    const codeqa::history::SnapshotComparison comparison = codeqa::history::compareSnapshots(current, previous);
+
+    CHECK(comparison.newCount == 0);
+    CHECK(comparison.existingCount == 1);
+    CHECK(comparison.resolvedCount == 2);
 }
