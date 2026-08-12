@@ -15,6 +15,11 @@ if(NOT DEFINED CODEQA_CORPUS_DIR)
     message(FATAL_ERROR "CODEQA_CORPUS_DIR must be defined.")
 endif()
 
+# Standalone `cmake -P` scripts do not inherit policies from the root
+# CMakeLists.txt's `cmake_minimum_required`, so IN_LIST (used below) is not
+# recognized unless it is set explicitly here.
+cmake_policy(SET CMP0057 NEW)
+
 # --- Collect the documented IDs -------------------------------------------
 
 # The ID regex must accept both three-segment IDs (C-FUNC-01, CPP-PARAM-02) and
