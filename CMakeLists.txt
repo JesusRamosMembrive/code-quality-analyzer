@@ -115,6 +115,7 @@ add_library(codeqa_core STATIC
     src/history/CompareSnapshots.cpp
     src/application/SaveSnapshot.cpp
     src/application/ListSnapshots.cpp
+    src/application/LoadSnapshot.cpp
 )
 target_include_directories(codeqa_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
