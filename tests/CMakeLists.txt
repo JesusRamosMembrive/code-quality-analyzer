@@ -170,3 +170,13 @@ add_test(
         "-DCODEQA_EXPECTED_OUTPUT=Precision: 75 %"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckValidationReportOutput.cmake
 )
+
+add_test(
+    NAME codeqa_validation_report_combined_ledgers
+    COMMAND ${CMAKE_COMMAND}
+        "-DCODEQA_CMAKE=${CMAKE_COMMAND}"
+        "-DCODEQA_REPORT_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/corpus/GenerateValidationReport.cmake"
+        "-DCODEQA_LEDGER_FILE=${CMAKE_CURRENT_SOURCE_DIR}/corpus/validation/fixtures/sample.ledger.json$<SEMICOLON>${CMAKE_CURRENT_SOURCE_DIR}/corpus/validation/fixtures/sample2.ledger.json"
+        "-DCODEQA_EXPECTED_OUTPUT=Examples reviewed: 8"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckValidationReportOutput.cmake
+)

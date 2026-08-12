@@ -1,0 +1,12 @@
+{
+  "project": "sample2",
+  "projectVersion": "0.0.0",
+  "toolVersion": "0.1.0",
+  "analyzedAt": "2026-01-01",
+  "findings": [
+    {"ruleId": "complexity.cyclomatic", "file": "c.cpp", "symbolName": "h1", "location": {"line": 1, "column": 1}, "severity": "warning", "observedValue": 12, "limitValue": 10, "proposal": {"verdict": "accepted", "by": "agent", "rationale": "real complexity"}, "decision": {"verdict": "accepted", "by": "human", "date": "2026-01-01", "notes": ""}},
+    {"ruleId": "complexity.cyclomatic", "file": "c.cpp", "symbolName": "h2", "location": {"line": 10, "column": 1}, "severity": "warning", "observedValue": 11, "limitValue": 10, "proposal": {"verdict": "accepted", "by": "agent", "rationale": "real complexity"}, "decision": {"verdict": "accepted", "by": "human", "date": "2026-01-01", "notes": ""}},
+    {"ruleId": "complexity.cyclomatic", "file": "c.cpp", "symbolName": "h3", "location": {"line": 20, "column": 1}, "severity": "error", "observedValue": 16, "limitValue": 15, "proposal": {"verdict": "accepted", "by": "agent", "rationale": "real complexity"}, "decision": {"verdict": "accepted", "by": "human", "date": "2026-01-01", "notes": ""}},
+    {"ruleId": "complexity.cyclomatic", "file": "c.cpp", "symbolName": "h4", "location": {"line": 30, "column": 1}, "severity": "warning", "observedValue": 10, "limitValue": 10, "proposal": {"verdict": "rejected", "by": "agent", "rationale": "table-driven dispatch"}, "decision": {"verdict": "rejected", "by": "human", "date": "2026-01-01", "notes": ""}}
+  ]
+}

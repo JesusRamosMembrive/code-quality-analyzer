@@ -49,7 +49,12 @@ foreach(ledgerFile IN LISTS CODEQA_LEDGER_FILES)
 
         foreach(index RANGE ${lastIndex})
             string(JSON ruleId GET "${ledgerText}" "findings" ${index} "ruleId")
-            string(JSON verdict GET "${ledgerText}" "findings" ${index} "decision" "verdict")
+            string(JSON verdict ERROR_VARIABLE verdictError GET "${ledgerText}" "findings" ${index} "decision" "verdict")
+            if(verdictError)
+                message(FATAL_ERROR
+                    "Ledger '${ledgerFile}' finding ${index} has no 'decision.verdict' "
+                    "(is this a proposals draft, not a finished ledger?): ${verdictError}")
+            endif()
 
             if(NOT verdict STREQUAL "accepted" AND NOT verdict STREQUAL "rejected")
                 message(FATAL_ERROR
