@@ -240,6 +240,45 @@ std::string qualifiedNameFor(
     return qualifiedName + name;
 }
 
+// A FunctionKind::Free extraction is always a real, top-level function_definition -- C/C++ has
+// no such thing as a nested free-function definition. So if one Free function's range contains
+// another Free function's start offset, the containing range is provably corrupted (this is
+// exactly how the real winWrite bug -- SQLite 3.46.0, see the Fase 11 validation ledger --
+// manifests: a preprocessor-conditional brace pattern inflates one function's tree-sitter range
+// until it swallows a later sibling's start). No preprocessor semantics are modeled here; this
+// only compares already-extracted ranges.
+void flagCorruptedFunctionRanges(
+    const std::vector<frontend::FunctionModel>& functions, std::vector<core::Diagnostic>& diagnostics)
+{
+    for (const frontend::FunctionModel& outer : functions)
+    {
+        if (outer.kind != frontend::FunctionKind::Free)
+        {
+            continue;
+        }
+
+        for (const frontend::FunctionModel& inner : functions)
+        {
+            if (&inner == &outer || inner.kind != frontend::FunctionKind::Free)
+            {
+                continue;
+            }
+
+            if (inner.range.begin.offset > outer.range.begin.offset
+                && inner.range.begin.offset < outer.range.end.offset)
+            {
+                core::Diagnostic diagnostic;
+                diagnostic.code = "PARSE004";
+                diagnostic.severity = core::DiagnosticSeverity::Error;
+                diagnostic.message = "Function or type range appears corrupted.";
+                diagnostic.location = outer.range.begin;
+                diagnostics.push_back(diagnostic);
+                break;
+            }
+        }
+    }
+}
+
 SymbolIdentity identityFor(
     const std::string& name,
     const core::SourceRange& range,
@@ -281,6 +320,7 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
     }
 
     model.comments = file.comments;
+    flagCorruptedFunctionRanges(file.functions, model.diagnostics);
 
     for (const frontend::IncludeDependency& dependency : file.includes)
     {

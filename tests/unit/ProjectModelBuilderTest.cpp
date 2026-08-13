@@ -2,6 +2,7 @@
 
 #include "codeqa/model/ProjectModelBuilder.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -468,4 +469,56 @@ TEST_CASE("a Method-kind function is still class-qualified")
     REQUIRE(result.files.size() == 1);
     REQUIRE(result.files[0].callables.size() == 1);
     CHECK(result.files[0].callables[0].symbol.qualifiedName == "Box::open");
+}
+
+TEST_CASE("a Free function whose range swallows another Free function's start gets a PARSE004 diagnostic")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/os_win.c"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::C;
+    sourceFile.grammar = codeqa::frontend::Grammar::C;
+    sourceFile.parsed = true;
+
+    // Simulates the real winWrite bug: a corrupted range (0-19703) that swallows the start of
+    // the next real, correctly-ranged sibling function (winTruncate-equivalent, at 100-176).
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "winWrite", codeqa::frontend::FunctionKind::Free, rangeFor(sourcePath, 0, 19703), {}, false, false});
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "winTruncate", codeqa::frontend::FunctionKind::Free, rangeFor(sourcePath, 100, 176), {}, false, false});
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    const std::vector<codeqa::core::Diagnostic>& diagnostics = result.files[0].diagnostics;
+    const bool hasParse004 = std::any_of(
+        diagnostics.begin(), diagnostics.end(),
+        [](const codeqa::core::Diagnostic& diagnostic) { return diagnostic.code == "PARSE004"; });
+    CHECK(hasParse004);
+}
+
+TEST_CASE("two Free functions with non-overlapping ranges never get a PARSE004 diagnostic")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/clean.c"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::C;
+    sourceFile.grammar = codeqa::frontend::Grammar::C;
+    sourceFile.parsed = true;
+
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "first", codeqa::frontend::FunctionKind::Free, rangeFor(sourcePath, 0, 50), {}, false, false});
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "second", codeqa::frontend::FunctionKind::Free, rangeFor(sourcePath, 50, 100), {}, false, false});
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    CHECK(result.files[0].diagnostics.empty());
 }

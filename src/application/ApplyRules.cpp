@@ -83,7 +83,7 @@ bool overlapsParseError(
 {
     for (const codeqa::core::Diagnostic& diagnostic : diagnostics)
     {
-        if (diagnostic.code != "PARSE001" && diagnostic.code != "PARSE002")
+        if (diagnostic.code != "PARSE001" && diagnostic.code != "PARSE002" && diagnostic.code != "PARSE004")
         {
             continue;
         }
