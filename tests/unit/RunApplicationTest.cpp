@@ -447,7 +447,7 @@ TEST_CASE("analyze with an unwritable --output path returns CLI012")
     CHECK(result.errorOutput.find("CLI012") != std::string::npos);
 }
 
-TEST_CASE("analyze with an invalid --config file forwards the CONFIG error and returns InvalidArguments")
+TEST_CASE("analyze with an invalid --config file forwards the CONFIG error and returns ConfigurationError")
 {
     const std::filesystem::path root = makeTempAnalyzeRoot();
     const std::filesystem::path configPath = root / "codeqa.json";
@@ -455,8 +455,20 @@ TEST_CASE("analyze with an invalid --config file forwards the CONFIG error and r
 
     const RunResult result = run({"analyze", root.string(), "--config", configPath.string()});
 
-    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::ConfigurationError));
     CHECK(result.errorOutput.find("CONFIG001") != std::string::npos);
+}
+
+TEST_CASE("analyze with an invalid qualityGate.minSeverity value returns ConfigurationError")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const std::filesystem::path configPath = root / "codeqa.json";
+    std::ofstream(configPath) << R"({ "qualityGate": { "minSeverity": "critical" } })";
+
+    const RunResult result = run({"analyze", root.string(), "--config", configPath.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::ConfigurationError));
+    CHECK(result.errorOutput.find("CONFIG009") != std::string::npos);
 }
 
 TEST_CASE("analyze with default text format prints a report to stdout")

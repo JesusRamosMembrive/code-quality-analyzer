@@ -598,7 +598,7 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
         if (!configResult.config.has_value())
         {
             errorOutput << *configResult.error << '\n';
-            return static_cast<int>(ExitCode::InvalidArguments);
+            return static_cast<int>(ExitCode::ConfigurationError);
         }
 
         config = *configResult.config;
