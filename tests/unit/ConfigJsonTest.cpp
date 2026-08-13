@@ -211,3 +211,71 @@ TEST_CASE("toJson round-trips header overrides for both C and C++ through parseC
     CHECK(result.config->headerOverrides[1].pattern == "include/cpp_api/**");
     CHECK(result.config->headerOverrides[1].language == codeqa::core::Language::Cpp);
 }
+
+TEST_CASE("parseConfig accepts a document with qualityGate")
+{
+    const std::string text = R"({ "qualityGate": { "minSeverity": "error" } })";
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.config.has_value());
+    CHECK(result.config->qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Error);
+}
+
+TEST_CASE("parseConfig defaults qualityGate.minSeverity to Warning when the object is present but empty")
+{
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(R"({ "qualityGate": {} })");
+
+    REQUIRE(result.config.has_value());
+    CHECK(result.config->qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Warning);
+}
+
+TEST_CASE("parseConfig defaults qualityGate.minSeverity to Warning when qualityGate is absent")
+{
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig("{}");
+
+    REQUIRE(result.config.has_value());
+    CHECK(result.config->qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Warning);
+}
+
+TEST_CASE("parseConfig reports CONFIG009 for an invalid qualityGate.minSeverity value")
+{
+    const std::string text = R"({ "qualityGate": { "minSeverity": "critical" } })";
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG009") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG002 for an unknown key inside qualityGate")
+{
+    const std::string text = R"({ "qualityGate": { "minSeverity": "error", "note": "x" } })";
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG002") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG002 for an unknown top-level key next to qualityGate")
+{
+    const std::string text = R"({ "qualityGate": { "minSeverity": "error" }, "outputFormat": "json" })";
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG002") != std::string::npos);
+}
+
+TEST_CASE("toJson round-trips qualityGate through parseConfig")
+{
+    codeqa::config::ProjectConfig original;
+    original.qualityGate.minSeverity = codeqa::core::DiagnosticSeverity::Error;
+
+    const std::string serialized = codeqa::config::toJson(original).dump();
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(serialized);
+
+    REQUIRE(result.config.has_value());
+    CHECK(result.config->qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Error);
+}

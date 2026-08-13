@@ -194,6 +194,31 @@ std::map<std::string, RuleConfig> parseRules(const Json& rules)
     return parsed;
 }
 
+QualityGateConfig parseQualityGate(const Json& qualityGate)
+{
+    requireKeysSubset(qualityGate, {"minSeverity"}, "qualityGate");
+
+    QualityGateConfig config;
+
+    if (qualityGate.contains("minSeverity"))
+    {
+        const std::string text = requireString(qualityGate, "minSeverity", "qualityGate");
+        const std::optional<codeqa::core::DiagnosticSeverity> severity =
+            codeqa::core::diagnosticSeverityFromJsonString(text);
+
+        if (!severity.has_value())
+        {
+            throw ParseFailure(
+                "Error [CONFIG009]: 'qualityGate.minSeverity' must be 'information', 'warning', or 'error', got '"
+                + text + "'.");
+        }
+
+        config.minSeverity = *severity;
+    }
+
+    return config;
+}
+
 } // namespace
 
 ParseConfigResult parseConfig(const std::string& jsonText)
@@ -212,7 +237,7 @@ ParseConfigResult parseConfig(const std::string& jsonText)
     try
     {
         requireObject(document, "config");
-        requireKeysSubset(document, {"languages", "rules"}, "config");
+        requireKeysSubset(document, {"languages", "rules", "qualityGate"}, "config");
 
         ProjectConfig config;
 
@@ -228,6 +253,13 @@ ParseConfigResult parseConfig(const std::string& jsonText)
             const Json& rules = document.at("rules");
             requireObject(rules, "rules");
             config.rules = parseRules(rules);
+        }
+
+        if (document.contains("qualityGate"))
+        {
+            const Json& qualityGate = document.at("qualityGate");
+            requireObject(qualityGate, "qualityGate");
+            config.qualityGate = parseQualityGate(qualityGate);
         }
 
         return ParseConfigResult{config, std::nullopt};
@@ -265,6 +297,9 @@ nlohmann::json toJson(const ProjectConfig& config)
             {"enabled", ruleConfig.enabled},
             {"params", {{"warning", ruleConfig.warningLimit}, {"high", ruleConfig.highLimit}}}};
     }
+
+    document["qualityGate"] = {
+        {"minSeverity", codeqa::core::diagnosticSeverityToJsonString(config.qualityGate.minSeverity)}};
 
     return document;
 }
