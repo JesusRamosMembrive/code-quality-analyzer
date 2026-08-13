@@ -31,3 +31,15 @@ TEST_CASE("RuleConfig is aggregate-initializable in id order")
     CHECK(config.warningLimit == 2);
     CHECK(config.highLimit == 4);
 }
+
+TEST_CASE("QualityGateConfig defaults minSeverity to Warning")
+{
+    codeqa::config::QualityGateConfig config;
+    CHECK(config.minSeverity == codeqa::core::DiagnosticSeverity::Warning);
+}
+
+TEST_CASE("ProjectConfig defaults qualityGate.minSeverity to Warning")
+{
+    codeqa::config::ProjectConfig config;
+    CHECK(config.qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Warning);
+}

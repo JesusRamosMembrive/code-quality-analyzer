@@ -1,5 +1,6 @@
 #pragma once
 
+#include "codeqa/core/DiagnosticSeverity.h"
 #include "codeqa/core/Language.h"
 
 #include <map>
@@ -22,10 +23,16 @@ struct HeaderOverrideConfig
     codeqa::core::Language language{codeqa::core::Language::Unknown};
 };
 
+struct QualityGateConfig
+{
+    codeqa::core::DiagnosticSeverity minSeverity{codeqa::core::DiagnosticSeverity::Warning};
+};
+
 struct ProjectConfig
 {
     std::vector<HeaderOverrideConfig> headerOverrides;
     std::map<std::string, RuleConfig> rules;
+    QualityGateConfig qualityGate;
 };
 
 } // namespace codeqa::config
