@@ -647,6 +647,7 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
     const std::vector<std::string> previousSnapshots =
         codeqa::application::ListSnapshots{}.execute(parsedArguments.path);
     std::optional<codeqa::history::SnapshotComparison> comparison;
+    codeqa::history::FindingKeySet previousKeys;
     std::string previousTimestamp;
 
     if (!previousSnapshots.empty())
@@ -664,9 +665,9 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
         {
             try
             {
+                previousKeys = codeqa::history::extractFindingKeys(*previousReport);
                 comparison = codeqa::history::compareSnapshots(
-                    codeqa::history::extractFindingKeys(result.findings),
-                    codeqa::history::extractFindingKeys(*previousReport));
+                    codeqa::history::extractFindingKeys(result.findings), previousKeys);
             }
             catch (const nlohmann::json::exception&)
             {
@@ -707,7 +708,10 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
         errorOutput << "Warning: could not save snapshot.\n";
     }
 
-    return static_cast<int>(ExitCode::Success);
+    const bool qualityGateFailed = codeqa::history::hasNewFindingAtOrAboveSeverity(
+        result.findings, previousKeys, config.qualityGate.minSeverity);
+
+    return static_cast<int>(qualityGateFailed ? ExitCode::QualityGateFailed : ExitCode::Success);
 }
 
 struct SnapshotArguments

@@ -476,7 +476,10 @@ TEST_CASE("analyze with default text format prints a report to stdout")
     const std::filesystem::path root = makeTempAnalyzeRoot();
     const RunResult result = run({"analyze", root.string()});
 
-    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    // sample.c's 5-parameter classify() trips signature.parameter-count at Warning, and there's
+    // no previous snapshot yet, so the default (minSeverity: warning) gate fails in absolute mode.
+    // The report is still printed regardless of the gate outcome.
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
     CHECK(result.output.find("Code Quality Analysis Report") != std::string::npos);
     CHECK(result.output.find("signature.parameter-count") != std::string::npos);
 }
@@ -488,7 +491,8 @@ TEST_CASE("analyze --format json --output writes a valid JSON report to a file")
 
     const RunResult result = run({"analyze", root.string(), "--format", "json", "--output", outputPath.string()});
 
-    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    // Same gate-triggering fixture as above; the report file is still written regardless.
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
     CHECK(result.output.empty());
     REQUIRE(std::filesystem::exists(outputPath));
 
@@ -509,7 +513,8 @@ TEST_CASE("analyze: a --lang-override wins over the same pattern's --config head
         {"analyze", root.string(), "--config", configPath.string(), "--lang-override", "util.h=cpp", "--format",
          "json"});
 
-    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    // Same gate-triggering fixture as above; this test is about header-override precedence.
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
 
     const nlohmann::json report = nlohmann::json::parse(result.output);
     bool found = false;
@@ -524,13 +529,28 @@ TEST_CASE("analyze: a --lang-override wins over the same pattern's --config head
     CHECK(found);
 }
 
+TEST_CASE("analyze with qualityGate.minSeverity raised to error passes despite a Warning finding")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const std::filesystem::path configPath = root / "codeqa.json";
+    std::ofstream(configPath) << R"({ "qualityGate": { "minSeverity": "error" } })";
+
+    const RunResult result = run({"analyze", root.string(), "--config", configPath.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find("signature.parameter-count") != std::string::npos);
+}
+
 TEST_CASE("analyze's first run has no previous snapshot to compare against")
 {
     const std::filesystem::path root = makeTempSnapshotRoot();
 
     const RunResult result = run({"analyze", root.string()});
 
-    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    // No previous snapshot means absolute mode; sample.c's finding is Warning-severity, so the
+    // default gate (minSeverity: warning) fails -- exactly the "no snapshot leaves no protection
+    // gap" behavior the roadmap's absolute mode exists for.
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
     CHECK(result.output.find(" new, ") == std::string::npos);
     CHECK(result.errorOutput.empty());
 
@@ -542,7 +562,8 @@ TEST_CASE("analyze saves a snapshot under <path>/.codeqa/snapshots")
     const std::filesystem::path root = makeTempSnapshotRoot();
 
     const RunResult result = run({"analyze", root.string()});
-    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    // First run, absolute-mode gate fails (see the test above); the snapshot is still saved.
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
 
     const std::filesystem::path snapshotsDir = root / ".codeqa" / "snapshots";
     REQUIRE(std::filesystem::is_directory(snapshotsDir));
@@ -585,7 +606,8 @@ TEST_CASE("analyze's second run after a real code change reports one new and one
     rewriteSnapshotSample(root);
     const RunResult second = run({"analyze", root.string(), "--format", "json"});
 
-    CHECK(second.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    // One new Warning-or-higher finding is exactly what the gate exists to catch.
+    CHECK(second.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
     const nlohmann::json report = nlohmann::json::parse(second.output);
     REQUIRE(report.contains("comparison"));
     CHECK(report.at("comparison").at("new").get<int>() == 1);
@@ -610,7 +632,8 @@ TEST_CASE("analyze warns and skips comparison when the previous snapshot is corr
 
     const RunResult second = run({"analyze", root.string()});
 
-    CHECK(second.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    // An unreadable previous snapshot falls back to absolute mode, same as no snapshot at all.
+    CHECK(second.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
     CHECK(second.errorOutput.find("could not be read") != std::string::npos);
     CHECK(second.output.find(" new, ") == std::string::npos);
 
