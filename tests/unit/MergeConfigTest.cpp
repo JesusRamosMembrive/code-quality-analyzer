@@ -51,3 +51,27 @@ TEST_CASE("mergeConfig with an empty user config reproduces the defaults exactly
     CHECK(merged.rules.at("complexity.cyclomatic").warningLimit == 10);
     CHECK(merged.headerOverrides.empty());
 }
+
+TEST_CASE("mergeConfig replaces qualityGate wholesale with the user's value")
+{
+    codeqa::config::ProjectConfig defaults;
+    defaults.qualityGate.minSeverity = codeqa::core::DiagnosticSeverity::Warning;
+
+    codeqa::config::ProjectConfig user;
+    user.qualityGate.minSeverity = codeqa::core::DiagnosticSeverity::Error;
+
+    const codeqa::config::ProjectConfig merged = codeqa::config::mergeConfig(defaults, user);
+
+    CHECK(merged.qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Error);
+}
+
+TEST_CASE("mergeConfig with an empty user config keeps the default qualityGate")
+{
+    codeqa::config::ProjectConfig defaults;
+    defaults.qualityGate.minSeverity = codeqa::core::DiagnosticSeverity::Error;
+
+    const codeqa::config::ProjectConfig merged =
+        codeqa::config::mergeConfig(defaults, codeqa::config::ProjectConfig{});
+
+    CHECK(merged.qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Error);
+}
