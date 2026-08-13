@@ -377,3 +377,95 @@ TEST_CASE("sorts every model collection by source range with stable ties")
     CHECK(file.typeAliases[1].symbol.name == "SecondAlias");
     CHECK(file.typeAliases[2].symbol.name == "LateAlias");
 }
+
+TEST_CASE("a Free-kind function is never class-qualified, even when a corrupted class range geometrically contains it")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/format.h"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::Cpp;
+    sourceFile.grammar = codeqa::frontend::Grammar::Cpp;
+    sourceFile.parsed = true;
+
+    // Simulates the fmt write_int_data bug: a struct whose extracted range is corrupted large
+    // enough to geometrically swallow a later, unrelated free function's start.
+    sourceFile.classes.push_back(codeqa::frontend::ClassModel{
+        "write_int_data", codeqa::frontend::ClassKind::Struct, rangeFor(sourcePath, 0, 5000)});
+
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "write_significand",
+        codeqa::frontend::FunctionKind::Free,
+        rangeFor(sourcePath, 2000, 2100),
+        {},
+        false,
+        false});
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE(result.files[0].callables.size() == 1);
+    CHECK(result.files[0].callables[0].symbol.qualifiedName == "write_significand");
+}
+
+TEST_CASE("a Free-kind function nested in a namespace is still namespace-qualified")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/detail.cpp"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::Cpp;
+    sourceFile.grammar = codeqa::frontend::Grammar::Cpp;
+    sourceFile.parsed = true;
+
+    sourceFile.classes.push_back(codeqa::frontend::ClassModel{
+        "detail", codeqa::frontend::ClassKind::Namespace, rangeFor(sourcePath, 0, 200)});
+
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "helper",
+        codeqa::frontend::FunctionKind::Free,
+        rangeFor(sourcePath, 20, 60),
+        {},
+        false,
+        false});
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE(result.files[0].callables.size() == 1);
+    CHECK(result.files[0].callables[0].symbol.qualifiedName == "detail::helper");
+}
+
+TEST_CASE("a Method-kind function is still class-qualified")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/box.cpp"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::Cpp;
+    sourceFile.grammar = codeqa::frontend::Grammar::Cpp;
+    sourceFile.parsed = true;
+
+    sourceFile.classes.push_back(codeqa::frontend::ClassModel{
+        "Box", codeqa::frontend::ClassKind::Class, rangeFor(sourcePath, 0, 200)});
+
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "open",
+        codeqa::frontend::FunctionKind::Method,
+        rangeFor(sourcePath, 20, 60),
+        {},
+        false,
+        false});
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE(result.files[0].callables.size() == 1);
+    CHECK(result.files[0].callables[0].symbol.qualifiedName == "Box::open");
+}

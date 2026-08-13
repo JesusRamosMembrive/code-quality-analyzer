@@ -156,7 +156,8 @@ std::string qualifiedNameFor(
     const std::string& name,
     const core::SourceRange& range,
     const std::vector<frontend::ClassModel>& classes,
-    bool preserveQualifiedName)
+    bool preserveQualifiedName,
+    bool restrictToNamespaceScopes)
 {
     if (name.empty())
     {
@@ -168,6 +169,15 @@ std::string qualifiedNameFor(
     for (const frontend::ClassModel& candidate : classes)
     {
         if (candidate.name.empty() || !encloses(candidate.range, range))
+        {
+            continue;
+        }
+
+        // A FunctionKind::Free extraction can never be a real lexical member of a
+        // class/struct/union body (only Method/Constructor/Destructor/Operator can) --
+        // independent of whether this candidate's own range is trustworthy. Namespaces are
+        // orthogonal to class membership, so they still apply to a free function.
+        if (restrictToNamespaceScopes && candidate.kind != frontend::ClassKind::Namespace)
         {
             continue;
         }
@@ -234,9 +244,11 @@ SymbolIdentity identityFor(
     const std::string& name,
     const core::SourceRange& range,
     const std::vector<frontend::ClassModel>& classes,
-    bool preserveQualifiedName = false)
+    bool preserveQualifiedName = false,
+    bool restrictToNamespaceScopes = false)
 {
-    return SymbolIdentity{name, qualifiedNameFor(name, range, classes, preserveQualifiedName), range};
+    return SymbolIdentity{
+        name, qualifiedNameFor(name, range, classes, preserveQualifiedName, restrictToNamespaceScopes), range};
 }
 
 template <typename Model, typename RangeAccessor>
@@ -279,7 +291,9 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
     for (const frontend::FunctionModel& function : file.functions)
     {
         CallableModel callable;
-        callable.symbol = identityFor(function.name, function.range, file.classes, true);
+        callable.symbol = identityFor(
+            function.name, function.range, file.classes, true,
+            function.kind == frontend::FunctionKind::Free);
         callable.kind = callableKindFor(function.kind);
         callable.isStatic = function.isStatic;
         callable.isVariadic = function.isVariadic;
