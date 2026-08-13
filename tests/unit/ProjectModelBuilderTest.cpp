@@ -500,6 +500,35 @@ TEST_CASE("a Free function whose range swallows another Free function's start ge
     CHECK(hasParse004);
 }
 
+TEST_CASE("a file with only a corrupted function range is reported as Partial, not Complete")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/os_win.c"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::C;
+    sourceFile.grammar = codeqa::frontend::Grammar::C;
+    sourceFile.parsed = true;
+
+    // Same fixture shape as the PARSE004 diagnostic test above: two Free functions whose
+    // ranges overlap, so flagCorruptedFunctionRanges appends a PARSE004 diagnostic. The
+    // frontend itself reports no diagnostics -- analysisStateFor(file) alone would say
+    // Complete, but the corrupted-range diagnostic added afterwards must still flip the
+    // reported state to Partial.
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "winWrite", codeqa::frontend::FunctionKind::Free, rangeFor(sourcePath, 0, 19703), {}, false, false});
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "winTruncate", codeqa::frontend::FunctionKind::Free, rangeFor(sourcePath, 100, 176), {}, false, false});
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE_FALSE(result.files[0].diagnostics.empty());
+    CHECK(result.files[0].state == codeqa::model::AnalysisState::Partial);
+}
+
 TEST_CASE("two Free functions with non-overlapping ranges never get a PARSE004 diagnostic")
 {
     const std::filesystem::path rootPath{"project"};

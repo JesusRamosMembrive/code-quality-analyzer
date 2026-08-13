@@ -71,16 +71,37 @@ se parsea con la gramática de C++, que acepta prácticamente todo C válido y
 minimiza los errores falsos.
 
 Los errores de parseo son información, no un fallo: `parse` devuelve 0 aunque
-encuentre archivos rotos. El código de salida solo reflejará la calidad del
-código cuando exista el quality gate (Fase 12).
+encuentre archivos rotos. `analyze`, en cambio, sí puede devolver un código de
+salida distinto de cero a través del quality gate (ver más abajo).
 
 ## Códigos de salida
 
 | Código | Significado |
 |--------|--------------|
 | 0 | Éxito |
-| 2 | Argumentos inválidos |
+| 1 | Quality gate no superado |
+| 2 | Error de configuración |
+| 3 | Argumentos inválidos |
 | 4 | Error interno no controlado |
+
+## Quality gate
+
+`analyze` falla (código de salida 1) si aparece un finding nuevo -- respecto al
+snapshot anterior -- con severidad igual o superior a `qualityGate.minSeverity`
+(por defecto, `warning`).
+
+Si no existe un snapshot anterior (o no se puede leer), el gate es absoluto:
+cualquier finding que cumpla la severidad mínima lo hace fallar, no solo los
+nuevos. El snapshot se guarda siempre, sin importar el resultado del gate, así
+que repetir `analyze` sin cambios en el código tras un fallo pasará una vez
+exista ese primer snapshot como referencia.
+
+El campo de configuración acepta `"information"`, `"warning"` o `"error"`, por
+ejemplo:
+
+```json
+{ "qualityGate": { "minSeverity": "warning" } }
+```
 
 ## Estado
 

@@ -102,6 +102,53 @@ TEST_CASE("ApplyRules produces no findings for a function whose range overlaps a
     CHECK(findings.files.front().findings.empty());
 }
 
+TEST_CASE("ApplyRules produces no findings for a function whose range overlaps a PARSE004 diagnostic")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path filePath = rootPath / "corrupted.c";
+
+    codeqa::core::SourceRange range;
+    range.begin = codeqa::core::SourceLocation{filePath, 1, 1, 0};
+    range.end = codeqa::core::SourceLocation{filePath, 20, 2, 500};
+
+    codeqa::model::ProjectModel project;
+    project.rootPath = rootPath;
+
+    codeqa::model::FileModel file;
+    file.path = filePath;
+    file.language = codeqa::core::Language::C;
+    file.state = codeqa::model::AnalysisState::Partial;
+    file.diagnostics.push_back(codeqa::core::Diagnostic{
+        "PARSE004", codeqa::core::DiagnosticSeverity::Error, "Function or type range appears corrupted.",
+        range.begin});
+
+    codeqa::model::CallableModel callable;
+    callable.symbol = codeqa::model::SymbolIdentity{"broken", "broken", range};
+    callable.kind = codeqa::model::CallableKind::FreeFunction;
+    file.callables.push_back(callable);
+    project.files.push_back(file);
+
+    codeqa::metrics::ProjectMetricsModel metrics;
+    metrics.rootPath = rootPath;
+    codeqa::metrics::FileMetricsModel fileMetrics;
+    fileMetrics.path = filePath;
+    codeqa::metrics::FunctionMetricsModel functionMetrics;
+    functionMetrics.symbol = callable.symbol;
+    functionMetrics.signature.parameterCount = 10; // guarantees signature.parameter-count would
+                                                     // fire (default warning=4) if this callable
+                                                     // were NOT filtered -- proves the emptiness
+                                                     // below is really due to the PARSE004 overlap
+                                                     // check, not a metrics-lookup miss.
+    fileMetrics.functions.push_back(functionMetrics);
+    metrics.files.push_back(fileMetrics);
+
+    const codeqa::rules::ProjectFindingsModel findings =
+        codeqa::application::ApplyRules{}.execute(project, metrics, codeqa::config::defaultConfig());
+
+    REQUIRE(findings.files.size() == 1);
+    CHECK(findings.files.front().findings.empty());
+}
+
 TEST_CASE("ApplyRules suppresses a finding with a matching inline disable comment")
 {
     const TempProject fixture;

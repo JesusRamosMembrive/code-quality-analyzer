@@ -322,6 +322,11 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
     model.comments = file.comments;
     flagCorruptedFunctionRanges(file.functions, model.diagnostics);
 
+    if (!model.diagnostics.empty())
+    {
+        model.state = AnalysisState::Partial;
+    }
+
     for (const frontend::IncludeDependency& dependency : file.includes)
     {
         model.dependencies.push_back(DependencyModel{
