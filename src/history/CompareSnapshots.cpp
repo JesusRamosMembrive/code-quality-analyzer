@@ -68,4 +68,37 @@ SnapshotComparison compareSnapshots(const FindingKeySet& current, const FindingK
     return result;
 }
 
+bool hasNewFindingAtOrAboveSeverity(
+    const codeqa::rules::ProjectFindingsModel& current,
+    const FindingKeySet& previousKeys,
+    codeqa::core::DiagnosticSeverity minSeverity)
+{
+    FindingKeySet remainingPreviousKeys = previousKeys;
+
+    for (const codeqa::rules::FileFindingsModel& file : current.files)
+    {
+        const std::string relativePath =
+            std::filesystem::relative(file.path, current.rootPath).generic_string();
+
+        for (const codeqa::rules::Finding& finding : file.findings)
+        {
+            const FindingKey key{finding.ruleId, finding.symbolName, relativePath};
+            const auto remaining = remainingPreviousKeys.find(key);
+
+            if (remaining != remainingPreviousKeys.end() && remaining->second > 0)
+            {
+                --remaining->second;
+                continue;
+            }
+
+            if (finding.severity >= minSeverity)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 } // namespace codeqa::history

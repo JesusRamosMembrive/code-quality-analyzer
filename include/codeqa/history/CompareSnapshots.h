@@ -1,5 +1,6 @@
 #pragma once
 
+#include "codeqa/core/DiagnosticSeverity.h"
 #include "codeqa/history/SnapshotComparison.h"
 #include "codeqa/rules/RuleModels.h"
 
@@ -36,5 +37,15 @@ using FindingKeySet = std::map<FindingKey, std::size_t>;
 [[nodiscard]] FindingKeySet extractFindingKeys(const nlohmann::json& snapshotReport);
 
 [[nodiscard]] SnapshotComparison compareSnapshots(const FindingKeySet& current, const FindingKeySet& previous);
+
+/// True if any finding in `current` is "new" relative to `previousKeys` (the same multiset-diff
+/// identity compareSnapshots uses: a finding is new once its FindingKey has no remaining
+/// previousKeys occurrence left to consume) and its severity is >= minSeverity. An empty
+/// previousKeys represents "no previous snapshot" -- every finding is then new, which is exactly
+/// absolute mode; no separate branch is needed for it.
+[[nodiscard]] bool hasNewFindingAtOrAboveSeverity(
+    const codeqa::rules::ProjectFindingsModel& current,
+    const FindingKeySet& previousKeys,
+    codeqa::core::DiagnosticSeverity minSeverity);
 
 } // namespace codeqa::history

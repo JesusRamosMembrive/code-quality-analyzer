@@ -122,3 +122,81 @@ TEST_CASE("compareSnapshots resolves only the excess occurrences when multiplici
     CHECK(comparison.existingCount == 1);
     CHECK(comparison.resolvedCount == 2);
 }
+
+codeqa::rules::ProjectFindingsModel makeSingleFinding(
+    const std::string& ruleId,
+    const std::string& symbolName,
+    codeqa::core::DiagnosticSeverity severity)
+{
+    codeqa::rules::ProjectFindingsModel findings;
+    findings.rootPath = std::filesystem::path{"project"};
+
+    codeqa::rules::FileFindingsModel fileFindings;
+    fileFindings.path = findings.rootPath / "src" / "foo.cpp";
+
+    codeqa::rules::Finding finding;
+    finding.ruleId = ruleId;
+    finding.symbolName = symbolName;
+    finding.severity = severity;
+    fileFindings.findings.push_back(finding);
+
+    findings.files.push_back(fileFindings);
+    return findings;
+}
+
+TEST_CASE("hasNewFindingAtOrAboveSeverity in absolute mode: any qualifying finding counts as new")
+{
+    const codeqa::rules::ProjectFindingsModel current =
+        makeSingleFinding("complexity.cyclomatic", "Foo::bar", codeqa::core::DiagnosticSeverity::Warning);
+
+    CHECK(codeqa::history::hasNewFindingAtOrAboveSeverity(
+        current, codeqa::history::FindingKeySet{}, codeqa::core::DiagnosticSeverity::Warning));
+}
+
+TEST_CASE("hasNewFindingAtOrAboveSeverity in absolute mode: a finding below minSeverity does not count")
+{
+    const codeqa::rules::ProjectFindingsModel current =
+        makeSingleFinding("complexity.cyclomatic", "Foo::bar", codeqa::core::DiagnosticSeverity::Warning);
+
+    CHECK_FALSE(codeqa::history::hasNewFindingAtOrAboveSeverity(
+        current, codeqa::history::FindingKeySet{}, codeqa::core::DiagnosticSeverity::Error));
+}
+
+TEST_CASE("hasNewFindingAtOrAboveSeverity: a finding exactly at minSeverity counts")
+{
+    const codeqa::rules::ProjectFindingsModel current =
+        makeSingleFinding("complexity.cyclomatic", "Foo::bar", codeqa::core::DiagnosticSeverity::Warning);
+
+    CHECK(codeqa::history::hasNewFindingAtOrAboveSeverity(
+        current, codeqa::history::FindingKeySet{}, codeqa::core::DiagnosticSeverity::Warning));
+}
+
+TEST_CASE("hasNewFindingAtOrAboveSeverity in differential mode: an existing finding is not new")
+{
+    const codeqa::rules::ProjectFindingsModel current =
+        makeSingleFinding("complexity.cyclomatic", "Foo::bar", codeqa::core::DiagnosticSeverity::Error);
+    const codeqa::history::FindingKey key{"complexity.cyclomatic", "Foo::bar", "src/foo.cpp"};
+    const codeqa::history::FindingKeySet previousKeys{{key, 1}};
+
+    CHECK_FALSE(codeqa::history::hasNewFindingAtOrAboveSeverity(
+        current, previousKeys, codeqa::core::DiagnosticSeverity::Warning));
+}
+
+TEST_CASE("hasNewFindingAtOrAboveSeverity in differential mode: a genuinely new finding counts")
+{
+    const codeqa::rules::ProjectFindingsModel current =
+        makeSingleFinding("complexity.returns", "Foo::baz", codeqa::core::DiagnosticSeverity::Warning);
+    const codeqa::history::FindingKey unrelatedKey{"complexity.cyclomatic", "Foo::bar", "src/foo.cpp"};
+    const codeqa::history::FindingKeySet previousKeys{{unrelatedKey, 1}};
+
+    CHECK(codeqa::history::hasNewFindingAtOrAboveSeverity(
+        current, previousKeys, codeqa::core::DiagnosticSeverity::Warning));
+}
+
+TEST_CASE("hasNewFindingAtOrAboveSeverity on no findings at all returns false in either mode")
+{
+    const codeqa::rules::ProjectFindingsModel empty;
+
+    CHECK_FALSE(codeqa::history::hasNewFindingAtOrAboveSeverity(
+        empty, codeqa::history::FindingKeySet{}, codeqa::core::DiagnosticSeverity::Warning));
+}
