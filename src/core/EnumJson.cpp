@@ -48,4 +48,24 @@ std::string diagnosticSeverityToJsonString(DiagnosticSeverity severity)
     return "error";
 }
 
+std::optional<DiagnosticSeverity> diagnosticSeverityFromJsonString(const std::string& text)
+{
+    if (text == "error")
+    {
+        return DiagnosticSeverity::Error;
+    }
+
+    if (text == "warning")
+    {
+        return DiagnosticSeverity::Warning;
+    }
+
+    if (text == "information")
+    {
+        return DiagnosticSeverity::Information;
+    }
+
+    return std::nullopt;
+}
+
 } // namespace codeqa::core

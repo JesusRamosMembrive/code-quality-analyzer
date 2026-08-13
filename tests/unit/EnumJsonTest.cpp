@@ -31,3 +31,27 @@ TEST_CASE("diagnosticSeverityToJsonString maps every DiagnosticSeverity value")
         codeqa::core::diagnosticSeverityToJsonString(codeqa::core::DiagnosticSeverity::Information)
         == "information");
 }
+
+TEST_CASE("diagnosticSeverityFromJsonString accepts information, warning, and error")
+{
+    const std::optional<codeqa::core::DiagnosticSeverity> information =
+        codeqa::core::diagnosticSeverityFromJsonString("information");
+    REQUIRE(information.has_value());
+    CHECK(*information == codeqa::core::DiagnosticSeverity::Information);
+
+    const std::optional<codeqa::core::DiagnosticSeverity> warning =
+        codeqa::core::diagnosticSeverityFromJsonString("warning");
+    REQUIRE(warning.has_value());
+    CHECK(*warning == codeqa::core::DiagnosticSeverity::Warning);
+
+    const std::optional<codeqa::core::DiagnosticSeverity> error =
+        codeqa::core::diagnosticSeverityFromJsonString("error");
+    REQUIRE(error.has_value());
+    CHECK(*error == codeqa::core::DiagnosticSeverity::Error);
+}
+
+TEST_CASE("diagnosticSeverityFromJsonString rejects an unknown severity string")
+{
+    CHECK_FALSE(codeqa::core::diagnosticSeverityFromJsonString("critical").has_value());
+    CHECK_FALSE(codeqa::core::diagnosticSeverityFromJsonString("").has_value());
+}
