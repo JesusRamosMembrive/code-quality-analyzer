@@ -13,11 +13,7 @@ ProjectConfig mergeConfig(const ProjectConfig& defaults, const ProjectConfig& us
     }
 
     merged.headerOverrides = user.headerOverrides;
-
-    if (user.qualityGate.minSeverity != QualityGateConfig{}.minSeverity)
-    {
-        merged.qualityGate = user.qualityGate;
-    }
+    merged.qualityGate = user.qualityGate;
 
     return merged;
 }

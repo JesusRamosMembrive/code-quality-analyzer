@@ -65,7 +65,7 @@ TEST_CASE("mergeConfig replaces qualityGate wholesale with the user's value")
     CHECK(merged.qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Error);
 }
 
-TEST_CASE("mergeConfig with an empty user config keeps the default qualityGate")
+TEST_CASE("mergeConfig with an empty user config resets qualityGate to the struct's own default")
 {
     codeqa::config::ProjectConfig defaults;
     defaults.qualityGate.minSeverity = codeqa::core::DiagnosticSeverity::Error;
@@ -73,5 +73,10 @@ TEST_CASE("mergeConfig with an empty user config keeps the default qualityGate")
     const codeqa::config::ProjectConfig merged =
         codeqa::config::mergeConfig(defaults, codeqa::config::ProjectConfig{});
 
-    CHECK(merged.qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Error);
+    // Wholesale replace, same as headerOverrides: an empty user config's default-constructed
+    // qualityGate (minSeverity == Warning) overwrites the defaults' Error. This mirrors real
+    // production usage exactly, since mergeConfig is always called as mergeConfig(defaultConfig(),
+    // ...) and defaultConfig() never sets qualityGate either -- it always inherits the same
+    // struct default. The two only diverge in this direct unit test's contrived defaults.
+    CHECK(merged.qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Warning);
 }
