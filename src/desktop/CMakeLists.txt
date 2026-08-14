@@ -33,8 +33,14 @@ set_source_files_properties(qml/Main.qml PROPERTIES
     QT_RESOURCE_ALIAS Main.qml
 )
 
+set_source_files_properties(qml/pages/ResultsPage.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/ResultsPage.qml
+)
+
 qt_add_qml_module(codeqa_desktop
     URI CodeQA.Desktop
     VERSION 1.0
-    QML_FILES qml/Main.qml
+    QML_FILES
+        qml/Main.qml
+        qml/pages/ResultsPage.qml
 )
