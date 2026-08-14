@@ -128,6 +128,21 @@ QString AppController::lastPage() const
     return lastPage_;
 }
 
+QString AppController::findingSeverityFilter() const
+{
+    return findings_.severityFilter();
+}
+
+QString AppController::findingRuleFilter() const
+{
+    return findings_.ruleFilter();
+}
+
+QString AppController::findingSearchText() const
+{
+    return findings_.searchText();
+}
+
 QStringList AppController::recentProjects() const
 {
     return recentProjects_;
@@ -302,30 +317,53 @@ void AppController::setFindingSeverityFilter(const QString& severity)
             "Error [DESKTOP004]: severity filter must be error, warning, information, or empty."));
         return;
     }
+    if (findings_.severityFilter() == normalized)
+    {
+        return;
+    }
     findings_.setSeverityFilter(normalized);
     settings_->setValue(QStringLiteral("filters/severity"), normalized);
     settings_->sync();
+    emit findingSeverityFilterChanged(normalized);
 }
 
 void AppController::setFindingRuleFilter(const QString& ruleId)
 {
     const QString normalized = ruleId.trimmed();
+    if (findings_.ruleFilter() == normalized)
+    {
+        return;
+    }
     findings_.setRuleFilter(normalized);
     settings_->setValue(QStringLiteral("filters/ruleId"), normalized);
     settings_->sync();
+    emit findingRuleFilterChanged(normalized);
 }
 
 void AppController::setFindingSearchText(const QString& searchText)
 {
     const QString normalized = searchText.trimmed();
+    if (findings_.searchText() == normalized)
+    {
+        return;
+    }
     findings_.setSearchText(normalized);
     settings_->setValue(QStringLiteral("filters/searchText"), normalized);
     settings_->sync();
+    emit findingSearchTextChanged(normalized);
 }
 
 void AppController::startAnalysis(const QUrl& projectRoot)
 {
     setCurrentProject(projectRoot);
+    startAnalysis();
+}
+
+void AppController::startAnalysis(
+    const QUrl& projectRoot, codeqa::config::ProjectConfig config)
+{
+    setCurrentProject(projectRoot);
+    currentConfig_ = std::move(config);
     startAnalysis();
 }
 

@@ -30,9 +30,13 @@ struct FindingSpec
     std::string ruleId;
     std::string symbolName;
     std::size_t line;
+    std::size_t cyclomaticComplexity{12};
 };
 
-nlohmann::json functionMetricsJson(const std::string& symbolName, const std::size_t line)
+nlohmann::json functionMetricsJson(
+    const std::string& symbolName,
+    const std::size_t line,
+    const std::size_t cyclomaticComplexity)
 {
     return {
         {"symbol",
@@ -52,7 +56,7 @@ nlohmann::json functionMetricsJson(const std::string& symbolName, const std::siz
           {"signatureLength", 18},
           {"booleanParameterCount", 0}}},
         {"complexity",
-         {{"cyclomaticComplexity", 12},
+         {{"cyclomaticComplexity", cyclomaticComplexity},
           {"maxConditionComplexity", 3},
           {"maxNestingDepth", 2},
           {"branchCount", 4},
@@ -88,7 +92,8 @@ nlohmann::json reportJson(const std::filesystem::path& root, const std::vector<F
 
         for (const FindingSpec& finding : fileFindings)
         {
-            file["metrics"].push_back(functionMetricsJson(finding.symbolName, finding.line));
+            file["metrics"].push_back(functionMetricsJson(
+                finding.symbolName, finding.line, finding.cyclomaticComplexity));
             file["findings"].push_back({
                 {"ruleId", finding.ruleId},
                 {"severity", finding.severity},
@@ -144,8 +149,10 @@ private slots:
     void invalidImportKeepsTheCurrentReport();
     void malformedImportKeepsTheCurrentReport();
     void findingsExposeRolesAndSortBySeverityThenLocation();
+    void overloadedFindingsUseMetricsFromTheirOwnSourceRange();
     void replacementPreservesPersistedFindingFilters();
     void analysisReportsRealPhasesAndFailedQualityGate();
+    void workerAnalysisFailureKeepsTheCurrentReport();
     void emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport();
     void snapshotOpenFailureKeepsTheCurrentReport();
     void snapshotsAreNewestFirstAndDeleteRefreshesTheModel();
@@ -237,6 +244,34 @@ void AppControllerTest::findingsExposeRolesAndSortBySeverityThenLocation()
     QCOMPARE(model->data(model->index(0), FindingListModel::LineRole).toULongLong(), 2ULL);
     QVERIFY(model->data(model->index(0), FindingListModel::MetricSummaryRole).toString().contains("Cyclomatic: 12"));
     QCOMPARE(controller.files()->rowCount(), 3);
+    const QVariantList functionMetrics = controller.files()->data(
+        controller.files()->index(0), FileListModel::FunctionMetricsRole).toList();
+    QVERIFY(!functionMetrics.isEmpty());
+    const QVariantMap metric = functionMetrics.front().toMap();
+    QVERIFY(metric.contains("blankLines"));
+    QVERIFY(metric.contains("commentLines"));
+    QVERIFY(metric.contains("sourceRange"));
+    QVERIFY(metric.contains("maxConditionRange"));
+}
+
+void AppControllerTest::overloadedFindingsUseMetricsFromTheirOwnSourceRange()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString report = writeReport(
+        directory,
+        "overloads.json",
+        {{"src/overloads.cpp", "warning", "complexity.cyclomatic", "sample::run", 3, 4},
+         {"src/overloads.cpp", "warning", "complexity.cyclomatic", "sample::run", 20, 20}});
+    AppController controller(settingsPath(directory));
+
+    controller.openReport(QUrl::fromLocalFile(report));
+
+    QCOMPARE(controller.findings()->rowCount(), 2);
+    QVERIFY(controller.findings()->data(
+        controller.findings()->index(0), FindingListModel::MetricSummaryRole).toString().contains("Cyclomatic: 4"));
+    QVERIFY(controller.findings()->data(
+        controller.findings()->index(1), FindingListModel::MetricSummaryRole).toString().contains("Cyclomatic: 20"));
 }
 
 void AppControllerTest::replacementPreservesPersistedFindingFilters()
@@ -274,6 +309,9 @@ void AppControllerTest::replacementPreservesPersistedFindingFilters()
     AppController restored(path);
     restored.openReport(QUrl::fromLocalFile(replacement));
     QCOMPARE(restored.lastPage(), QString("Results"));
+    QCOMPARE(restored.property("findingSeverityFilter").toString(), QString("error"));
+    QCOMPARE(restored.property("findingRuleFilter").toString(), QString("target.rule"));
+    QCOMPARE(restored.property("findingSearchText").toString(), QString("target"));
     QCOMPARE(restored.findings()->rowCount(), 1);
 }
 
@@ -312,6 +350,27 @@ void AppControllerTest::analysisReportsRealPhasesAndFailedQualityGate()
     QCOMPARE(controller.findings()->rowCount(), 1);
     QCOMPARE(controller.snapshots()->rowCount(), 1);
     QCOMPARE(controller.errorMessage(), QString{});
+}
+
+void AppControllerTest::workerAnalysisFailureKeepsTheCurrentReport()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString valid = writeReport(directory, "current.json", oneFinding());
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(valid));
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QCOMPARE(controller.qualityGateStatus(), QString("Not evaluated"));
+    QSignalSpy runningSpy(&controller, &AppController::analysisRunningChanged);
+
+    controller.startAnalysis(
+        QUrl::fromLocalFile(directory.path()), codeqa::config::ProjectConfig{});
+
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.analysisRunning(), 30000);
+    QVERIFY(runningSpy.count() >= 2);
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QCOMPARE(controller.qualityGateStatus(), QString("Not evaluated"));
+    QVERIFY(controller.errorMessage().contains("APPLICATION001"));
 }
 
 void AppControllerTest::emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport()
@@ -379,6 +438,10 @@ void AppControllerTest::clearRecentPathsRetainsTheCurrentReport()
         QSettings seed(path, QSettings::IniFormat);
         seed.setValue("recentProjects", QStringList{directory.path()});
         seed.setValue("recentReports", QStringList{valid});
+        seed.setValue("ui/lastPage", "History");
+        seed.setValue("filters/severity", "warning");
+        seed.setValue("filters/ruleId", "complexity.cyclomatic");
+        seed.setValue("filters/searchText", "sample");
     }
     AppController controller(path);
     controller.openReport(QUrl::fromLocalFile(valid));
@@ -392,7 +455,17 @@ void AppControllerTest::clearRecentPathsRetainsTheCurrentReport()
     QSettings persisted(path, QSettings::IniFormat);
     QVERIFY(!persisted.contains("recentProjects"));
     QVERIFY(!persisted.contains("recentReports"));
-    QCOMPARE(persisted.value("ui/lastPage", "Results").toString(), QString("Results"));
+    QVERIFY(persisted.contains("ui/lastPage"));
+    QCOMPARE(persisted.value("ui/lastPage").toString(), QString("History"));
+    QStringList keys = persisted.allKeys();
+    keys.sort();
+    QCOMPARE(
+        keys,
+        QStringList({
+            "filters/ruleId",
+            "filters/searchText",
+            "filters/severity",
+            "ui/lastPage"}));
 }
 
 QTEST_GUILESS_MAIN(AppControllerTest)

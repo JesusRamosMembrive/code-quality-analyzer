@@ -60,12 +60,37 @@ const codeqa::metrics::FunctionMetricsModel* findMetrics(
     const codeqa::application::ReportFile& file,
     const codeqa::rules::Finding& finding)
 {
-    const auto metrics = std::find_if(file.metrics.begin(), file.metrics.end(), [&finding](const auto& candidate)
+    const auto hasMatchingSymbol = [&finding](const auto& candidate)
     {
         return candidate.symbol.name == finding.symbolName
             || candidate.symbol.qualifiedName == finding.symbolName;
+    };
+    const auto containsFinding = [&finding](const auto& candidate)
+    {
+        const codeqa::core::SourceRange& range = candidate.symbol.range;
+        const codeqa::core::SourceLocation& location = finding.location;
+        if (location.line < range.begin.line || location.line > range.end.line)
+        {
+            return false;
+        }
+        if (location.line == range.begin.line && location.column < range.begin.column)
+        {
+            return false;
+        }
+        return location.line != range.end.line || location.column < range.end.column;
+    };
+
+    const auto exact = std::find_if(file.metrics.begin(), file.metrics.end(), [&](const auto& candidate)
+    {
+        return hasMatchingSymbol(candidate) && containsFinding(candidate);
     });
-    return metrics == file.metrics.end() ? nullptr : &*metrics;
+    if (exact != file.metrics.end())
+    {
+        return &*exact;
+    }
+
+    const auto byName = std::find_if(file.metrics.begin(), file.metrics.end(), hasMatchingSymbol);
+    return byName == file.metrics.end() ? nullptr : &*byName;
 }
 
 QString metricsSummary(const codeqa::metrics::FunctionMetricsModel* metrics)
@@ -82,20 +107,41 @@ QString metricsSummary(const codeqa::metrics::FunctionMetricsModel* metrics)
         .arg(static_cast<qulonglong>(metrics->size.codeLines));
 }
 
+QVariantMap locationMap(const codeqa::core::SourceLocation& location)
+{
+    return {
+        {QStringLiteral("line"), static_cast<qulonglong>(location.line)},
+        {QStringLiteral("column"), static_cast<qulonglong>(location.column)},
+        {QStringLiteral("offset"), static_cast<qulonglong>(location.offset)}};
+}
+
+QVariantMap rangeMap(const codeqa::core::SourceRange& range)
+{
+    return {
+        {QStringLiteral("begin"), locationMap(range.begin)},
+        {QStringLiteral("end"), locationMap(range.end)}};
+}
+
 QVariantMap metricsMap(const codeqa::metrics::FunctionMetricsModel& metrics)
 {
     return {
         {QStringLiteral("symbolName"), QString::fromStdString(metrics.symbol.name)},
         {QStringLiteral("qualifiedName"), QString::fromStdString(metrics.symbol.qualifiedName)},
         {QStringLiteral("line"), static_cast<qulonglong>(metrics.symbol.range.begin.line)},
+        {QStringLiteral("sourceRange"), rangeMap(metrics.symbol.range)},
         {QStringLiteral("physicalLines"), static_cast<qulonglong>(metrics.size.physicalLines)},
         {QStringLiteral("codeLines"), static_cast<qulonglong>(metrics.size.codeLines)},
+        {QStringLiteral("blankLines"), static_cast<qulonglong>(metrics.size.blankLines)},
+        {QStringLiteral("commentLines"), static_cast<qulonglong>(metrics.size.commentLines)},
         {QStringLiteral("statementCount"), static_cast<qulonglong>(metrics.size.statementCount)},
         {QStringLiteral("parameterCount"), static_cast<qulonglong>(metrics.signature.parameterCount)},
         {QStringLiteral("booleanParameterCount"), static_cast<qulonglong>(metrics.signature.booleanParameterCount)},
         {QStringLiteral("signatureLength"), static_cast<qulonglong>(metrics.signature.signatureLength)},
         {QStringLiteral("cyclomaticComplexity"), static_cast<qulonglong>(metrics.complexity.cyclomaticComplexity)},
         {QStringLiteral("maxConditionComplexity"), static_cast<qulonglong>(metrics.complexity.maxConditionComplexity)},
+        {QStringLiteral("maxConditionRange"), metrics.complexity.maxConditionRange.has_value()
+             ? QVariant(rangeMap(*metrics.complexity.maxConditionRange))
+             : QVariant{}},
         {QStringLiteral("maxNestingDepth"), static_cast<qulonglong>(metrics.complexity.maxNestingDepth)},
         {QStringLiteral("branchCount"), static_cast<qulonglong>(metrics.complexity.branchCount)},
         {QStringLiteral("returnCount"), static_cast<qulonglong>(metrics.complexity.returnCount)}};
@@ -167,8 +213,10 @@ QHash<int, QByteArray> FindingListModel::roleNames() const
 void FindingListModel::setDocument(
     std::shared_ptr<const codeqa::application::ReportDocument> document)
 {
+    beginResetModel();
     document_ = std::move(document);
-    rebuild();
+    rebuildRows();
+    endResetModel();
 }
 
 void FindingListModel::setSeverityFilter(const QString& severity)
@@ -222,6 +270,12 @@ QString FindingListModel::searchText() const
 void FindingListModel::rebuild()
 {
     beginResetModel();
+    rebuildRows();
+    endResetModel();
+}
+
+void FindingListModel::rebuildRows()
+{
     rows_.clear();
 
     if (document_)
@@ -276,7 +330,6 @@ void FindingListModel::rebuild()
         });
     }
 
-    endResetModel();
 }
 
 FileListModel::FileListModel(QObject* parent) : QAbstractListModel(parent) {}

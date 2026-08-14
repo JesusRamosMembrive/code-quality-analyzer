@@ -54,6 +54,7 @@ private:
     };
 
     void rebuild();
+    void rebuildRows();
 
     std::shared_ptr<const codeqa::application::ReportDocument> document_;
     std::vector<Row> rows_;

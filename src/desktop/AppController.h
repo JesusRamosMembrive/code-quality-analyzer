@@ -27,6 +27,9 @@ class AppController final : public QObject
     Q_PROPERTY(FileListModel* files READ files CONSTANT)
     Q_PROPERTY(SnapshotListModel* snapshots READ snapshots CONSTANT)
     Q_PROPERTY(QString lastPage READ lastPage WRITE setLastPage NOTIFY lastPageChanged)
+    Q_PROPERTY(QString findingSeverityFilter READ findingSeverityFilter NOTIFY findingSeverityFilterChanged)
+    Q_PROPERTY(QString findingRuleFilter READ findingRuleFilter NOTIFY findingRuleFilterChanged)
+    Q_PROPERTY(QString findingSearchText READ findingSearchText NOTIFY findingSearchTextChanged)
 
 public:
     explicit AppController(QObject* parent = nullptr);
@@ -41,6 +44,9 @@ public:
     [[nodiscard]] FileListModel* files();
     [[nodiscard]] SnapshotListModel* snapshots();
     [[nodiscard]] QString lastPage() const;
+    [[nodiscard]] QString findingSeverityFilter() const;
+    [[nodiscard]] QString findingRuleFilter() const;
+    [[nodiscard]] QString findingSearchText() const;
     [[nodiscard]] QStringList recentProjects() const;
     [[nodiscard]] QStringList recentReports() const;
 
@@ -57,6 +63,7 @@ public:
     Q_INVOKABLE void setFindingSearchText(const QString& searchText);
 
     void startAnalysis(const QUrl& projectRoot);
+    void startAnalysis(const QUrl& projectRoot, codeqa::config::ProjectConfig config);
     void openSnapshot(const QUrl& projectRoot, const QString& timestamp);
     void refreshSnapshots(const QUrl& projectRoot);
     void deleteSnapshot(const QUrl& projectRoot, const QString& timestamp);
@@ -68,6 +75,9 @@ signals:
     void qualityGateStatusChanged(const QString& status);
     void currentReportChanged();
     void lastPageChanged(const QString& page);
+    void findingSeverityFilterChanged(const QString& severity);
+    void findingRuleFilterChanged(const QString& ruleId);
+    void findingSearchTextChanged(const QString& searchText);
     void recentPathsChanged();
 
 private:
