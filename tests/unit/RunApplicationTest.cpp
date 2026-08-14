@@ -445,6 +445,7 @@ TEST_CASE("analyze with an unwritable --output path returns CLI012")
 
     CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
     CHECK(result.errorOutput.find("CLI012") != std::string::npos);
+    CHECK_FALSE(std::filesystem::exists(root / ".codeqa" / "snapshots"));
 }
 
 TEST_CASE("analyze with an invalid --config file forwards the CONFIG error and returns ConfigurationError")
@@ -502,6 +503,21 @@ TEST_CASE("analyze --format json --output writes a valid JSON report to a file")
     CHECK(report.at("files").size() == 2);
 }
 
+TEST_CASE("analyze reads an existing source before overwriting it as the output file")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const std::filesystem::path sourceOutputPath = root / "sample.c";
+
+    const RunResult result = run({"analyze", root.string(), "--output", sourceOutputPath.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
+    CHECK(result.output.empty());
+    std::ifstream outputFile(sourceOutputPath);
+    std::ostringstream outputText;
+    outputText << outputFile.rdbuf();
+    CHECK(outputText.str().find("signature.parameter-count") != std::string::npos);
+}
+
 TEST_CASE("analyze: a --lang-override wins over the same pattern's --config headerOverride")
 {
     const std::filesystem::path root = makeTempAnalyzeRoot();
@@ -527,6 +543,9 @@ TEST_CASE("analyze: a --lang-override wins over the same pattern's --config head
         }
     }
     CHECK(found);
+    REQUIRE(report.at("config").at("languages").at("headerOverrides").size() == 1);
+    CHECK(report.at("config").at("languages").at("headerOverrides").at(0).at("language").get<std::string>()
+          == "c");
 }
 
 TEST_CASE("analyze with qualityGate.minSeverity raised to error passes despite a Warning finding")

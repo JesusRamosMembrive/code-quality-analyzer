@@ -1,5 +1,6 @@
 #pragma once
 
+#include "codeqa/application/AnalysisProgress.h"
 #include "codeqa/application/AnalyzeProject.h"
 #include "codeqa/config/ConfigModels.h"
 #include "codeqa/metrics/MetricsModels.h"
@@ -25,7 +26,8 @@ struct RunAnalysisResult
 class RunAnalysis
 {
 public:
-    [[nodiscard]] RunAnalysisResult execute(const RunAnalysisRequest& request) const;
+    [[nodiscard]] RunAnalysisResult execute(
+        const RunAnalysisRequest& request, AnalysisProgressCallback progress = {}) const;
 };
 
 } // namespace codeqa::application

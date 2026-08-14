@@ -1,5 +1,6 @@
 #include "codeqa/cli/RunApplication.h"
 
+#include "codeqa/application/ApplicationFacade.h"
 #include "codeqa/application/ApplicationInfo.h"
 #include "codeqa/core/EnumJson.h"
 #include "codeqa/application/DetectFileLanguage.h"
@@ -8,7 +9,6 @@
 #include "codeqa/application/LoadProjectConfig.h"
 #include "codeqa/application/ListSnapshots.h"
 #include "codeqa/application/LoadSnapshot.h"
-#include "codeqa/application/SaveSnapshot.h"
 #include "codeqa/application/RunAnalysis.h"
 #include "codeqa/cli/ExitCode.h"
 #include "codeqa/config/ConfigModels.h"
@@ -23,12 +23,10 @@
 #include "codeqa/frontend/SelectGrammar.h"
 #include "codeqa/frontend/StructuralExtractor.h"
 #include "codeqa/frontend/TreeSitterParser.h"
-#include "codeqa/history/CompareSnapshots.h"
 #include "codeqa/infrastructure/DiscoveredFile.h"
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/infrastructure/DiscoveryResult.h"
 #include "codeqa/infrastructure/ExtensionCategory.h"
-#include "codeqa/report/ReportJson.h"
 #include "codeqa/report/TextReport.h"
 
 #include <nlohmann/json.hpp>
@@ -39,6 +37,7 @@
 #include <optional>
 #include <sstream>
 #include <system_error>
+#include <utility>
 
 namespace codeqa::cli
 {
@@ -574,9 +573,37 @@ AnalyzeArgumentsOutcome parseAnalyzeArguments(const std::vector<std::string>& ar
         static_cast<int>(ExitCode::Success)};
 }
 
-codeqa::application::LanguageOverride toLanguageOverride(const codeqa::config::HeaderOverrideConfig& headerOverride)
+codeqa::application::RunAnalysisResult toTextReportAnalysis(
+    const codeqa::application::ReportDocument& document)
 {
-    return codeqa::application::LanguageOverride{headerOverride.pattern, headerOverride.language};
+    codeqa::application::RunAnalysisResult analysis;
+    analysis.model.rootPath = document.metadata.rootPath;
+    analysis.metrics.rootPath = analysis.model.rootPath;
+    analysis.findings.rootPath = analysis.model.rootPath;
+
+    for (const codeqa::application::ReportFile& reportFile : document.files)
+    {
+        const std::filesystem::path absolutePath = analysis.model.rootPath / reportFile.path;
+
+        codeqa::model::FileModel modelFile;
+        modelFile.path = absolutePath;
+        modelFile.language = reportFile.language;
+        modelFile.state = reportFile.state;
+        modelFile.diagnostics = reportFile.diagnostics;
+        analysis.model.files.push_back(std::move(modelFile));
+
+        codeqa::metrics::FileMetricsModel metricsFile;
+        metricsFile.path = absolutePath;
+        metricsFile.functions = reportFile.metrics;
+        analysis.metrics.files.push_back(std::move(metricsFile));
+
+        codeqa::rules::FileFindingsModel findingsFile;
+        findingsFile.path = absolutePath;
+        findingsFile.findings = reportFile.findings;
+        analysis.findings.files.push_back(std::move(findingsFile));
+    }
+
+    return analysis;
 }
 
 int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
@@ -606,114 +633,105 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
         config = *configResult.config;
     }
 
-    codeqa::application::RunAnalysisRequest request;
-    request.analysis.discovery.rootPath = parsedArguments.path;
-    request.analysis.discovery.excludePatterns = parsedArguments.excludePatterns;
-
-    for (const codeqa::config::HeaderOverrideConfig& headerOverride : config.headerOverrides)
-    {
-        request.analysis.languageOverrides.push_back(toLanguageOverride(headerOverride));
-    }
-
-    for (const codeqa::application::LanguageOverride& languageOverride : parsedArguments.languageOverrides)
-    {
-        request.analysis.languageOverrides.push_back(languageOverride);
-    }
-
-    request.config = config;
-
-    const codeqa::application::RunAnalysisResult result = codeqa::application::RunAnalysis{}.execute(request);
-
-    const codeqa::application::GetApplicationInfo getApplicationInfo;
-    const std::string toolVersion = getApplicationInfo.execute().version;
-    const nlohmann::json reportJson =
-        codeqa::report::toReportJson(result.model, result.metrics, result.findings, config, toolVersion);
-
     std::ofstream outputFile;
     std::ostream* destination = &output;
 
     if (parsedArguments.outputPath.has_value())
     {
-        outputFile.open(*parsedArguments.outputPath);
+        std::error_code existsError;
+        const bool outputAlreadyExists = std::filesystem::exists(*parsedArguments.outputPath, existsError);
+        std::ofstream outputProbe(*parsedArguments.outputPath, std::ios::app);
 
+        if (existsError || !outputProbe)
+        {
+            errorOutput << "Error [CLI012]: Could not open '" << parsedArguments.outputPath->string()
+                           << "' for writing.\n";
+            return static_cast<int>(ExitCode::InvalidArguments);
+        }
+        outputProbe.close();
+
+        if (!outputAlreadyExists)
+        {
+            std::error_code removeError;
+            std::filesystem::remove(*parsedArguments.outputPath, removeError);
+            if (removeError)
+            {
+                errorOutput << "Error [CLI012]: Could not open '" << parsedArguments.outputPath->string()
+                               << "' for writing.\n";
+                return static_cast<int>(ExitCode::InvalidArguments);
+            }
+        }
+    }
+
+    const codeqa::application::FacadeAnalysisRequest request{
+        parsedArguments.path,
+        config,
+        parsedArguments.excludePatterns,
+        parsedArguments.languageOverrides};
+    const codeqa::application::AnalysisFacadeResult result =
+        codeqa::application::ApplicationFacade{}.analyzeProject(request);
+
+    if (result.error.hasError())
+    {
+        errorOutput << *result.error.message << '\n';
+        return static_cast<int>(ExitCode::InternalError);
+    }
+    if (!result.document.has_value() || !result.reportJson.has_value())
+    {
+        errorOutput << "Error [APPLICATION002]: analysis produced no report.\n";
+        return static_cast<int>(ExitCode::InternalError);
+    }
+
+    if (parsedArguments.outputPath.has_value())
+    {
+        outputFile.open(*parsedArguments.outputPath);
         if (!outputFile)
         {
             errorOutput << "Error [CLI012]: Could not open '" << parsedArguments.outputPath->string()
                            << "' for writing.\n";
             return static_cast<int>(ExitCode::InvalidArguments);
         }
-
         destination = &outputFile;
     }
 
-    const std::vector<std::string> previousSnapshots =
-        codeqa::application::ListSnapshots{}.execute(parsedArguments.path);
-    std::optional<codeqa::history::SnapshotComparison> comparison;
-    codeqa::history::FindingKeySet previousKeys;
-    std::string previousTimestamp;
-
-    if (!previousSnapshots.empty())
+    if (result.warning.has_value())
     {
-        previousTimestamp = previousSnapshots.back();
-        const std::optional<nlohmann::json> previousReport =
-            codeqa::application::LoadSnapshot{}.execute(parsedArguments.path, previousTimestamp);
-
-        if (!previousReport.has_value())
-        {
-            errorOutput << "Warning: previous snapshot '" << previousTimestamp
-                           << "' could not be read; skipping comparison.\n";
-        }
-        else
-        {
-            try
-            {
-                previousKeys = codeqa::history::extractFindingKeys(*previousReport);
-                comparison = codeqa::history::compareSnapshots(
-                    codeqa::history::extractFindingKeys(result.findings), previousKeys);
-            }
-            catch (const nlohmann::json::exception&)
-            {
-                errorOutput << "Warning: previous snapshot '" << previousTimestamp
-                               << "' has an unexpected shape; skipping comparison.\n";
-            }
-        }
+        errorOutput << *result.warning << '\n';
     }
 
     if (parsedArguments.format == "json")
     {
-        nlohmann::json displayJson = reportJson;
+        nlohmann::json displayJson = *result.reportJson;
 
-        if (comparison.has_value())
+        if (result.comparison.has_value())
         {
             displayJson["comparison"] = {
-                {"previousTimestamp", previousTimestamp},
-                {"new", comparison->newCount},
-                {"existing", comparison->existingCount},
-                {"resolved", comparison->resolvedCount}};
+                {"previousTimestamp", result.comparison->previousTimestamp},
+                {"new", result.comparison->newCount},
+                {"existing", result.comparison->existingCount},
+                {"resolved", result.comparison->resolvedCount}};
         }
 
         *destination << displayJson.dump(2) << '\n';
     }
     else
     {
-        codeqa::report::renderText(*destination, result.model, result.metrics, result.findings);
+        const codeqa::application::RunAnalysisResult textAnalysis = toTextReportAnalysis(*result.document);
+        codeqa::report::renderText(
+            *destination, textAnalysis.model, textAnalysis.metrics, textAnalysis.findings);
 
-        if (comparison.has_value())
+        if (result.comparison.has_value())
         {
-            *destination << "\nFindings: " << comparison->newCount << " new, " << comparison->existingCount
-                         << " existing, " << comparison->resolvedCount << " resolved.\n";
+            *destination << "\nFindings: " << result.comparison->newCount << " new, "
+                         << result.comparison->existingCount << " existing, "
+                         << result.comparison->resolvedCount << " resolved.\n";
         }
     }
 
-    if (!codeqa::application::SaveSnapshot{}.execute(parsedArguments.path, reportJson).has_value())
-    {
-        errorOutput << "Warning: could not save snapshot.\n";
-    }
-
-    const bool qualityGateFailed = codeqa::history::hasNewFindingAtOrAboveSeverity(
-        result.findings, previousKeys, config.qualityGate.minSeverity);
-
-    return static_cast<int>(qualityGateFailed ? ExitCode::QualityGateFailed : ExitCode::Success);
+    return static_cast<int>(
+        result.qualityGateOutcome == codeqa::application::QualityGateOutcome::Failed
+            ? ExitCode::QualityGateFailed
+            : ExitCode::Success);
 }
 
 struct SnapshotArguments

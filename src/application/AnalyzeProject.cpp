@@ -14,8 +14,14 @@
 namespace codeqa::application
 {
 
-codeqa::model::ProjectModel AnalyzeProject::execute(const AnalyzeProjectRequest& request) const
+codeqa::model::ProjectModel AnalyzeProject::execute(
+    const AnalyzeProjectRequest& request, const AnalysisProgressCallback progress) const
 {
+    if (progress)
+    {
+        progress(AnalysisPhase::DiscoveringFiles);
+    }
+
     const DiscoverProjectSources discoverProjectSources;
     const codeqa::infrastructure::DiscoveryResult discovery =
         discoverProjectSources.execute(request.discovery);
@@ -24,6 +30,11 @@ codeqa::model::ProjectModel AnalyzeProject::execute(const AnalyzeProjectRequest&
     codeqa::frontend::StructuralExtractor extractor;
     std::vector<codeqa::frontend::ParsedFile> parsedFiles;
     parsedFiles.reserve(discovery.files.size() + discovery.diagnostics.size());
+
+    if (progress)
+    {
+        progress(AnalysisPhase::ParsingSourceFiles);
+    }
 
     for (const codeqa::infrastructure::DiscoveredFile& file : discovery.files)
     {

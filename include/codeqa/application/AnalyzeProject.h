@@ -1,5 +1,6 @@
 #pragma once
 
+#include "codeqa/application/AnalysisProgress.h"
 #include "codeqa/application/DetectFileLanguage.h"
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/model/Models.h"
@@ -18,7 +19,8 @@ struct AnalyzeProjectRequest
 class AnalyzeProject
 {
 public:
-    [[nodiscard]] codeqa::model::ProjectModel execute(const AnalyzeProjectRequest& request) const;
+    [[nodiscard]] codeqa::model::ProjectModel execute(
+        const AnalyzeProjectRequest& request, AnalysisProgressCallback progress = {}) const;
 };
 
 } // namespace codeqa::application
