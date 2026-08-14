@@ -166,6 +166,7 @@ private slots:
     void workerAnalysisFailureKeepsTheCurrentReport();
     void emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport();
     void selectingAnotherProjectClearsSnapshotsFromPreviousProject();
+    void snapshotRefreshKeepsInvalidConfigurationDiagnostic();
     void historyOpensWithoutCreatingAnotherSnapshot();
     void snapshotOpenFailureKeepsTheCurrentReport();
     void snapshotDeleteFailureKeepsTheCurrentReport();
@@ -784,6 +785,30 @@ void AppControllerTest::selectingAnotherProjectClearsSnapshotsFromPreviousProjec
 
     QCOMPARE(controller.currentProject(), QUrl::fromLocalFile(secondProject.path()));
     QCOMPARE(controller.snapshots()->rowCount(), 0);
+}
+
+void AppControllerTest::snapshotRefreshKeepsInvalidConfigurationDiagnostic()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    writeTextFile(
+        directory.filePath("codeqa.json"),
+        "{\n  \"rules\": { \"unknown.rule\": {} }\n}\n");
+    const QString snapshots = directory.filePath(".codeqa/snapshots");
+    QVERIFY(QDir{}.mkpath(snapshots));
+    const QByteArray report = QByteArray::fromStdString(reportJson(
+        std::filesystem::path(directory.path().toStdWString()), oneFinding()).dump(2));
+    writeTextFile(QDir(snapshots).filePath("20260101T000000Z.json"), report);
+    AppController controller(settingsPath(directory));
+
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    QVERIFY(!controller.configurationAvailable());
+    QVERIFY(controller.errorMessage().contains("CONFIG003"));
+
+    controller.refreshSnapshots();
+
+    QCOMPARE(controller.snapshots()->rowCount(), 1);
+    QVERIFY(controller.errorMessage().contains("CONFIG003"));
 }
 
 void AppControllerTest::historyOpensWithoutCreatingAnotherSnapshot()

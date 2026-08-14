@@ -126,7 +126,7 @@ TestCase {
         function startAnalysis() {}
         function refreshSnapshots() {
             ++refreshSnapshotCalls
-            errorMessage = ""
+            errorMessage = configurationAvailable ? "" : nextProjectErrorMessage
         }
         function openSnapshot(timestamp) {
             ++openSnapshotCalls
@@ -304,7 +304,7 @@ TestCase {
         compare(shell.findChild("refreshSnapshotsButton").enabled, true)
     }
 
-    function test_history_invalid_configuration_selection_keeps_error_inline() {
+    function test_history_invalid_configuration_selection_refreshes_and_keeps_error_inline() {
         resetHistoryCalls()
         fixtureController.nextProjectConfigurationAvailable = false
         fixtureController.nextProjectErrorMessage = "Error [CONFIG003]: unknown rule in C:/projects/invalid/codeqa.json"
@@ -316,8 +316,8 @@ TestCase {
         history.selectProject("file:///C:/projects/invalid")
 
         compare(fixtureController.selectProjectCalls, 1)
-        compare(fixtureController.refreshSnapshotCalls, 0)
-        compare(shell.findChild("refreshSnapshotsButton").enabled, false)
+        compare(fixtureController.refreshSnapshotCalls, 1)
+        compare(shell.findChild("refreshSnapshotsButton").enabled, true)
         compare(shell.findChild("historyErrorMessage").text,
                 "Error [CONFIG003]: unknown rule in C:/projects/invalid/codeqa.json")
     }

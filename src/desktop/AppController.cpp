@@ -464,7 +464,7 @@ void AppController::refreshSnapshots()
         return;
     }
     snapshots_.setSnapshots(std::move(result.snapshots));
-    setErrorMessage({});
+    setErrorMessage(configurationLoadError_);
 }
 
 void AppController::deleteSnapshot(const QString& timestamp)
