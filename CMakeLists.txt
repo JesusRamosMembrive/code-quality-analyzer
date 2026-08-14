@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(CODEQA_BUILD_TESTS "Build CodeQA tests" ON)
+option(CODEQA_BUILD_DESKTOP "Build the Qt 6 desktop application" ${WIN32})
 option(CODEQA_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 
 include(cmake/CompilerWarnings.cmake)
@@ -130,6 +131,25 @@ codeqa_enable_warnings(codeqa_core)
 add_executable(codeqa src/cli/main.cpp)
 target_link_libraries(codeqa PRIVATE codeqa_core)
 codeqa_enable_warnings(codeqa)
+
+if(WIN32 AND CODEQA_BUILD_DESKTOP)
+    find_package(Qt6 REQUIRED COMPONENTS
+        Core
+        Gui
+        Qml
+        Quick
+        QuickControls2
+        QuickDialogs2
+        Concurrent
+        Test
+        QuickTest
+    )
+    qt_standard_project_setup()
+    qt_policy(SET QTP0001 NEW)
+    qt_policy(SET QTP0004 NEW)
+
+    add_subdirectory(src/desktop)
+endif()
 
 enable_testing()
 

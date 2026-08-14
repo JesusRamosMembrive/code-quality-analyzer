@@ -180,3 +180,52 @@ add_test(
         "-DCODEQA_EXPECTED_OUTPUT=Examples reviewed: 8"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/CheckValidationReportOutput.cmake
 )
+
+if(WIN32 AND CODEQA_BUILD_DESKTOP)
+    set(CODEQA_DESKTOP_QML_TEST_MAIN
+        ${CMAKE_CURRENT_BINARY_DIR}/DesktopShellQuickTestMain.cpp
+    )
+    file(GENERATE OUTPUT ${CODEQA_DESKTOP_QML_TEST_MAIN} CONTENT
+        "#include <QtQuickTest/quicktest.h>\n\nQUICK_TEST_MAIN(DesktopShell)\n"
+    )
+
+    qt_add_executable(codeqa_desktop_qml_smoke ${CODEQA_DESKTOP_QML_TEST_MAIN})
+    target_compile_definitions(codeqa_desktop_qml_smoke PRIVATE
+        QUICK_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/desktop/qml"
+    )
+    target_link_libraries(codeqa_desktop_qml_smoke PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::QuickTest
+    )
+    set(CODEQA_DESKTOP_QML_TEST_MAIN_QML
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/Main.qml
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/Main.qml
+        ${CODEQA_DESKTOP_QML_TEST_MAIN_QML}
+        COPYONLY
+    )
+    file(GENERATE
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
+        CONTENT "module CodeQA.Desktop\nMain 1.0 Main.qml\n"
+    )
+    qt_add_resources(codeqa_desktop_qml_smoke desktop_shell_resources
+        PREFIX "/qt/qml/CodeQA/Desktop"
+        BASE ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml
+        FILES
+            ${CODEQA_DESKTOP_QML_TEST_MAIN_QML}
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
+    )
+
+    add_test(
+        NAME codeqa_desktop_qml_smoke
+        COMMAND codeqa_desktop_qml_smoke
+    )
+    set_tests_properties(codeqa_desktop_qml_smoke PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${QT6_INSTALL_PREFIX}/bin"
+    )
+endif()
