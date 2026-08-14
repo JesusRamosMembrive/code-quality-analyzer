@@ -92,6 +92,7 @@ add_library(codeqa_core STATIC
     src/application/MeasureProject.cpp
     src/application/ApplyRules.cpp
     src/application/LoadProjectConfig.cpp
+    src/application/ReportDocumentFactory.cpp
     src/cli/RunApplication.cpp
     src/frontend/SelectGrammar.cpp
     src/frontend/TreeSitterParser.cpp

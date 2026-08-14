@@ -44,6 +44,7 @@ add_executable(codeqa_tests
     unit/TextReportTest.cpp
     unit/FileJsonTest.cpp
     unit/ReportJsonTest.cpp
+    unit/ReportDocumentTest.cpp
     unit/HistoryTest.cpp
     unit/SaveSnapshotTest.cpp
     unit/ListSnapshotsTest.cpp
