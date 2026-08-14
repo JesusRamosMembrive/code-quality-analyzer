@@ -2,14 +2,22 @@
 
 #include "codeqa/infrastructure/ReadFileContents.h"
 
+#include "SnapshotPath.h"
+
 namespace codeqa::application
 {
 
 std::optional<nlohmann::json> LoadSnapshot::execute(
     const std::filesystem::path& rootPath, const std::string& timestamp) const
 {
-    const std::filesystem::path snapshotPath = rootPath / ".codeqa" / "snapshots" / (timestamp + ".json");
-    const std::optional<std::string> content = codeqa::infrastructure::readFileContents(snapshotPath);
+    const SnapshotPathResolution resolution = resolveSnapshotPath(rootPath, timestamp);
+    if (!resolution.path.has_value())
+    {
+        return std::nullopt;
+    }
+
+    const std::optional<std::string> content =
+        codeqa::infrastructure::readFileContents(*resolution.path);
 
     if (!content.has_value())
     {

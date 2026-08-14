@@ -96,6 +96,7 @@ add_library(codeqa_core STATIC
     src/application/ApplicationFacade.cpp
     src/application/SaveProjectConfig.cpp
     src/application/DeleteSnapshot.cpp
+    src/application/SnapshotPath.cpp
     src/cli/RunApplication.cpp
     src/frontend/SelectGrammar.cpp
     src/frontend/TreeSitterParser.cpp

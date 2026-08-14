@@ -7,8 +7,6 @@
 namespace codeqa::application
 {
 
-[[nodiscard]] bool isValidSnapshotTimestamp(const std::string& timestamp);
-
 class DeleteSnapshot
 {
 public:

@@ -2,7 +2,6 @@
 
 #include "codeqa/application/ApplicationFacade.h"
 #include "codeqa/application/ApplicationInfo.h"
-#include "codeqa/core/EnumJson.h"
 #include "codeqa/application/DetectFileLanguage.h"
 #include "codeqa/application/DiscoverProjectSources.h"
 #include "codeqa/application/GetApplicationInfo.h"
@@ -15,6 +14,7 @@
 #include "codeqa/config/DefaultConfig.h"
 #include "codeqa/core/Diagnostic.h"
 #include "codeqa/core/DiagnosticSeverity.h"
+#include "codeqa/core/EnumJson.h"
 #include "codeqa/core/Language.h"
 #include "codeqa/core/LanguageDetectionResult.h"
 #include "codeqa/frontend/Grammar.h"
@@ -23,6 +23,7 @@
 #include "codeqa/frontend/SelectGrammar.h"
 #include "codeqa/frontend/StructuralExtractor.h"
 #include "codeqa/frontend/TreeSitterParser.h"
+#include "codeqa/infrastructure/ClassifyExtension.h"
 #include "codeqa/infrastructure/DiscoveredFile.h"
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/infrastructure/DiscoveryResult.h"
@@ -606,6 +607,81 @@ codeqa::application::RunAnalysisResult toTextReportAnalysis(
     return analysis;
 }
 
+std::filesystem::path normalizedPath(const std::filesystem::path& path)
+{
+    std::error_code canonicalError;
+    const std::filesystem::path canonical = std::filesystem::weakly_canonical(path, canonicalError);
+    if (!canonicalError)
+    {
+        return canonical;
+    }
+
+    std::error_code absoluteError;
+    const std::filesystem::path absolute = std::filesystem::absolute(path, absoluteError);
+    return absoluteError ? path.lexically_normal() : absolute.lexically_normal();
+}
+
+bool samePath(const std::filesystem::path& left, const std::filesystem::path& right)
+{
+    std::error_code equivalentError;
+    const bool equivalent = std::filesystem::equivalent(left, right, equivalentError);
+    if (!equivalentError)
+    {
+        return equivalent;
+    }
+    return normalizedPath(left) == normalizedPath(right);
+}
+
+bool isWithin(const std::filesystem::path& candidate, const std::filesystem::path& directory)
+{
+    const std::filesystem::path relative = normalizedPath(candidate).lexically_relative(normalizedPath(directory));
+    if (relative.empty() || relative.is_absolute())
+    {
+        return false;
+    }
+
+    for (const std::filesystem::path& component : relative)
+    {
+        if (component == "..")
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool outputConflictsWithAnalysis(
+    const AnalyzeArguments& arguments,
+    const std::filesystem::path& outputPath)
+{
+    if (arguments.configPath.has_value() && samePath(outputPath, *arguments.configPath))
+    {
+        return true;
+    }
+
+    const std::filesystem::path snapshotsDirectory = arguments.path / ".codeqa" / "snapshots";
+    if (isWithin(outputPath, snapshotsDirectory))
+    {
+        return true;
+    }
+
+    codeqa::infrastructure::DiscoveryOptions discoveryOptions;
+    discoveryOptions.rootPath = arguments.path;
+    discoveryOptions.excludePatterns = arguments.excludePatterns;
+    const codeqa::infrastructure::DiscoveryResult discovery =
+        codeqa::application::DiscoverProjectSources{}.execute(discoveryOptions);
+    for (const codeqa::infrastructure::DiscoveredFile& file : discovery.files)
+    {
+        if (samePath(outputPath, arguments.path / file.path))
+        {
+            return true;
+        }
+    }
+
+    return isWithin(outputPath, arguments.path)
+        && codeqa::infrastructure::classifyExtension(outputPath.extension().string()).has_value();
+}
+
 int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
 {
     const AnalyzeArgumentsOutcome outcome = parseAnalyzeArguments(arguments, errorOutput);
@@ -638,29 +714,21 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
 
     if (parsedArguments.outputPath.has_value())
     {
-        std::error_code existsError;
-        const bool outputAlreadyExists = std::filesystem::exists(*parsedArguments.outputPath, existsError);
-        std::ofstream outputProbe(*parsedArguments.outputPath, std::ios::app);
+        if (outputConflictsWithAnalysis(parsedArguments, *parsedArguments.outputPath))
+        {
+            errorOutput << "Error [CLI017]: Output path '" << parsedArguments.outputPath->string()
+                           << "' conflicts with an analysis input or managed snapshot.\n";
+            return static_cast<int>(ExitCode::InvalidArguments);
+        }
 
-        if (existsError || !outputProbe)
+        outputFile.open(*parsedArguments.outputPath);
+        if (!outputFile)
         {
             errorOutput << "Error [CLI012]: Could not open '" << parsedArguments.outputPath->string()
                            << "' for writing.\n";
             return static_cast<int>(ExitCode::InvalidArguments);
         }
-        outputProbe.close();
-
-        if (!outputAlreadyExists)
-        {
-            std::error_code removeError;
-            std::filesystem::remove(*parsedArguments.outputPath, removeError);
-            if (removeError)
-            {
-                errorOutput << "Error [CLI012]: Could not open '" << parsedArguments.outputPath->string()
-                               << "' for writing.\n";
-                return static_cast<int>(ExitCode::InvalidArguments);
-            }
-        }
+        destination = &outputFile;
     }
 
     const codeqa::application::FacadeAnalysisRequest request{
@@ -680,18 +748,6 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
     {
         errorOutput << "Error [APPLICATION002]: analysis produced no report.\n";
         return static_cast<int>(ExitCode::InternalError);
-    }
-
-    if (parsedArguments.outputPath.has_value())
-    {
-        outputFile.open(*parsedArguments.outputPath);
-        if (!outputFile)
-        {
-            errorOutput << "Error [CLI012]: Could not open '" << parsedArguments.outputPath->string()
-                           << "' for writing.\n";
-            return static_cast<int>(ExitCode::InvalidArguments);
-        }
-        destination = &outputFile;
     }
 
     if (result.warning.has_value())

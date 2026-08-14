@@ -12,6 +12,8 @@
 #include "codeqa/history/CompareSnapshots.h"
 #include "codeqa/report/ReportJson.h"
 
+#include "SnapshotPath.h"
+
 #include <exception>
 #include <system_error>
 #include <utility>
@@ -187,27 +189,22 @@ SnapshotListResult ApplicationFacade::listSnapshots(const std::filesystem::path&
 ReportDocumentResult ApplicationFacade::openSnapshot(
     const std::filesystem::path& projectRoot, const std::string& timestamp) const
 {
-    if (!isValidSnapshotTimestamp(timestamp))
+    const SnapshotPathResolution resolution = resolveSnapshotPath(projectRoot, timestamp);
+    if (!resolution.path.has_value())
     {
         return ReportDocumentResult{
             std::nullopt,
-            "Error [SNAPSHOT001]: invalid snapshot timestamp '" + timestamp + "'."};
+            resolution.error};
     }
 
-    const std::optional<nlohmann::json> snapshot = LoadSnapshot{}.execute(projectRoot, timestamp);
-    if (!snapshot.has_value())
+    ReportDocumentResult result = loadReportDocument(*resolution.path);
+    if (!result.document.has_value())
     {
-        return ReportDocumentResult{
-            std::nullopt,
-            "Error [SNAPSHOT005]: snapshot '" + timestamp + "' could not be read."};
+        return result;
     }
 
-    ReportDocumentResult result = parseReportDocument(*snapshot);
-    if (result.document.has_value())
-    {
-        result.document->qualityGateOutcome = QualityGateOutcome::NotEvaluated;
-        result.document->comparison.reset();
-    }
+    result.document->qualityGateOutcome = QualityGateOutcome::NotEvaluated;
+    result.document->comparison.reset();
     return result;
 }
 

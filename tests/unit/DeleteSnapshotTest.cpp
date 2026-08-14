@@ -2,6 +2,7 @@
 
 #include "codeqa/application/DeleteSnapshot.h"
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -11,16 +12,37 @@
 namespace
 {
 
+bool createDirectoryLink(const std::filesystem::path& target, const std::filesystem::path& link)
+{
+    std::error_code linkError;
+    std::filesystem::create_directory_symlink(target, link, linkError);
+    if (!linkError)
+    {
+        return true;
+    }
+
+#ifdef _WIN32
+    const std::string command =
+        "cmd.exe /d /c mklink /J \"" + link.string() + "\" \"" + target.string() + "\" >NUL";
+    return std::system(command.c_str()) == 0;
+#else
+    return false;
+#endif
+}
+
 class TempProject
 {
 public:
     TempProject()
         : root_(std::filesystem::temp_directory_path() / "codeqa_delete_snapshot_test"),
-          outside_(root_.parent_path() / "codeqa_delete_snapshot_outside.json")
+          outside_(root_.parent_path() / "codeqa_delete_snapshot_outside.json"),
+          outsideSnapshots_(root_.parent_path() / "codeqa_delete_snapshot_outside_snapshots")
     {
         std::error_code ignored;
+        std::filesystem::remove(root_ / ".codeqa" / "snapshots", ignored);
         std::filesystem::remove_all(root_, ignored);
         std::filesystem::remove(outside_, ignored);
+        std::filesystem::remove_all(outsideSnapshots_, ignored);
         std::filesystem::create_directories(root_ / ".codeqa" / "snapshots");
         std::ofstream(outside_) << "keep";
     }
@@ -28,8 +50,10 @@ public:
     ~TempProject()
     {
         std::error_code ignored;
+        std::filesystem::remove(root_ / ".codeqa" / "snapshots", ignored);
         std::filesystem::remove_all(root_, ignored);
         std::filesystem::remove(outside_, ignored);
+        std::filesystem::remove_all(outsideSnapshots_, ignored);
     }
 
     TempProject(const TempProject&) = delete;
@@ -48,9 +72,25 @@ public:
     [[nodiscard]] const std::filesystem::path& root() const { return root_; }
     [[nodiscard]] const std::filesystem::path& outside() const { return outside_; }
 
+    bool redirectSnapshotsOutside(const std::string& timestamp) const
+    {
+        const std::filesystem::path snapshots = root_ / ".codeqa" / "snapshots";
+        std::error_code ignored;
+        std::filesystem::remove_all(snapshots, ignored);
+        std::filesystem::create_directories(outsideSnapshots_);
+        std::ofstream(outsideSnapshots_ / (timestamp + ".json")) << "{}";
+        return createDirectoryLink(outsideSnapshots_, snapshots);
+    }
+
+    [[nodiscard]] std::filesystem::path outsideSnapshotPath(const std::string& timestamp) const
+    {
+        return outsideSnapshots_ / (timestamp + ".json");
+    }
+
 private:
     std::filesystem::path root_;
     std::filesystem::path outside_;
+    std::filesystem::path outsideSnapshots_;
 };
 
 } // namespace
@@ -76,6 +116,22 @@ TEST_CASE("DeleteSnapshot rejects path traversal and leaves outside files untouc
 
     CHECK(error.has_value());
     CHECK(std::filesystem::exists(project.outside()));
+}
+
+TEST_CASE("DeleteSnapshot rejects a snapshot directory link that resolves outside the project")
+{
+    const TempProject project;
+    const std::string timestamp = "20260814T101112Z";
+    if (!project.redirectSnapshotsOutside(timestamp))
+    {
+        WARN("Directory links are unavailable; production policy rejects resolved paths outside the project.");
+        return;
+    }
+
+    const auto error = codeqa::application::DeleteSnapshot{}.execute(project.root(), timestamp);
+
+    CHECK(error.has_value());
+    CHECK(std::filesystem::exists(project.outsideSnapshotPath(timestamp)));
 }
 
 TEST_CASE("DeleteSnapshot rejects malformed and impossible timestamps")

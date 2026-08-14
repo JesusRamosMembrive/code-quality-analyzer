@@ -3,6 +3,7 @@
 #include "codeqa/application/ApplicationFacade.h"
 #include "codeqa/config/DefaultConfig.h"
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -12,16 +13,37 @@
 namespace
 {
 
+bool createDirectoryLink(const std::filesystem::path& target, const std::filesystem::path& link)
+{
+    std::error_code linkError;
+    std::filesystem::create_directory_symlink(target, link, linkError);
+    if (!linkError)
+    {
+        return true;
+    }
+
+#ifdef _WIN32
+    const std::string command =
+        "cmd.exe /d /c mklink /J \"" + link.string() + "\" \"" + target.string() + "\" >NUL";
+    return std::system(command.c_str()) == 0;
+#else
+    return false;
+#endif
+}
+
 class TempProject
 {
 public:
     explicit TempProject(const std::string& source = {})
         : root_(std::filesystem::temp_directory_path() / "codeqa_application_facade_test"),
-          outsideSentinel_(root_.parent_path() / "codeqa_application_facade_outside.json")
+          outsideSentinel_(root_.parent_path() / "codeqa_application_facade_outside.json"),
+          outsideSnapshots_(root_.parent_path() / "codeqa_application_facade_outside_snapshots")
     {
         std::error_code ignored;
+        std::filesystem::remove(root_ / ".codeqa" / "snapshots", ignored);
         std::filesystem::remove_all(root_, ignored);
         std::filesystem::remove(outsideSentinel_, ignored);
+        std::filesystem::remove_all(outsideSnapshots_, ignored);
         std::filesystem::create_directories(root_);
 
         if (!source.empty())
@@ -35,8 +57,10 @@ public:
     ~TempProject()
     {
         std::error_code ignored;
+        std::filesystem::remove(root_ / ".codeqa" / "snapshots", ignored);
         std::filesystem::remove_all(root_, ignored);
         std::filesystem::remove(outsideSentinel_, ignored);
+        std::filesystem::remove_all(outsideSnapshots_, ignored);
     }
 
     TempProject(const TempProject&) = delete;
@@ -52,6 +76,16 @@ public:
     void writeOutsideReport(const nlohmann::json& report) const
     {
         std::ofstream(outsideSentinel_) << report.dump(2);
+    }
+
+    bool redirectSnapshotsOutside(const std::string& timestamp, const nlohmann::json& report) const
+    {
+        const std::filesystem::path snapshots = root_ / ".codeqa" / "snapshots";
+        std::error_code ignored;
+        std::filesystem::remove_all(snapshots, ignored);
+        std::filesystem::create_directories(outsideSnapshots_);
+        std::ofstream(outsideSnapshots_ / (timestamp + ".json")) << report.dump(2);
+        return createDirectoryLink(outsideSnapshots_, snapshots);
     }
 
     [[nodiscard]] std::size_t snapshotCount() const
@@ -81,6 +115,7 @@ public:
 private:
     std::filesystem::path root_;
     std::filesystem::path outsideSentinel_;
+    std::filesystem::path outsideSnapshots_;
 };
 
 std::string sourceWithWarningFinding()
@@ -205,6 +240,25 @@ TEST_CASE("ApplicationFacade rejects a path traversal snapshot open")
     CHECK_FALSE(result.document.has_value());
     CHECK(result.error.has_value());
     CHECK(std::filesystem::exists(project.outsideSentinel()));
+}
+
+TEST_CASE("ApplicationFacade rejects a snapshot directory link that resolves outside the project")
+{
+    const TempProject project{sourceWithWarningFinding()};
+    const codeqa::application::ApplicationFacade facade;
+    const auto analysis = facade.analyzeProject({project.root(), codeqa::config::defaultConfig(), {}});
+    REQUIRE(analysis.reportJson.has_value());
+    const std::string timestamp = "20260814T101112Z";
+    if (!project.redirectSnapshotsOutside(timestamp, *analysis.reportJson))
+    {
+        WARN("Directory links are unavailable; production policy rejects resolved paths outside the project.");
+        return;
+    }
+
+    const auto result = facade.openSnapshot(project.root(), timestamp);
+
+    CHECK_FALSE(result.document.has_value());
+    CHECK(result.error.has_value());
 }
 
 TEST_CASE("ApplicationFacade warns and uses absolute quality-gate mode for an invalid previous snapshot")

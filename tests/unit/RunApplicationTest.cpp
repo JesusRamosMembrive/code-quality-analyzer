@@ -6,8 +6,12 @@
 
 #include <nlohmann/json.hpp>
 
+#include <chrono>
+#include <cstdlib>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -30,6 +34,24 @@ RunResult run(const std::vector<std::string>& arguments)
     const int exitCode = codeqa::cli::runApplication(arguments, output, errorOutput);
 
     return RunResult{exitCode, output.str(), errorOutput.str()};
+}
+
+bool createDirectoryLink(const std::filesystem::path& target, const std::filesystem::path& link)
+{
+    std::error_code linkError;
+    std::filesystem::create_directory_symlink(target, link, linkError);
+    if (!linkError)
+    {
+        return true;
+    }
+
+#ifdef _WIN32
+    const std::string command =
+        "cmd.exe /d /c mklink /J \"" + link.string() + "\" \"" + target.string() + "\" >NUL";
+    return std::system(command.c_str()) == 0;
+#else
+    return false;
+#endif
 }
 
 std::filesystem::path makeTempDiscoverRoot()
@@ -92,6 +114,22 @@ void rewriteSnapshotSample(const std::filesystem::path& root)
            "    if (a == 2) { return 2; }\n"
            "    return b;\n"
            "}\n";
+}
+
+std::string currentSnapshotTimestamp()
+{
+    const std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+    const std::tm* utc = std::gmtime(&time);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+    std::ostringstream timestamp;
+    timestamp << std::put_time(utc, "%Y%m%dT%H%M%SZ");
+    return timestamp.str();
 }
 
 } // namespace
@@ -448,6 +486,23 @@ TEST_CASE("analyze with an unwritable --output path returns CLI012")
     CHECK_FALSE(std::filesystem::exists(root / ".codeqa" / "snapshots"));
 }
 
+TEST_CASE("analyze opens a valid output before snapshot persistence effects")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+    const std::filesystem::path outputPath = root / ".codeqa";
+
+    const RunResult result = run({"analyze", root.string(), "--output", outputPath.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
+    CHECK(result.output.empty());
+    CHECK(result.errorOutput == "Warning: could not save snapshot.\n");
+    CHECK(std::filesystem::is_regular_file(outputPath));
+    std::ifstream report(outputPath);
+    std::ostringstream text;
+    text << report.rdbuf();
+    CHECK(text.str().find("Code Quality Analysis Report") != std::string::npos);
+}
+
 TEST_CASE("analyze with an invalid --config file forwards the CONFIG error and returns ConfigurationError")
 {
     const std::filesystem::path root = makeTempAnalyzeRoot();
@@ -503,19 +558,76 @@ TEST_CASE("analyze --format json --output writes a valid JSON report to a file")
     CHECK(report.at("files").size() == 2);
 }
 
-TEST_CASE("analyze reads an existing source before overwriting it as the output file")
+TEST_CASE("analyze rejects an output path that is an analysis source without changing it")
 {
     const std::filesystem::path root = makeTempAnalyzeRoot();
     const std::filesystem::path sourceOutputPath = root / "sample.c";
+    std::ifstream sourceBeforeStream(sourceOutputPath);
+    std::ostringstream sourceBefore;
+    sourceBefore << sourceBeforeStream.rdbuf();
 
     const RunResult result = run({"analyze", root.string(), "--output", sourceOutputPath.string()});
 
-    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
     CHECK(result.output.empty());
+    CHECK(result.errorOutput.find("CLI017") != std::string::npos);
     std::ifstream outputFile(sourceOutputPath);
     std::ostringstream outputText;
     outputText << outputFile.rdbuf();
-    CHECK(outputText.str().find("signature.parameter-count") != std::string::npos);
+    CHECK(outputText.str() == sourceBefore.str());
+    CHECK_FALSE(std::filesystem::exists(root / ".codeqa" / "snapshots"));
+}
+
+TEST_CASE("analyze rejects an output path that is the explicit config without changing it")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const std::filesystem::path configPath = root / "custom.json";
+    const std::string configText = R"({ "qualityGate": { "minSeverity": "error" } })";
+    std::ofstream(configPath) << configText;
+
+    const RunResult result = run(
+        {"analyze", root.string(), "--config", configPath.string(), "--output", configPath.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI017") != std::string::npos);
+    std::ifstream configFile(configPath);
+    std::ostringstream preservedConfig;
+    preservedConfig << configFile.rdbuf();
+    CHECK(preservedConfig.str() == configText);
+    CHECK_FALSE(std::filesystem::exists(root / ".codeqa" / "snapshots"));
+}
+
+TEST_CASE("analyze rejects an output path that targets the newest existing snapshot")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+    run({"analyze", root.string()});
+    const RunResult list = run({"snapshot", "list", root.string()});
+    const std::string timestamp = list.output.substr(0, list.output.find('\n'));
+    const std::filesystem::path snapshotPath = root / ".codeqa" / "snapshots" / (timestamp + ".json");
+    std::ifstream beforeStream(snapshotPath);
+    const nlohmann::json before = nlohmann::json::parse(beforeStream);
+
+    const RunResult result = run({"analyze", root.string(), "--output", snapshotPath.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI017") != std::string::npos);
+    std::ifstream afterStream(snapshotPath);
+    CHECK(nlohmann::json::parse(afterStream) == before);
+}
+
+TEST_CASE("analyze rejects an output path that targets the current managed snapshot location")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+    const std::filesystem::path snapshots = root / ".codeqa" / "snapshots";
+    std::filesystem::create_directories(snapshots);
+    const std::filesystem::path outputPath = snapshots / (currentSnapshotTimestamp() + ".json");
+
+    const RunResult result = run({"analyze", root.string(), "--format", "json", "--output", outputPath.string()});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.errorOutput.find("CLI017") != std::string::npos);
+    CHECK_FALSE(std::filesystem::exists(outputPath));
+    CHECK(std::filesystem::is_empty(snapshots));
 }
 
 TEST_CASE("analyze: a --lang-override wins over the same pattern's --config headerOverride")
@@ -752,6 +864,39 @@ TEST_CASE("snapshot show prints the exact JSON of a saved snapshot")
     CHECK(snapshot.at("schemaVersion").get<int>() == 1);
 
     std::filesystem::remove_all(root);
+}
+
+TEST_CASE("snapshot show rejects a snapshot directory link that resolves outside the project")
+{
+    const std::filesystem::path root = makeTempSnapshotRoot();
+    const std::filesystem::path snapshots = root / ".codeqa" / "snapshots";
+    const std::filesystem::path outside =
+        std::filesystem::temp_directory_path() / "codeqa_run_application_snapshot_outside";
+    const std::string timestamp = "20260814T101112Z";
+    std::filesystem::remove_all(outside);
+    std::filesystem::create_directories(root / ".codeqa");
+    std::filesystem::create_directories(outside);
+    std::ofstream(outside / (timestamp + ".json")) << R"({"external":true})";
+
+    if (!createDirectoryLink(outside, snapshots))
+    {
+        WARN("Directory links are unavailable; production policy rejects resolved paths outside the project.");
+        std::filesystem::remove_all(root);
+        std::filesystem::remove_all(outside);
+        return;
+    }
+
+    const RunResult result = run({"snapshot", "show", root.string(), timestamp});
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::InvalidArguments));
+    CHECK(result.output.empty());
+    CHECK(result.errorOutput.find("CLI016") != std::string::npos);
+    CHECK(std::filesystem::exists(outside / (timestamp + ".json")));
+
+    std::error_code ignored;
+    std::filesystem::remove(snapshots, ignored);
+    std::filesystem::remove_all(root, ignored);
+    std::filesystem::remove_all(outside, ignored);
 }
 
 TEST_CASE("--help documents the snapshot subcommand")
