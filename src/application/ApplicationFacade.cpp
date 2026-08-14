@@ -8,6 +8,7 @@
 #include "codeqa/application/RunAnalysis.h"
 #include "codeqa/application/SaveProjectConfig.h"
 #include "codeqa/application/SaveSnapshot.h"
+#include "codeqa/config/ConfigJson.h"
 #include "codeqa/config/DefaultConfig.h"
 #include "codeqa/history/CompareSnapshots.h"
 #include "codeqa/report/ReportJson.h"
@@ -45,6 +46,38 @@ ReportComparison toReportComparison(
 {
     return ReportComparison{
         previousTimestamp, comparison.newCount, comparison.existingCount, comparison.resolvedCount};
+}
+
+std::optional<std::string> validateAnalysisRequest(const FacadeAnalysisRequest& request)
+{
+    std::error_code statusError;
+    const std::filesystem::file_status rootStatus =
+        std::filesystem::status(request.projectRoot, statusError);
+    if (statusError || !std::filesystem::is_directory(rootStatus))
+    {
+        return "Error [APPLICATION001]: analysis failed: project root '"
+            + request.projectRoot.string() + "' is not an accessible directory.";
+    }
+
+    std::error_code accessError;
+    const std::filesystem::directory_iterator accessibilityCheck(request.projectRoot, accessError);
+    (void)accessibilityCheck;
+    if (accessError)
+    {
+        return "Error [APPLICATION001]: analysis failed: project root '"
+            + request.projectRoot.string() + "' is not an accessible directory.";
+    }
+
+    const nlohmann::json configDocument = codeqa::config::toJson(request.config);
+    const codeqa::config::ParseConfigResult validation =
+        codeqa::config::parseConfig(configDocument.dump());
+    if (!validation.config.has_value())
+    {
+        return validation.error.value_or(
+            "Error [CONFIG010]: configuration validation failed.");
+    }
+
+    return std::nullopt;
 }
 
 } // namespace
@@ -88,6 +121,13 @@ AnalysisFacadeResult ApplicationFacade::analyzeProject(
 
     try
     {
+        const std::optional<std::string> validationError = validateAnalysisRequest(request);
+        if (validationError.has_value())
+        {
+            result.error.message = validationError;
+            return result;
+        }
+
         RunAnalysisRequest analysisRequest;
         analysisRequest.analysis.discovery.rootPath = request.projectRoot;
         analysisRequest.analysis.discovery.excludePatterns = request.excludePatterns;

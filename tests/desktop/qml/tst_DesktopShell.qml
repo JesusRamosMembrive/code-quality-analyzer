@@ -7,6 +7,9 @@ TestCase {
 
     ListModel {
         id: fixtureFindings
+        property int findingCount: count
+        property int errorCount: 1
+        property int warningCount: 1
 
         ListElement {
             severity: "error"
@@ -39,6 +42,8 @@ TestCase {
 
     ListModel {
         id: fixtureFiles
+        property int fileCount: 3
+        property int diagnosticCount: 4
     }
 
     ListModel {
@@ -98,6 +103,7 @@ TestCase {
         property int refreshSnapshotCalls: 0
         property int openSnapshotCalls: 0
         property int deleteSnapshotCalls: 0
+        property int clearRecentPathsCalls: 0
         property url selectedProjectUrl: ""
         property string openedTimestamp: ""
         property string deletedTimestamp: ""
@@ -136,6 +142,9 @@ TestCase {
             ++deleteSnapshotCalls
             deletedTimestamp = timestamp
         }
+        function clearRecentPaths() {
+            ++clearRecentPathsCalls
+        }
 
         function setFindingSeverityFilter(value) {
             findingSeverityFilter = value
@@ -144,6 +153,8 @@ TestCase {
                 resetFixtureFindings()
             } else if (value === "warning") {
                 fixtureFindings.append(warningFinding)
+                fixtureFindings.errorCount = 0
+                fixtureFindings.warningCount = 1
             }
         }
 
@@ -187,6 +198,8 @@ TestCase {
         fixtureFindings.clear()
         fixtureFindings.append(errorFinding)
         fixtureFindings.append(warningFinding)
+        fixtureFindings.errorCount = 1
+        fixtureFindings.warningCount = 1
         fixtureController.findingSeverityFilter = ""
     }
 
@@ -252,6 +265,45 @@ TestCase {
         verify(shell.findChild("findingTable") !== null)
         verify(shell.findChild("resultsSummary") !== null)
         verify(shell.findChild("saveFindingButton") === null)
+    }
+
+    function test_results_summary_uses_controller_model_counts() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        compare(shell.findChild("summaryFilesLabel").text, "Files: 3")
+        compare(shell.findChild("summaryDiagnosticsLabel").text, "Diagnostics: 4")
+        compare(shell.findChild("summaryFindingsLabel").text, "Matching findings: 2")
+        compare(shell.findChild("summaryErrorsLabel").text, "Matching errors: 1")
+        compare(shell.findChild("summaryWarningsLabel").text, "Matching warnings: 1")
+
+        fixtureController.setFindingSeverityFilter("warning")
+        tryCompare(shell.findChild("summaryFindingsLabel"), "text", "Matching findings: 1")
+        compare(shell.findChild("summaryErrorsLabel").text, "Matching errors: 0")
+        compare(shell.findChild("summaryWarningsLabel").text, "Matching warnings: 1")
+    }
+
+    function test_clear_recent_paths_action_is_visible_calls_controller_and_is_disabled_during_analysis() {
+        fixtureController.analysisRunning = false
+        fixtureController.clearRecentPathsCalls = 0
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+
+        const action = shell.findChild("clearRecentPathsButton")
+        verify(action !== null)
+        compare(action.text, "Clear recent paths")
+        compare(action.visible, true)
+        compare(action.enabled, true)
+        mouseClick(action, action.width / 2, action.height / 2)
+        compare(fixtureController.clearRecentPathsCalls, 1)
+
+        fixtureController.analysisRunning = true
+        compare(action.enabled, false)
+        mouseClick(action, action.width / 2, action.height / 2)
+        compare(fixtureController.clearRecentPathsCalls, 1)
+        fixtureController.analysisRunning = false
     }
 
     function test_analyze_page_has_semantic_controls() {

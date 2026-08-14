@@ -155,6 +155,70 @@ TEST_CASE("ApplicationFacade completes an analysis, saves a snapshot, and report
     CHECK(phases == expectedPhases);
 }
 
+TEST_CASE("ApplicationFacade rejects an invalid in-memory config before progress or output effects")
+{
+    const TempProject project{sourceWithWarningFinding()};
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("complexity.cyclomatic").warningLimit = 20;
+    config.rules.at("complexity.cyclomatic").highLimit = 10;
+    std::vector<codeqa::application::AnalysisPhase> phases;
+
+    const auto result = codeqa::application::ApplicationFacade{}.analyzeProject(
+        {project.root(), config, {}},
+        [&phases](const codeqa::application::AnalysisPhase phase) { phases.push_back(phase); });
+
+    CHECK_FALSE(result.document.has_value());
+    CHECK_FALSE(result.reportJson.has_value());
+    CHECK_FALSE(result.savedSnapshotPath.has_value());
+    CHECK(result.error.hasError());
+    REQUIRE(result.error.message.has_value());
+    CHECK(result.error.message->find("CONFIG008") != std::string::npos);
+    CHECK(phases.empty());
+    CHECK_FALSE(std::filesystem::exists(project.root() / ".codeqa"));
+}
+
+TEST_CASE("ApplicationFacade rejects a vanished project root before progress or filesystem effects")
+{
+    const TempProject project{sourceWithWarningFinding()};
+    std::error_code removeError;
+    std::filesystem::remove_all(project.root(), removeError);
+    REQUIRE_FALSE(removeError);
+    std::vector<codeqa::application::AnalysisPhase> phases;
+
+    const auto result = codeqa::application::ApplicationFacade{}.analyzeProject(
+        {project.root(), codeqa::config::defaultConfig(), {}},
+        [&phases](const codeqa::application::AnalysisPhase phase) { phases.push_back(phase); });
+
+    CHECK_FALSE(result.document.has_value());
+    CHECK_FALSE(result.reportJson.has_value());
+    CHECK_FALSE(result.savedSnapshotPath.has_value());
+    CHECK(result.error.hasError());
+    CHECK(phases.empty());
+    CHECK_FALSE(std::filesystem::exists(project.root()));
+}
+
+TEST_CASE("ApplicationFacade rejects a non-directory project root before progress or output effects")
+{
+    const TempProject project{sourceWithWarningFinding()};
+    std::error_code removeError;
+    std::filesystem::remove_all(project.root(), removeError);
+    REQUIRE_FALSE(removeError);
+    std::ofstream(project.root()) << "not a directory";
+    REQUIRE(std::filesystem::is_regular_file(project.root()));
+    std::vector<codeqa::application::AnalysisPhase> phases;
+
+    const auto result = codeqa::application::ApplicationFacade{}.analyzeProject(
+        {project.root(), codeqa::config::defaultConfig(), {}},
+        [&phases](const codeqa::application::AnalysisPhase phase) { phases.push_back(phase); });
+
+    CHECK_FALSE(result.document.has_value());
+    CHECK_FALSE(result.reportJson.has_value());
+    CHECK_FALSE(result.savedSnapshotPath.has_value());
+    CHECK(result.error.hasError());
+    CHECK(phases.empty());
+    CHECK(std::filesystem::is_regular_file(project.root()));
+}
+
 TEST_CASE("ApplicationFacade returns defaults when a project has no codeqa.json")
 {
     const TempProject project;

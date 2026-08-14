@@ -385,6 +385,21 @@ int FindingListModel::rowCount(const QModelIndex& parent) const
     return parent.isValid() ? 0 : static_cast<int>(rows_.size());
 }
 
+int FindingListModel::findingCount() const
+{
+    return static_cast<int>(rows_.size());
+}
+
+int FindingListModel::errorCount() const
+{
+    return errorCount_;
+}
+
+int FindingListModel::warningCount() const
+{
+    return warningCount_;
+}
+
 QVariant FindingListModel::data(const QModelIndex& index, const int role) const
 {
     if (!index.isValid() || index.row() < 0 || index.row() >= rowCount())
@@ -462,6 +477,7 @@ void FindingListModel::applyDocument(
 void FindingListModel::endDocumentReset()
 {
     endResetModel();
+    emit summaryChanged();
 }
 
 void FindingListModel::setSeverityFilter(const QString& severity)
@@ -517,11 +533,14 @@ void FindingListModel::rebuild()
     beginResetModel();
     rebuildRows();
     endResetModel();
+    emit summaryChanged();
 }
 
 void FindingListModel::rebuildRows()
 {
     rows_.clear();
+    errorCount_ = 0;
+    warningCount_ = 0;
 
     if (document_)
     {
@@ -549,6 +568,14 @@ void FindingListModel::rebuildRows()
                     continue;
                 }
                 rows_.push_back(Row{&file, &finding, findMetrics(file, finding)});
+                if (finding.severity == codeqa::core::DiagnosticSeverity::Error)
+                {
+                    ++errorCount_;
+                }
+                else if (finding.severity == codeqa::core::DiagnosticSeverity::Warning)
+                {
+                    ++warningCount_;
+                }
             }
         }
 
@@ -582,6 +609,16 @@ FileListModel::FileListModel(QObject* parent) : QAbstractListModel(parent) {}
 int FileListModel::rowCount(const QModelIndex& parent) const
 {
     return parent.isValid() || !document_ ? 0 : static_cast<int>(document_->files.size());
+}
+
+int FileListModel::fileCount() const
+{
+    return document_ ? static_cast<int>(document_->files.size()) : 0;
+}
+
+int FileListModel::diagnosticCount() const
+{
+    return diagnosticCount_;
 }
 
 QVariant FileListModel::data(const QModelIndex& index, const int role) const
@@ -650,11 +687,20 @@ void FileListModel::applyDocument(
     std::shared_ptr<const codeqa::application::ReportDocument> document)
 {
     document_ = std::move(document);
+    diagnosticCount_ = 0;
+    if (document_)
+    {
+        for (const codeqa::application::ReportFile& file : document_->files)
+        {
+            diagnosticCount_ += static_cast<int>(file.diagnostics.size());
+        }
+    }
 }
 
 void FileListModel::endDocumentReset()
 {
     endResetModel();
+    emit summaryChanged();
 }
 
 SnapshotListModel::SnapshotListModel(QObject* parent) : QAbstractListModel(parent) {}

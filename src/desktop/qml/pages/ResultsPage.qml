@@ -7,11 +7,6 @@ Item {
 
     property var controller: null
     property var selectedFinding: null
-    property int summaryFilesCount: 0
-    property int summaryDiagnosticsCount: 0
-    property int summaryFindingsCount: 0
-    property int summaryErrorsCount: 0
-    property int summaryWarningsCount: 0
 
     function selectFinding(finding) {
         selectedFinding = finding
@@ -26,74 +21,11 @@ Item {
         return value === undefined || value === null || value === "" ? "Not available" : String(value)
     }
 
-    function recalculateSummary() {
-        let files = 0
-        let diagnostics = 0
-        let findings = 0
-        let errors = 0
-        let warnings = 0
-
-        for (let fileIndex = 0; fileIndex < fileSummaryRepeater.count; ++fileIndex) {
-            const file = fileSummaryRepeater.itemAt(fileIndex)
-            if (file) {
-                ++files
-                diagnostics += Number(file.diagnosticCount)
-            }
-        }
-
-        for (let findingIndex = 0; findingIndex < findingSummaryRepeater.count; ++findingIndex) {
-            const finding = findingSummaryRepeater.itemAt(findingIndex)
-            if (!finding) {
-                continue
-            }
-
-            ++findings
-            if (finding.severity === "error") {
-                ++errors
-            } else if (finding.severity === "warning") {
-                ++warnings
-            }
-        }
-
-        summaryFilesCount = files
-        summaryDiagnosticsCount = diagnostics
-        summaryFindingsCount = findings
-        summaryErrorsCount = errors
-        summaryWarningsCount = warnings
-    }
-
-    Repeater {
-        id: fileSummaryRepeater
-        model: root.controller ? root.controller.files : null
-
-        delegate: Item {
-            required property var diagnosticCount
-            visible: false
-
-            Component.onCompleted: Qt.callLater(root.recalculateSummary)
-            Component.onDestruction: Qt.callLater(root.recalculateSummary)
-        }
-    }
-
-    Repeater {
-        id: findingSummaryRepeater
-        model: root.controller ? root.controller.findings : null
-
-        delegate: Item {
-            required property string severity
-            visible: false
-
-            Component.onCompleted: Qt.callLater(root.recalculateSummary)
-            Component.onDestruction: Qt.callLater(root.recalculateSummary)
-        }
-    }
-
     Connections {
         target: root.controller
 
         function onCurrentReportChanged() {
             root.clearFindingSelection()
-            Qt.callLater(root.recalculateSummary)
         }
 
         function onFindingSeverityFilterChanged(severity) {
@@ -138,23 +70,28 @@ Item {
                 spacing: 12
 
                 Label {
-                    text: "Files: " + root.summaryFilesCount
+                    objectName: "summaryFilesLabel"
+                    text: "Files: " + (root.controller ? root.controller.files.fileCount : 0)
                 }
 
                 Label {
-                    text: "Diagnostics: " + root.summaryDiagnosticsCount
+                    objectName: "summaryDiagnosticsLabel"
+                    text: "Diagnostics: " + (root.controller ? root.controller.files.diagnosticCount : 0)
                 }
 
                 Label {
-                    text: "Matching findings: " + root.summaryFindingsCount
+                    objectName: "summaryFindingsLabel"
+                    text: "Matching findings: " + (root.controller ? root.controller.findings.findingCount : 0)
                 }
 
                 Label {
-                    text: "Matching errors: " + root.summaryErrorsCount
+                    objectName: "summaryErrorsLabel"
+                    text: "Matching errors: " + (root.controller ? root.controller.findings.errorCount : 0)
                 }
 
                 Label {
-                    text: "Matching warnings: " + root.summaryWarningsCount
+                    objectName: "summaryWarningsLabel"
+                    text: "Matching warnings: " + (root.controller ? root.controller.findings.warningCount : 0)
                 }
 
                 Label {

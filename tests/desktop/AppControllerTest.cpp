@@ -153,10 +153,12 @@ private slots:
     void resetConfigurationChangesOnlyTheForm();
     void headerOverrideLanguagesAreConstrained();
     void analysisUsesUnsavedFormValuesButDoesNotWriteConfiguration();
+    void invalidUnsavedFormAnalysisHasNoProgressReportOrFilesystemEffects();
     void successfulImportReplacesTheCurrentReport();
     void invalidImportKeepsTheCurrentReport();
     void malformedImportKeepsTheCurrentReport();
     void findingsExposeRolesAndSortBySeverityThenLocation();
+    void summaryCountsTrackDocumentsAndFilteredFindings();
     void overloadedFindingsUseMetricsFromTheirOwnSourceRange();
     void replacementPreservesPersistedFindingFilters();
     void urlSnapshotActionDuringAnalysisCannotChangeProjectOrCompletionSnapshots();
@@ -386,6 +388,32 @@ void AppControllerTest::analysisUsesUnsavedFormValuesButDoesNotWriteConfiguratio
         QString("complexity.cyclomatic"));
 }
 
+void AppControllerTest::invalidUnsavedFormAnalysisHasNoProgressReportOrFilesystemEffects()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    writeTextFile(
+        directory.filePath("sample.cpp"),
+        "int sample()\n"
+        "{\n"
+        "    return 0;\n"
+        "}\n");
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    controller.setRuleLimits("complexity.cyclomatic", 20, 10);
+
+    controller.startAnalysis();
+
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.analysisRunning(), 30000);
+    QCOMPARE(controller.analysisPhase(), QString{});
+    QCOMPARE(controller.findings()->rowCount(), 0);
+    QCOMPARE(controller.files()->rowCount(), 0);
+    QCOMPARE(controller.snapshots()->rowCount(), 0);
+    QVERIFY(controller.errorMessage().contains("CONFIG008"));
+    QVERIFY(!QFile::exists(directory.filePath("codeqa.json")));
+    QVERIFY(!QFile::exists(directory.filePath(".codeqa")));
+}
+
 void AppControllerTest::successfulImportReplacesTheCurrentReport()
 {
     QTemporaryDir directory;
@@ -479,6 +507,52 @@ void AppControllerTest::findingsExposeRolesAndSortBySeverityThenLocation()
     QVERIFY(metric.contains("commentLines"));
     QVERIFY(metric.contains("sourceRange"));
     QVERIFY(metric.contains("maxConditionRange"));
+}
+
+void AppControllerTest::summaryCountsTrackDocumentsAndFilteredFindings()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString initial = writeReport(
+        directory,
+        "summary-initial.json",
+        {{"src/a.cpp", "error", "error.first", "first", 1},
+         {"src/a.cpp", "warning", "warning.only", "second", 8},
+         {"src/b.cpp", "error", "error.second", "third", 2},
+         {"src/c.cpp", "information", "info.only", "fourth", 3}});
+    const QString replacement = writeReport(
+        directory,
+        "summary-replacement.json",
+        {{"src/d.cpp", "warning", "warning.replacement", "fifth", 4},
+         {"src/e.cpp", "information", "info.replacement", "sixth", 5}});
+    AppController controller(settingsPath(directory));
+
+    controller.openReport(QUrl::fromLocalFile(initial));
+
+    QCOMPARE(controller.files()->fileCount(), 3);
+    QCOMPARE(controller.files()->diagnosticCount(), 0);
+    QCOMPARE(controller.findings()->findingCount(), 4);
+    QCOMPARE(controller.findings()->errorCount(), 2);
+    QCOMPARE(controller.findings()->warningCount(), 1);
+
+    QSignalSpy summarySpy(controller.findings(), &FindingListModel::summaryChanged);
+    controller.setFindingSeverityFilter("warning");
+    QCOMPARE(summarySpy.count(), 1);
+    QCOMPARE(controller.files()->fileCount(), 3);
+    QCOMPARE(controller.findings()->findingCount(), 1);
+    QCOMPARE(controller.findings()->errorCount(), 0);
+    QCOMPARE(controller.findings()->warningCount(), 1);
+
+    controller.openReport(QUrl::fromLocalFile(replacement));
+    QCOMPARE(controller.files()->fileCount(), 2);
+    QCOMPARE(controller.findings()->findingCount(), 1);
+    QCOMPARE(controller.findings()->errorCount(), 0);
+    QCOMPARE(controller.findings()->warningCount(), 1);
+
+    controller.setFindingSeverityFilter({});
+    QCOMPARE(controller.findings()->findingCount(), 2);
+    QCOMPARE(controller.findings()->errorCount(), 0);
+    QCOMPARE(controller.findings()->warningCount(), 1);
 }
 
 void AppControllerTest::overloadedFindingsUseMetricsFromTheirOwnSourceRange()

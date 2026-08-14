@@ -150,6 +150,19 @@ ApplicationWindow {
                 Item {
                     Layout.fillHeight: true
                 }
+
+                Button {
+                    id: clearRecentPathsButton
+                    objectName: "clearRecentPathsButton"
+                    Layout.fillWidth: true
+                    text: "Clear recent paths"
+                    enabled: shell.controller && !shell.controller.analysisRunning
+                    onClicked: {
+                        if (shell.controller) {
+                            shell.controller.clearRecentPaths()
+                        }
+                    }
+                }
             }
         }
 

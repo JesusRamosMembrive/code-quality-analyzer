@@ -87,6 +87,9 @@ private:
 class FindingListModel final : public QAbstractListModel
 {
     Q_OBJECT
+    Q_PROPERTY(int findingCount READ findingCount NOTIFY summaryChanged)
+    Q_PROPERTY(int errorCount READ errorCount NOTIFY summaryChanged)
+    Q_PROPERTY(int warningCount READ warningCount NOTIFY summaryChanged)
 
 public:
     enum Role
@@ -110,6 +113,9 @@ public:
     [[nodiscard]] int rowCount(const QModelIndex& parent = {}) const override;
     [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+    [[nodiscard]] int findingCount() const;
+    [[nodiscard]] int errorCount() const;
+    [[nodiscard]] int warningCount() const;
 
     void setDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
     void setSeverityFilter(const QString& severity);
@@ -119,6 +125,9 @@ public:
     [[nodiscard]] QString severityFilter() const;
     [[nodiscard]] QString ruleFilter() const;
     [[nodiscard]] QString searchText() const;
+
+signals:
+    void summaryChanged();
 
 private:
     friend class AppController;
@@ -141,11 +150,15 @@ private:
     QString severityFilter_;
     QString ruleFilter_;
     QString searchText_;
+    int errorCount_{0};
+    int warningCount_{0};
 };
 
 class FileListModel final : public QAbstractListModel
 {
     Q_OBJECT
+    Q_PROPERTY(int fileCount READ fileCount NOTIFY summaryChanged)
+    Q_PROPERTY(int diagnosticCount READ diagnosticCount NOTIFY summaryChanged)
 
 public:
     enum Role
@@ -165,8 +178,13 @@ public:
     [[nodiscard]] int rowCount(const QModelIndex& parent = {}) const override;
     [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+    [[nodiscard]] int fileCount() const;
+    [[nodiscard]] int diagnosticCount() const;
 
     void setDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
+
+signals:
+    void summaryChanged();
 
 private:
     friend class AppController;
@@ -176,6 +194,7 @@ private:
     void endDocumentReset();
 
     std::shared_ptr<const codeqa::application::ReportDocument> document_;
+    int diagnosticCount_{0};
 };
 
 class SnapshotListModel final : public QAbstractListModel
