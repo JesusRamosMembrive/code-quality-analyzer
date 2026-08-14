@@ -1,0 +1,400 @@
+#include "AppController.h"
+#include "ReportModels.h"
+
+#include "codeqa/config/ConfigJson.h"
+#include "codeqa/config/DefaultConfig.h"
+
+#include <QDir>
+#include <QFile>
+#include <QSettings>
+#include <QSignalSpy>
+#include <QTemporaryDir>
+#include <QTest>
+#include <QUrl>
+
+#include <nlohmann/json.hpp>
+
+#include <filesystem>
+#include <fstream>
+#include <map>
+#include <string>
+#include <vector>
+
+namespace
+{
+
+struct FindingSpec
+{
+    std::string path;
+    std::string severity;
+    std::string ruleId;
+    std::string symbolName;
+    std::size_t line;
+};
+
+nlohmann::json functionMetricsJson(const std::string& symbolName, const std::size_t line)
+{
+    return {
+        {"symbol",
+         {{"name", symbolName},
+          {"qualifiedName", "sample::" + symbolName},
+          {"range",
+           {{"begin", {{"line", line}, {"column", 1}}},
+            {"end", {{"line", line + 3}, {"column", 1}}}}}}},
+        {"size",
+         {{"physicalLines", 4},
+          {"codeLines", 3},
+          {"blankLines", 0},
+          {"commentLines", 1},
+          {"statementCount", 2}}},
+        {"signature",
+         {{"parameterCount", 2},
+          {"signatureLength", 18},
+          {"booleanParameterCount", 0}}},
+        {"complexity",
+         {{"cyclomaticComplexity", 12},
+          {"maxConditionComplexity", 3},
+          {"maxNestingDepth", 2},
+          {"branchCount", 4},
+          {"returnCount", 1}}}};
+}
+
+nlohmann::json reportJson(const std::filesystem::path& root, const std::vector<FindingSpec>& findings)
+{
+    nlohmann::json report{
+        {"schemaVersion", 1},
+        {"metadata",
+         {{"rootPath", root.generic_string()},
+          {"toolName", "codeqa"},
+          {"toolVersion", "9.9.9"}}},
+        {"config", codeqa::config::toJson(codeqa::config::defaultConfig())},
+        {"files", nlohmann::json::array()}};
+
+    std::map<std::string, std::vector<FindingSpec>> byFile;
+    for (const FindingSpec& finding : findings)
+    {
+        byFile[finding.path].push_back(finding);
+    }
+
+    for (const auto& [path, fileFindings] : byFile)
+    {
+        nlohmann::json file{
+            {"path", path},
+            {"language", "cpp"},
+            {"state", "complete"},
+            {"diagnostics", nlohmann::json::array()},
+            {"metrics", nlohmann::json::array()},
+            {"findings", nlohmann::json::array()}};
+
+        for (const FindingSpec& finding : fileFindings)
+        {
+            file["metrics"].push_back(functionMetricsJson(finding.symbolName, finding.line));
+            file["findings"].push_back({
+                {"ruleId", finding.ruleId},
+                {"severity", finding.severity},
+                {"description", "description for " + finding.ruleId},
+                {"recommendation", "recommendation for " + finding.ruleId},
+                {"observedValue", 12},
+                {"limitValue", 10},
+                {"location", {{"line", finding.line}, {"column", 3}}},
+                {"symbolName", finding.symbolName}});
+        }
+        report["files"].push_back(std::move(file));
+    }
+
+    return report;
+}
+
+QString writeReport(
+    const QTemporaryDir& directory,
+    const QString& name,
+    const std::vector<FindingSpec>& findings)
+{
+    const QString path = directory.filePath(name);
+    std::ofstream output(std::filesystem::path(path.toStdWString()));
+    output << reportJson(std::filesystem::path(directory.path().toStdWString()), findings).dump(2);
+    return path;
+}
+
+std::vector<FindingSpec> oneFinding(const std::string& ruleId = "complexity.cyclomatic")
+{
+    return {{"src/sample.cpp", "warning", ruleId, "run", 7}};
+}
+
+QString settingsPath(const QTemporaryDir& directory)
+{
+    return directory.filePath("settings.ini");
+}
+
+void writeTextFile(const QString& path, const QByteArray& contents)
+{
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    QCOMPARE(file.write(contents), contents.size());
+}
+
+} // namespace
+
+class AppControllerTest : public QObject
+{
+    Q_OBJECT
+
+private slots:
+    void successfulImportReplacesTheCurrentReport();
+    void invalidImportKeepsTheCurrentReport();
+    void malformedImportKeepsTheCurrentReport();
+    void findingsExposeRolesAndSortBySeverityThenLocation();
+    void replacementPreservesPersistedFindingFilters();
+    void analysisReportsRealPhasesAndFailedQualityGate();
+    void emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport();
+    void snapshotOpenFailureKeepsTheCurrentReport();
+    void snapshotsAreNewestFirstAndDeleteRefreshesTheModel();
+    void clearRecentPathsRetainsTheCurrentReport();
+};
+
+void AppControllerTest::successfulImportReplacesTheCurrentReport()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString first = writeReport(directory, "first.json", oneFinding("first.rule"));
+    const QString second = writeReport(
+        directory,
+        "second.json",
+        {{"src/one.cpp", "error", "second.one", "one", 2},
+         {"src/two.cpp", "information", "second.two", "two", 4}});
+    AppController controller(settingsPath(directory));
+
+    controller.openReport(QUrl::fromLocalFile(first));
+    QTRY_COMPARE(controller.findings()->rowCount(), 1);
+    controller.openReport(QUrl::fromLocalFile(second));
+
+    QTRY_COMPARE(controller.findings()->rowCount(), 2);
+    QCOMPARE(controller.errorMessage(), QString{});
+    QCOMPARE(controller.qualityGateStatus(), QString("Not evaluated"));
+}
+
+void AppControllerTest::invalidImportKeepsTheCurrentReport()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString valid = writeReport(directory, "valid.json", oneFinding());
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(valid));
+    QTRY_COMPARE(controller.findings()->rowCount(), 1);
+
+    controller.openReport(QUrl::fromLocalFile(directory.filePath("missing.json")));
+
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QVERIFY(controller.errorMessage().contains("REPORT001"));
+}
+
+void AppControllerTest::malformedImportKeepsTheCurrentReport()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString valid = writeReport(directory, "valid.json", oneFinding());
+    const QString malformed = directory.filePath("malformed.json");
+    writeTextFile(malformed, "{ invalid");
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(valid));
+
+    controller.openReport(QUrl::fromLocalFile(malformed));
+
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QVERIFY(controller.errorMessage().contains("REPORT002"));
+}
+
+void AppControllerTest::findingsExposeRolesAndSortBySeverityThenLocation()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString report = writeReport(
+        directory,
+        "roles.json",
+        {{"src/zeta.cpp", "information", "info.rule", "infoSymbol", 1},
+         {"src/bravo.cpp", "error", "error.late", "lateError", 10},
+         {"src/alpha.cpp", "warning", "warning.rule", "warningSymbol", 1},
+         {"src/bravo.cpp", "error", "error.early", "earlyError", 2}});
+    AppController controller(settingsPath(directory));
+
+    controller.openReport(QUrl::fromLocalFile(report));
+
+    FindingListModel* model = controller.findings();
+    QCOMPARE(model->rowCount(), 4);
+    const QHash<int, QByteArray> roles = model->roleNames();
+    const QList<QByteArray> expectedRoles = {
+        "severity", "ruleId", "symbolName", "path", "line", "column",
+        "observedValue", "limitValue", "description", "recommendation", "metricSummary"};
+    for (const QByteArray& role : expectedRoles)
+    {
+        QVERIFY2(roles.values().contains(role), role.constData());
+    }
+
+    QCOMPARE(model->data(model->index(0), FindingListModel::RuleIdRole).toString(), QString("error.early"));
+    QCOMPARE(model->data(model->index(1), FindingListModel::RuleIdRole).toString(), QString("error.late"));
+    QCOMPARE(model->data(model->index(2), FindingListModel::SeverityRole).toString(), QString("warning"));
+    QCOMPARE(model->data(model->index(3), FindingListModel::SeverityRole).toString(), QString("information"));
+    QCOMPARE(model->data(model->index(0), FindingListModel::LineRole).toULongLong(), 2ULL);
+    QVERIFY(model->data(model->index(0), FindingListModel::MetricSummaryRole).toString().contains("Cyclomatic: 12"));
+    QCOMPARE(controller.files()->rowCount(), 3);
+}
+
+void AppControllerTest::replacementPreservesPersistedFindingFilters()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString report = writeReport(
+        directory,
+        "filtered.json",
+        {{"src/a.cpp", "error", "target.rule", "target", 1},
+         {"src/b.cpp", "warning", "other.rule", "other", 2}});
+    const QString replacement = writeReport(
+        directory,
+        "replacement.json",
+        {{"src/c.cpp", "error", "target.rule", "targetAgain", 3},
+         {"src/d.cpp", "information", "target.rule", "filteredOut", 4}});
+    const QString path = settingsPath(directory);
+    AppController controller(path);
+    controller.setLastPage("Results");
+    controller.setFindingSeverityFilter("error");
+    controller.setFindingRuleFilter("target.rule");
+    controller.setFindingSearchText("target");
+
+    controller.openReport(QUrl::fromLocalFile(report));
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    controller.openReport(QUrl::fromLocalFile(replacement));
+
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QSettings persisted(path, QSettings::IniFormat);
+    QCOMPARE(persisted.value("ui/lastPage").toString(), QString("Results"));
+    QCOMPARE(persisted.value("filters/severity").toString(), QString("error"));
+    QCOMPARE(persisted.value("filters/ruleId").toString(), QString("target.rule"));
+    QCOMPARE(persisted.value("filters/searchText").toString(), QString("target"));
+
+    AppController restored(path);
+    restored.openReport(QUrl::fromLocalFile(replacement));
+    QCOMPARE(restored.lastPage(), QString("Results"));
+    QCOMPARE(restored.findings()->rowCount(), 1);
+}
+
+void AppControllerTest::analysisReportsRealPhasesAndFailedQualityGate()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    writeTextFile(
+        directory.filePath("sample.c"),
+        "int classify(int a, int b, int c, int d, int e)\n"
+        "{\n"
+        "    return a + b + c + d + e;\n"
+        "}\n");
+    AppController controller(settingsPath(directory));
+    QSignalSpy phaseSpy(&controller, &AppController::analysisPhaseChanged);
+    QSignalSpy runningSpy(&controller, &AppController::analysisRunningChanged);
+
+    controller.startAnalysis(QUrl::fromLocalFile(directory.path()));
+
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.analysisRunning(), 30000);
+    QVERIFY(runningSpy.count() >= 2);
+    QStringList phases;
+    for (const QList<QVariant>& arguments : phaseSpy)
+    {
+        phases.push_back(arguments.at(0).toString());
+    }
+    QCOMPARE(
+        phases,
+        QStringList({
+            "Discovering files",
+            "Parsing source files",
+            "Measuring functions",
+            "Applying rules",
+            "Preparing report"}));
+    QCOMPARE(controller.qualityGateStatus(), QString("Failed"));
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QCOMPARE(controller.snapshots()->rowCount(), 1);
+    QCOMPARE(controller.errorMessage(), QString{});
+}
+
+void AppControllerTest::emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString valid = writeReport(directory, "valid.json", oneFinding());
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(valid));
+
+    controller.startAnalysis();
+
+    QVERIFY(!controller.analysisRunning());
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QVERIFY(controller.errorMessage().contains("project", Qt::CaseInsensitive));
+}
+
+void AppControllerTest::snapshotOpenFailureKeepsTheCurrentReport()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString valid = writeReport(directory, "valid.json", oneFinding());
+    const QString snapshots = directory.filePath(".codeqa/snapshots");
+    QVERIFY(QDir{}.mkpath(snapshots));
+    writeTextFile(QDir(snapshots).filePath("20260101T000000Z.json"), "{ invalid");
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(valid));
+
+    controller.openSnapshot(QUrl::fromLocalFile(directory.path()), "20260101T000000Z");
+
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QVERIFY(controller.errorMessage().contains("REPORT002"));
+}
+
+void AppControllerTest::snapshotsAreNewestFirstAndDeleteRefreshesTheModel()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString snapshots = directory.filePath(".codeqa/snapshots");
+    QVERIFY(QDir{}.mkpath(snapshots));
+    const QByteArray report = QByteArray::fromStdString(reportJson(
+        std::filesystem::path(directory.path().toStdWString()), oneFinding()).dump(2));
+    writeTextFile(QDir(snapshots).filePath("20260101T000000Z.json"), report);
+    writeTextFile(QDir(snapshots).filePath("20260301T000000Z.json"), report);
+    AppController controller(settingsPath(directory));
+
+    controller.refreshSnapshots(QUrl::fromLocalFile(directory.path()));
+
+    QCOMPARE(controller.snapshots()->rowCount(), 2);
+    QCOMPARE(
+        controller.snapshots()->data(controller.snapshots()->index(0), SnapshotListModel::TimestampRole).toString(),
+        QString("20260301T000000Z"));
+    controller.deleteSnapshot(QUrl::fromLocalFile(directory.path()), "20260301T000000Z");
+    QCOMPARE(controller.snapshots()->rowCount(), 1);
+    QVERIFY(!QFile::exists(QDir(snapshots).filePath("20260301T000000Z.json")));
+}
+
+void AppControllerTest::clearRecentPathsRetainsTheCurrentReport()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString valid = writeReport(directory, "valid.json", oneFinding());
+    const QString path = settingsPath(directory);
+    {
+        QSettings seed(path, QSettings::IniFormat);
+        seed.setValue("recentProjects", QStringList{directory.path()});
+        seed.setValue("recentReports", QStringList{valid});
+    }
+    AppController controller(path);
+    controller.openReport(QUrl::fromLocalFile(valid));
+    QCOMPARE(controller.findings()->rowCount(), 1);
+
+    controller.clearRecentPaths();
+
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QVERIFY(controller.recentProjects().isEmpty());
+    QVERIFY(controller.recentReports().isEmpty());
+    QSettings persisted(path, QSettings::IniFormat);
+    QVERIFY(!persisted.contains("recentProjects"));
+    QVERIFY(!persisted.contains("recentReports"));
+    QCOMPARE(persisted.value("ui/lastPage", "Results").toString(), QString("Results"));
+}
+
+QTEST_GUILESS_MAIN(AppControllerTest)
+
+#include "AppControllerTest.moc"

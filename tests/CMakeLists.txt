@@ -186,6 +186,20 @@ add_test(
 )
 
 if(WIN32 AND CODEQA_BUILD_DESKTOP)
+    qt_add_executable(codeqa_desktop_tests
+        desktop/AppControllerTest.cpp
+    )
+    target_link_libraries(codeqa_desktop_tests PRIVATE
+        codeqa_desktop_support
+        Qt6::Core
+        Qt6::Concurrent
+        Qt6::Test
+    )
+    add_test(NAME codeqa_desktop_tests COMMAND codeqa_desktop_tests)
+    set_tests_properties(codeqa_desktop_tests PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${QT6_INSTALL_PREFIX}/bin"
+    )
+
     set(CODEQA_DESKTOP_QML_TEST_MAIN
         ${CMAKE_CURRENT_BINARY_DIR}/DesktopShellQuickTestMain.cpp
     )
