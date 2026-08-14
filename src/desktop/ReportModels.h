@@ -2,14 +2,87 @@
 
 #include "codeqa/application/ApplicationFacade.h"
 #include "codeqa/application/ReportDocument.h"
+#include "codeqa/config/ConfigModels.h"
 
 #include <QAbstractListModel>
 #include <QString>
 
 #include <memory>
+#include <map>
 #include <vector>
 
 class AppController;
+
+class RuleConfigModel final : public QAbstractListModel
+{
+    Q_OBJECT
+
+public:
+    enum Role
+    {
+        IdRole = Qt::UserRole + 1,
+        EnabledRole,
+        WarningLimitRole,
+        HighLimitRole
+    };
+    Q_ENUM(Role)
+
+    explicit RuleConfigModel(QObject* parent = nullptr);
+
+    [[nodiscard]] int rowCount(const QModelIndex& parent = {}) const override;
+    [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+
+    bool setEnabled(const QString& ruleId, bool enabled);
+    bool setLimit(const QString& ruleId, qlonglong warningLimit, qlonglong highLimit);
+    void setRules(const std::map<std::string, codeqa::config::RuleConfig>& rules);
+    [[nodiscard]] std::map<std::string, codeqa::config::RuleConfig> rules() const;
+
+signals:
+    void configurationChanged();
+
+private:
+    struct Row
+    {
+        QString id;
+        codeqa::config::RuleConfig config;
+    };
+
+    [[nodiscard]] int findRow(const QString& ruleId) const;
+
+    std::vector<Row> rows_;
+};
+
+class HeaderOverrideModel final : public QAbstractListModel
+{
+    Q_OBJECT
+
+public:
+    enum Role
+    {
+        PatternRole = Qt::UserRole + 1,
+        LanguageRole
+    };
+    Q_ENUM(Role)
+
+    explicit HeaderOverrideModel(QObject* parent = nullptr);
+
+    [[nodiscard]] int rowCount(const QModelIndex& parent = {}) const override;
+    [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+
+    void setOverrides(std::vector<codeqa::config::HeaderOverrideConfig> overrides);
+    [[nodiscard]] const std::vector<codeqa::config::HeaderOverrideConfig>& overrides() const;
+    void addOverride(codeqa::config::HeaderOverrideConfig overrideConfig);
+    [[nodiscard]] bool updateOverride(int row, codeqa::config::HeaderOverrideConfig overrideConfig);
+    [[nodiscard]] bool removeOverride(int row);
+
+signals:
+    void configurationChanged();
+
+private:
+    std::vector<codeqa::config::HeaderOverrideConfig> overrides_;
+};
 
 class FindingListModel final : public QAbstractListModel
 {

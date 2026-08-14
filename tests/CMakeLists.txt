@@ -232,6 +232,11 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsPage.qml
         COPYONLY
     )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/AnalyzePage.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalyzePage.qml
+        COPYONLY
+    )
     file(GENERATE
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
         CONTENT "module CodeQA.Desktop\nMain 1.0 Main.qml\n"
@@ -241,6 +246,7 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         BASE ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml
         FILES
             ${CODEQA_DESKTOP_QML_TEST_MAIN_QML}
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalyzePage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsPage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
     )

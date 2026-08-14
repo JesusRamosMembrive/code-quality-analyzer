@@ -41,15 +41,59 @@ TestCase {
         id: fixtureFiles
     }
 
+    ListModel {
+        id: fixtureRules
+
+        ListElement {
+            ruleId: "complexity.cyclomatic"
+            enabled: true
+            warningLimit: 10
+            highLimit: 15
+        }
+    }
+
+    ListModel {
+        id: fixtureHeaderOverrides
+
+        ListElement {
+            pattern: "include/**/*.h"
+            language: "cpp"
+        }
+    }
+
     QtObject {
         id: fixtureController
         property var findings: fixtureFindings
         property var files: fixtureFiles
+        property var rules: fixtureRules
+        property var headerOverrides: fixtureHeaderOverrides
         property string qualityGateStatus: "Not evaluated"
+        property string qualityGateSeverity: "warning"
         property string lastPage: "Results"
         property string findingSeverityFilter: ""
         property string findingRuleFilter: ""
         property string findingSearchText: ""
+        property url currentProject: "file:///C:/projects/sample"
+        property bool configurationAvailable: true
+        property bool configurationDirty: false
+        property bool analysisRunning: false
+        property string analysisPhase: ""
+        property string errorMessage: ""
+
+        signal currentReportChanged()
+
+        function selectProject(projectRoot) {}
+        function saveConfiguration() {}
+        function resetConfiguration() {}
+        function setQualityGateSeverity(severity) {
+            qualityGateSeverity = severity
+        }
+        function setRuleEnabled(ruleId, value) {}
+        function setRuleLimits(ruleId, warningLimit, highLimit) {}
+        function addHeaderOverride(pattern, language) {}
+        function updateHeaderOverride(row, pattern, language) {}
+        function removeHeaderOverride(row) {}
+        function startAnalysis() {}
 
         function setFindingSeverityFilter(value) {
             findingSeverityFilter = value
@@ -131,6 +175,49 @@ TestCase {
         verify(shell.findChild("findingTable") !== null)
         verify(shell.findChild("resultsSummary") !== null)
         verify(shell.findChild("saveFindingButton") === null)
+    }
+
+    function test_analyze_page_has_semantic_controls() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+
+        verify(shell.findChild("ruleThresholdTable") !== null)
+        verify(shell.findChild("headerOverrideTable") !== null)
+        verify(shell.findChild("rawConfigEditor") === null)
+        compare(shell.findChild("saveConfigurationButton").text, "Save")
+        compare(shell.findChild("resetConfigurationButton").text, "Reset")
+        compare(shell.findChild("startAnalysisButton").text, "Analyze project")
+        compare(shell.findChild("headerLanguageSelector").currentText, "cpp")
+    }
+
+    function test_running_analysis_disables_conflicting_controls_and_shows_phase() {
+        fixtureController.analysisRunning = true
+        fixtureController.analysisPhase = "Measuring functions"
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+
+        compare(shell.findChild("selectProjectButton").enabled, false)
+        compare(shell.findChild("saveConfigurationButton").enabled, false)
+        compare(shell.findChild("resetConfigurationButton").enabled, false)
+        compare(shell.findChild("startAnalysisButton").enabled, false)
+        compare(shell.findChild("openReportButton").enabled, false)
+        compare(shell.findChild("analysisBusyIndicator").running, true)
+        compare(shell.findChild("analysisPhaseLabel").text, "Measuring functions")
+
+        fixtureController.analysisRunning = false
+        fixtureController.analysisPhase = ""
+    }
+
+    function test_completed_analysis_selects_results() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+
+        fixtureController.currentReportChanged()
+
+        tryCompare(shell, "selectedPage", "Results")
     }
 
     function test_selecting_a_finding_shows_its_details() {

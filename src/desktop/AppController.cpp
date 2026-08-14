@@ -1,6 +1,7 @@
 #include "AppController.h"
 
 #include "codeqa/config/DefaultConfig.h"
+#include "codeqa/core/EnumJson.h"
 
 #include <QDir>
 #include <QMetaObject>
@@ -64,19 +65,19 @@ bool isSupportedSeverityFilter(const QString& severity)
 
 AppController::AppController(QObject* parent)
     : QObject(parent),
-      currentConfig_(codeqa::config::defaultConfig()),
       settings_(std::make_unique<QSettings>(QStringLiteral("CodeQA"), QStringLiteral("CodeQA Desktop")))
 {
     initializeSettingsState();
+    initializeConfigurationState();
     connect(&analysisWatcher_, &QFutureWatcherBase::finished, this, &AppController::finishAnalysis);
 }
 
 AppController::AppController(const QString& settingsPath, QObject* parent)
     : QObject(parent),
-      currentConfig_(codeqa::config::defaultConfig()),
       settings_(std::make_unique<QSettings>(settingsPath, QSettings::IniFormat))
 {
     initializeSettingsState();
+    initializeConfigurationState();
     connect(&analysisWatcher_, &QFutureWatcherBase::finished, this, &AppController::finishAnalysis);
 }
 
@@ -106,6 +107,38 @@ QString AppController::errorMessage() const
 QString AppController::qualityGateStatus() const
 {
     return qualityGateStatus_;
+}
+
+QUrl AppController::currentProject() const
+{
+    return currentProjectPath_.empty()
+        ? QUrl{}
+        : QUrl::fromLocalFile(normalizedSettingsPath(currentProjectPath_));
+}
+
+bool AppController::configurationAvailable() const
+{
+    return configurationAvailable_;
+}
+
+bool AppController::configurationDirty() const
+{
+    return configurationDirty_;
+}
+
+QString AppController::qualityGateSeverity() const
+{
+    return qualityGateSeverity_;
+}
+
+RuleConfigModel* AppController::rules()
+{
+    return &rules_;
+}
+
+HeaderOverrideModel* AppController::headerOverrides()
+{
+    return &headerOverrides_;
 }
 
 FindingListModel* AppController::findings()
@@ -166,41 +199,201 @@ void AppController::setLastPage(const QString& page)
     emit lastPageChanged(lastPage_);
 }
 
-void AppController::startAnalysis()
+void AppController::selectProject(const QUrl& projectRoot)
 {
     if (analysisRunning_)
     {
-        setErrorMessage(QStringLiteral("Error [DESKTOP002]: an analysis is already running."));
-        return;
-    }
-    if (!requireCurrentProject(QStringLiteral("starting analysis")))
-    {
+        setErrorMessage(QStringLiteral(
+            "Error [DESKTOP002]: wait for the current analysis before selecting a project."));
         return;
     }
 
+    setCurrentProject(projectRoot);
+    if (currentProjectPath_.empty())
+    {
+        configurationLoadError_.clear();
+        setConfigurationAvailable(false);
+        setConfigurationDirty(false);
+        return;
+    }
+
+    const codeqa::application::ProjectConfigLoadResult result =
+        facade_.loadProjectConfig(currentProjectPath_);
+    if (!result.config.has_value())
+    {
+        configurationLoadError_ = QString::fromStdString(
+            result.error.message.value_or("Error [CONFIG007]: unable to load configuration."));
+        applyConfiguration(codeqa::config::defaultConfig(), false);
+        setConfigurationAvailable(false);
+        setErrorMessage(configurationLoadError_);
+        return;
+    }
+
+    configurationLoadError_.clear();
+    applyConfiguration(std::move(*result.config), !result.fileExists);
+    setConfigurationAvailable(true);
     setErrorMessage({});
-    if (!analysisPhase_.isEmpty())
+}
+
+void AppController::saveConfiguration()
+{
+    if (!requireEditableConfiguration(QStringLiteral("saving configuration")))
     {
-        analysisPhase_.clear();
-        emit analysisPhaseChanged(analysisPhase_);
+        return;
     }
-    setAnalysisRunning(true);
 
-    codeqa::application::FacadeAnalysisRequest request;
-    request.projectRoot = currentProjectPath_;
-    request.config = currentConfig_;
-    const codeqa::application::ApplicationFacade facade = facade_;
-
-    analysisWatcher_.setFuture(QtConcurrent::run([this, facade, request]()
+    const codeqa::application::ApplicationError result =
+        facade_.saveProjectConfig(currentProjectPath_, currentFormConfiguration());
+    if (result.hasError())
     {
-        return facade.analyzeProject(request, [this](const codeqa::application::AnalysisPhase phase)
-        {
-            QMetaObject::invokeMethod(this, [this, phase]()
-            {
-                applyAnalysisPhase(phase);
-            }, Qt::QueuedConnection);
-        });
-    }));
+        setErrorMessage(QString::fromStdString(*result.message));
+        return;
+    }
+
+    setConfigurationDirty(false);
+    setErrorMessage({});
+}
+
+void AppController::resetConfiguration()
+{
+    if (analysisRunning_)
+    {
+        setErrorMessage(QStringLiteral(
+            "Error [DESKTOP002]: wait for the current analysis before resetting configuration."));
+        return;
+    }
+    if (!requireCurrentProject(QStringLiteral("resetting configuration")))
+    {
+        return;
+    }
+
+    applyConfiguration(codeqa::config::defaultConfig(), true);
+    if (configurationAvailable_)
+    {
+        setErrorMessage({});
+    }
+    else
+    {
+        setErrorMessage(configurationLoadError_);
+    }
+}
+
+void AppController::setQualityGateSeverity(const QString& severity)
+{
+    if (!requireEditableConfiguration(QStringLiteral("changing the quality gate")))
+    {
+        return;
+    }
+
+    const QString normalized = severity.trimmed().toLower();
+    if (!codeqa::core::diagnosticSeverityFromJsonString(normalized.toStdString()).has_value())
+    {
+        setErrorMessage(QStringLiteral(
+            "Error [DESKTOP005]: quality gate severity must be information, warning, or error."));
+        return;
+    }
+    if (qualityGateSeverity_ != normalized)
+    {
+        qualityGateSeverity_ = normalized;
+        emit qualityGateSeverityChanged(qualityGateSeverity_);
+        setConfigurationDirty(true);
+    }
+    setErrorMessage({});
+}
+
+void AppController::setRuleEnabled(const QString& ruleId, const bool enabled)
+{
+    if (!requireEditableConfiguration(QStringLiteral("changing a rule")))
+    {
+        return;
+    }
+    if (!rules_.setEnabled(ruleId, enabled))
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP006]: unknown rule '%1'.").arg(ruleId));
+        return;
+    }
+    setErrorMessage({});
+}
+
+void AppController::setRuleLimits(
+    const QString& ruleId, const qlonglong warningLimit, const qlonglong highLimit)
+{
+    if (!requireEditableConfiguration(QStringLiteral("changing rule limits")))
+    {
+        return;
+    }
+    if (!rules_.setLimit(ruleId, warningLimit, highLimit))
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP006]: unknown rule '%1'.").arg(ruleId));
+        return;
+    }
+    setErrorMessage({});
+}
+
+void AppController::addHeaderOverride(const QString& pattern, const QString& language)
+{
+    if (!requireEditableConfiguration(QStringLiteral("adding a header override")))
+    {
+        return;
+    }
+    const std::optional<codeqa::core::Language> parsedLanguage = supportedLanguage(language);
+    if (!parsedLanguage.has_value())
+    {
+        setErrorMessage(QStringLiteral(
+            "Error [DESKTOP007]: header override language must be c or cpp."));
+        return;
+    }
+
+    headerOverrides_.addOverride(
+        codeqa::config::HeaderOverrideConfig{pattern.trimmed().toStdString(), *parsedLanguage});
+    setErrorMessage({});
+}
+
+void AppController::updateHeaderOverride(
+    const int row, const QString& pattern, const QString& language)
+{
+    if (!requireEditableConfiguration(QStringLiteral("changing a header override")))
+    {
+        return;
+    }
+    const std::optional<codeqa::core::Language> parsedLanguage = supportedLanguage(language);
+    if (!parsedLanguage.has_value())
+    {
+        setErrorMessage(QStringLiteral(
+            "Error [DESKTOP007]: header override language must be c or cpp."));
+        return;
+    }
+    if (!headerOverrides_.updateOverride(
+            row,
+            codeqa::config::HeaderOverrideConfig{pattern.trimmed().toStdString(), *parsedLanguage}))
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP008]: header override row is no longer available."));
+        return;
+    }
+    setErrorMessage({});
+}
+
+void AppController::removeHeaderOverride(const int row)
+{
+    if (!requireEditableConfiguration(QStringLiteral("removing a header override")))
+    {
+        return;
+    }
+    if (!headerOverrides_.removeOverride(row))
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP008]: header override row is no longer available."));
+        return;
+    }
+    setErrorMessage({});
+}
+
+void AppController::startAnalysis()
+{
+    if (!requireEditableConfiguration(QStringLiteral("starting analysis")))
+    {
+        return;
+    }
+    launchAnalysis(currentFormConfiguration());
 }
 
 void AppController::openReport(const QUrl& reportUrl)
@@ -353,16 +546,24 @@ void AppController::setFindingSearchText(const QString& searchText)
 
 void AppController::startAnalysis(const QUrl& projectRoot)
 {
-    setCurrentProject(projectRoot);
+    selectProject(projectRoot);
     startAnalysis();
 }
 
 void AppController::startAnalysis(
     const QUrl& projectRoot, codeqa::config::ProjectConfig config)
 {
+    if (analysisRunning_)
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP002]: an analysis is already running."));
+        return;
+    }
     setCurrentProject(projectRoot);
-    currentConfig_ = std::move(config);
-    startAnalysis();
+    if (!requireCurrentProject(QStringLiteral("starting analysis")))
+    {
+        return;
+    }
+    launchAnalysis(std::move(config));
 }
 
 void AppController::openSnapshot(const QUrl& projectRoot, const QString& timestamp)
@@ -399,16 +600,38 @@ void AppController::initializeSettingsState()
     findings_.setSearchText(settings_->value(QStringLiteral("filters/searchText")).toString());
 }
 
+void AppController::initializeConfigurationState()
+{
+    applyConfiguration(codeqa::config::defaultConfig(), false);
+    connect(&rules_, &RuleConfigModel::configurationChanged, this, [this]()
+    {
+        setConfigurationDirty(true);
+    });
+    connect(&headerOverrides_, &HeaderOverrideModel::configurationChanged, this, [this]()
+    {
+        setConfigurationDirty(true);
+    });
+}
+
 void AppController::setCurrentProject(const QUrl& projectRoot)
 {
+    const QUrl previous = currentProject();
     const std::filesystem::path path = localPath(projectRoot);
     if (path.empty())
     {
         currentProjectPath_.clear();
+        if (currentProject() != previous)
+        {
+            emit currentProjectChanged(currentProject());
+        }
         setErrorMessage(QStringLiteral("Error [DESKTOP001]: choose a local project folder."));
         return;
     }
     currentProjectPath_ = path;
+    if (currentProject() != previous)
+    {
+        emit currentProjectChanged(currentProject());
+    }
     addRecentProject(normalizedSettingsPath(path));
 }
 
@@ -420,6 +643,85 @@ bool AppController::requireCurrentProject(const QString& action)
     }
     setErrorMessage(QStringLiteral("Error [DESKTOP001]: select a project before %1.").arg(action));
     return false;
+}
+
+bool AppController::requireEditableConfiguration(const QString& action)
+{
+    if (analysisRunning_)
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP002]: wait for the current analysis before %1.").arg(action));
+        return false;
+    }
+    if (!requireCurrentProject(action))
+    {
+        return false;
+    }
+    if (configurationAvailable_)
+    {
+        return true;
+    }
+
+    setErrorMessage(configurationLoadError_.isEmpty()
+        ? QStringLiteral("Error [DESKTOP009]: load a valid project configuration before %1.").arg(action)
+        : configurationLoadError_);
+    return false;
+}
+
+std::optional<codeqa::core::Language> AppController::supportedLanguage(const QString& language) const
+{
+    return codeqa::core::languageFromJsonString(language.trimmed().toLower().toStdString());
+}
+
+codeqa::config::ProjectConfig AppController::currentFormConfiguration() const
+{
+    codeqa::config::ProjectConfig config;
+    config.rules = rules_.rules();
+    config.headerOverrides = headerOverrides_.overrides();
+    config.qualityGate.minSeverity = codeqa::core::diagnosticSeverityFromJsonString(
+        qualityGateSeverity_.toStdString()).value_or(codeqa::core::DiagnosticSeverity::Warning);
+    return config;
+}
+
+void AppController::applyConfiguration(codeqa::config::ProjectConfig config, const bool dirty)
+{
+    rules_.setRules(config.rules);
+    headerOverrides_.setOverrides(std::move(config.headerOverrides));
+
+    const QString severity = QString::fromStdString(
+        codeqa::core::diagnosticSeverityToJsonString(config.qualityGate.minSeverity));
+    if (qualityGateSeverity_ != severity)
+    {
+        qualityGateSeverity_ = severity;
+        emit qualityGateSeverityChanged(qualityGateSeverity_);
+    }
+    setConfigurationDirty(dirty);
+}
+
+void AppController::launchAnalysis(codeqa::config::ProjectConfig config)
+{
+    setErrorMessage({});
+    if (!analysisPhase_.isEmpty())
+    {
+        analysisPhase_.clear();
+        emit analysisPhaseChanged(analysisPhase_);
+    }
+    setAnalysisRunning(true);
+
+    codeqa::application::FacadeAnalysisRequest request;
+    request.projectRoot = currentProjectPath_;
+    request.config = std::move(config);
+    const codeqa::application::ApplicationFacade facade = facade_;
+
+    analysisWatcher_.setFuture(QtConcurrent::run([this, facade, request]()
+    {
+        return facade.analyzeProject(request, [this](const codeqa::application::AnalysisPhase phase)
+        {
+            QMetaObject::invokeMethod(this, [this, phase]()
+            {
+                applyAnalysisPhase(phase);
+            }, Qt::QueuedConnection);
+        });
+    }));
 }
 
 void AppController::applyAnalysisPhase(const codeqa::application::AnalysisPhase phase)
@@ -527,6 +829,26 @@ void AppController::setErrorMessage(const QString& message)
     }
     errorMessage_ = message;
     emit errorMessageChanged(errorMessage_);
+}
+
+void AppController::setConfigurationAvailable(const bool available)
+{
+    if (configurationAvailable_ == available)
+    {
+        return;
+    }
+    configurationAvailable_ = available;
+    emit configurationAvailableChanged(configurationAvailable_);
+}
+
+void AppController::setConfigurationDirty(const bool dirty)
+{
+    if (configurationDirty_ == dirty)
+    {
+        return;
+    }
+    configurationDirty_ = dirty;
+    emit configurationDirtyChanged(configurationDirty_);
 }
 
 void AppController::addRecentProject(const QString& path)

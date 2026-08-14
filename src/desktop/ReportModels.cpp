@@ -1,5 +1,6 @@
 #include "ReportModels.h"
 
+#include "codeqa/config/DefaultConfig.h"
 #include "codeqa/core/EnumJson.h"
 
 #include <QVariantList>
@@ -12,6 +13,20 @@
 
 namespace
 {
+
+const QStringList& orderedRuleIds()
+{
+    static const QStringList ids = {
+        QStringLiteral("size.function-length"),
+        QStringLiteral("size.local-variables"),
+        QStringLiteral("signature.parameter-count"),
+        QStringLiteral("signature.consecutive-booleans"),
+        QStringLiteral("complexity.cyclomatic"),
+        QStringLiteral("complexity.returns"),
+        QStringLiteral("complexity.condition"),
+        QStringLiteral("complexity.nesting")};
+    return ids;
+}
 
 QString fromPath(const std::filesystem::path& path)
 {
@@ -148,6 +163,220 @@ QVariantMap metricsMap(const codeqa::metrics::FunctionMetricsModel& metrics)
 }
 
 } // namespace
+
+RuleConfigModel::RuleConfigModel(QObject* parent) : QAbstractListModel(parent)
+{
+    setRules(codeqa::config::defaultConfig().rules);
+}
+
+int RuleConfigModel::rowCount(const QModelIndex& parent) const
+{
+    return parent.isValid() ? 0 : static_cast<int>(rows_.size());
+}
+
+QVariant RuleConfigModel::data(const QModelIndex& index, const int role) const
+{
+    if (!index.isValid() || index.row() < 0 || index.row() >= rowCount())
+    {
+        return {};
+    }
+
+    const Row& row = rows_[static_cast<std::size_t>(index.row())];
+    switch (role)
+    {
+    case IdRole:
+        return row.id;
+    case EnabledRole:
+        return row.config.enabled;
+    case WarningLimitRole:
+        return QVariant::fromValue(static_cast<qlonglong>(row.config.warningLimit));
+    case HighLimitRole:
+        return QVariant::fromValue(static_cast<qlonglong>(row.config.highLimit));
+    default:
+        return {};
+    }
+}
+
+QHash<int, QByteArray> RuleConfigModel::roleNames() const
+{
+    return {
+        {IdRole, "id"},
+        {EnabledRole, "enabled"},
+        {WarningLimitRole, "warningLimit"},
+        {HighLimitRole, "highLimit"}};
+}
+
+bool RuleConfigModel::setEnabled(const QString& ruleId, const bool enabled)
+{
+    const int rowIndex = findRow(ruleId);
+    if (rowIndex < 0)
+    {
+        return false;
+    }
+
+    Row& row = rows_[static_cast<std::size_t>(rowIndex)];
+    if (row.config.enabled == enabled)
+    {
+        return true;
+    }
+
+    row.config.enabled = enabled;
+    const QModelIndex changed = index(rowIndex);
+    emit dataChanged(changed, changed, {EnabledRole});
+    emit configurationChanged();
+    return true;
+}
+
+bool RuleConfigModel::setLimit(
+    const QString& ruleId, const qlonglong warningLimit, const qlonglong highLimit)
+{
+    const int rowIndex = findRow(ruleId);
+    if (rowIndex < 0)
+    {
+        return false;
+    }
+
+    Row& row = rows_[static_cast<std::size_t>(rowIndex)];
+    if (row.config.warningLimit == warningLimit && row.config.highLimit == highLimit)
+    {
+        return true;
+    }
+
+    row.config.warningLimit = warningLimit;
+    row.config.highLimit = highLimit;
+    const QModelIndex changed = index(rowIndex);
+    emit dataChanged(changed, changed, {WarningLimitRole, HighLimitRole});
+    emit configurationChanged();
+    return true;
+}
+
+void RuleConfigModel::setRules(const std::map<std::string, codeqa::config::RuleConfig>& rules)
+{
+    const std::map<std::string, codeqa::config::RuleConfig> defaults =
+        codeqa::config::defaultConfig().rules;
+    beginResetModel();
+    rows_.clear();
+    rows_.reserve(static_cast<std::size_t>(orderedRuleIds().size()));
+    for (const QString& id : orderedRuleIds())
+    {
+        const std::string key = id.toStdString();
+        const auto configured = rules.find(key);
+        const auto fallback = defaults.find(key);
+        rows_.push_back(Row{
+            id,
+            configured != rules.end() ? configured->second : fallback->second});
+    }
+    endResetModel();
+}
+
+std::map<std::string, codeqa::config::RuleConfig> RuleConfigModel::rules() const
+{
+    std::map<std::string, codeqa::config::RuleConfig> result;
+    for (const Row& row : rows_)
+    {
+        result.emplace(row.id.toStdString(), row.config);
+    }
+    return result;
+}
+
+int RuleConfigModel::findRow(const QString& ruleId) const
+{
+    const QString normalized = ruleId.trimmed();
+    const auto match = std::find_if(rows_.begin(), rows_.end(), [&normalized](const Row& row)
+    {
+        return row.id == normalized;
+    });
+    return match == rows_.end() ? -1 : static_cast<int>(std::distance(rows_.begin(), match));
+}
+
+HeaderOverrideModel::HeaderOverrideModel(QObject* parent) : QAbstractListModel(parent) {}
+
+int HeaderOverrideModel::rowCount(const QModelIndex& parent) const
+{
+    return parent.isValid() ? 0 : static_cast<int>(overrides_.size());
+}
+
+QVariant HeaderOverrideModel::data(const QModelIndex& index, const int role) const
+{
+    if (!index.isValid() || index.row() < 0 || index.row() >= rowCount())
+    {
+        return {};
+    }
+
+    const codeqa::config::HeaderOverrideConfig& overrideConfig =
+        overrides_[static_cast<std::size_t>(index.row())];
+    switch (role)
+    {
+    case PatternRole:
+        return QString::fromStdString(overrideConfig.pattern);
+    case LanguageRole:
+        return QString::fromStdString(codeqa::core::languageToJsonString(overrideConfig.language));
+    default:
+        return {};
+    }
+}
+
+QHash<int, QByteArray> HeaderOverrideModel::roleNames() const
+{
+    return {{PatternRole, "pattern"}, {LanguageRole, "language"}};
+}
+
+void HeaderOverrideModel::setOverrides(
+    std::vector<codeqa::config::HeaderOverrideConfig> overrides)
+{
+    beginResetModel();
+    overrides_ = std::move(overrides);
+    endResetModel();
+}
+
+const std::vector<codeqa::config::HeaderOverrideConfig>& HeaderOverrideModel::overrides() const
+{
+    return overrides_;
+}
+
+void HeaderOverrideModel::addOverride(codeqa::config::HeaderOverrideConfig overrideConfig)
+{
+    const int row = rowCount();
+    beginInsertRows({}, row, row);
+    overrides_.push_back(std::move(overrideConfig));
+    endInsertRows();
+    emit configurationChanged();
+}
+
+bool HeaderOverrideModel::updateOverride(
+    const int row, codeqa::config::HeaderOverrideConfig overrideConfig)
+{
+    if (row < 0 || row >= rowCount())
+    {
+        return false;
+    }
+
+    codeqa::config::HeaderOverrideConfig& current = overrides_[static_cast<std::size_t>(row)];
+    if (current.pattern == overrideConfig.pattern && current.language == overrideConfig.language)
+    {
+        return true;
+    }
+
+    current = std::move(overrideConfig);
+    const QModelIndex changed = index(row);
+    emit dataChanged(changed, changed, {PatternRole, LanguageRole});
+    emit configurationChanged();
+    return true;
+}
+
+bool HeaderOverrideModel::removeOverride(const int row)
+{
+    if (row < 0 || row >= rowCount())
+    {
+        return false;
+    }
+
+    beginRemoveRows({}, row, row);
+    overrides_.erase(overrides_.begin() + row);
+    endRemoveRows();
+    emit configurationChanged();
+    return true;
+}
 
 FindingListModel::FindingListModel(QObject* parent) : QAbstractListModel(parent) {}
 

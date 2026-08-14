@@ -37,10 +37,15 @@ set_source_files_properties(qml/pages/ResultsPage.qml PROPERTIES
     QT_RESOURCE_ALIAS pages/ResultsPage.qml
 )
 
+set_source_files_properties(qml/pages/AnalyzePage.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/AnalyzePage.qml
+)
+
 qt_add_qml_module(codeqa_desktop
     URI CodeQA.Desktop
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/pages/AnalyzePage.qml
         qml/pages/ResultsPage.qml
 )

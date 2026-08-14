@@ -28,7 +28,8 @@ ApplicationWindow {
     }
 
     function findChild(childObjectName) {
-        return findDescendant(contentItem, childObjectName)
+        const contentMatch = findDescendant(contentItem, childObjectName)
+        return contentMatch ? contentMatch : findDescendant(header, childObjectName)
     }
 
     function findDescendant(parentObject, childObjectName) {
@@ -53,6 +54,15 @@ ApplicationWindow {
         }
 
         return null
+    }
+
+    Connections {
+        target: shell.controller
+        ignoreUnknownSignals: true
+
+        function onCurrentReportChanged() {
+            shell.selectPage("Results")
+        }
     }
 
     FileDialog {
@@ -80,6 +90,7 @@ ApplicationWindow {
             Button {
                 objectName: "openReportButton"
                 text: "Open report…"
+                enabled: shell.controller && !shell.controller.analysisRunning
                 onClicked: openReportDialog.open()
             }
         }
@@ -147,11 +158,9 @@ ApplicationWindow {
             Layout.fillHeight: true
             currentIndex: shell.selectedPage === "Analyze" ? 0 : shell.selectedPage === "History" ? 1 : 2
 
-            Item {
-                Label {
-                    anchors.centerIn: parent
-                    text: "Analyze"
-                }
+            AnalyzePage {
+                id: analyzePage
+                controller: shell.controller
             }
 
             Item {

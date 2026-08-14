@@ -145,6 +145,14 @@ class AppControllerTest : public QObject
     Q_OBJECT
 
 private slots:
+    void selectingProjectLoadsSemanticConfiguration();
+    void missingConfigurationUsesUnsavedDefaultsWithoutWriting();
+    void invalidConfigurationIsReportedAndNeverOverwritten();
+    void saveConfigurationWritesOnlyExplicitValidatedForm();
+    void invalidFormDoesNotOverwriteExistingConfiguration();
+    void resetConfigurationChangesOnlyTheForm();
+    void headerOverrideLanguagesAreConstrained();
+    void analysisUsesUnsavedFormValuesButDoesNotWriteConfiguration();
     void successfulImportReplacesTheCurrentReport();
     void invalidImportKeepsTheCurrentReport();
     void malformedImportKeepsTheCurrentReport();
@@ -160,6 +168,218 @@ private slots:
     void snapshotsAreNewestFirstAndDeleteRefreshesTheModel();
     void clearRecentPathsRetainsTheCurrentReport();
 };
+
+void AppControllerTest::selectingProjectLoadsSemanticConfiguration()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("complexity.cyclomatic").enabled = false;
+    config.rules.at("complexity.cyclomatic").warningLimit = 6;
+    config.rules.at("complexity.cyclomatic").highLimit = 9;
+    config.headerOverrides.push_back({"include/**/*.h", codeqa::core::Language::Cpp});
+    config.qualityGate.minSeverity = codeqa::core::DiagnosticSeverity::Error;
+    writeTextFile(
+        directory.filePath("codeqa.json"),
+        QByteArray::fromStdString(codeqa::config::toJson(config).dump(2)));
+    AppController controller(settingsPath(directory));
+
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+
+    QCOMPARE(controller.currentProject(), QUrl::fromLocalFile(directory.path()));
+    QVERIFY(controller.configurationAvailable());
+    QVERIFY(!controller.configurationDirty());
+    QCOMPARE(controller.errorMessage(), QString{});
+    QCOMPARE(controller.rules()->rowCount(), 8);
+    const QStringList expectedRuleIds = {
+        "size.function-length",
+        "size.local-variables",
+        "signature.parameter-count",
+        "signature.consecutive-booleans",
+        "complexity.cyclomatic",
+        "complexity.returns",
+        "complexity.condition",
+        "complexity.nesting"};
+    for (int row = 0; row < expectedRuleIds.size(); ++row)
+    {
+        QCOMPARE(
+            controller.rules()->data(controller.rules()->index(row), RuleConfigModel::IdRole).toString(),
+            expectedRuleIds.at(row));
+    }
+    const QModelIndex cyclomatic = controller.rules()->index(4);
+    QCOMPARE(controller.rules()->data(cyclomatic, RuleConfigModel::EnabledRole).toBool(), false);
+    QCOMPARE(controller.rules()->data(cyclomatic, RuleConfigModel::WarningLimitRole).toLongLong(), 6LL);
+    QCOMPARE(controller.rules()->data(cyclomatic, RuleConfigModel::HighLimitRole).toLongLong(), 9LL);
+    QCOMPARE(controller.headerOverrides()->rowCount(), 1);
+    QCOMPARE(
+        controller.headerOverrides()->data(
+            controller.headerOverrides()->index(0), HeaderOverrideModel::PatternRole).toString(),
+        QString("include/**/*.h"));
+    QCOMPARE(
+        controller.headerOverrides()->data(
+            controller.headerOverrides()->index(0), HeaderOverrideModel::LanguageRole).toString(),
+        QString("cpp"));
+    QCOMPARE(controller.qualityGateSeverity(), QString("error"));
+}
+
+void AppControllerTest::missingConfigurationUsesUnsavedDefaultsWithoutWriting()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    AppController controller(settingsPath(directory));
+
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+
+    QVERIFY(controller.configurationAvailable());
+    QVERIFY(controller.configurationDirty());
+    QCOMPARE(controller.rules()->rowCount(), 8);
+    QCOMPARE(
+        controller.rules()->data(controller.rules()->index(0), RuleConfigModel::WarningLimitRole).toLongLong(),
+        50LL);
+    QCOMPARE(controller.qualityGateSeverity(), QString("warning"));
+    QVERIFY(!QFile::exists(directory.filePath("codeqa.json")));
+}
+
+void AppControllerTest::invalidConfigurationIsReportedAndNeverOverwritten()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QByteArray invalid = "{\n  \"rules\": { \"unknown.rule\": {} }\n}\n";
+    writeTextFile(directory.filePath("codeqa.json"), invalid);
+    AppController controller(settingsPath(directory));
+
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    QVERIFY(!controller.configurationAvailable());
+    QVERIFY(controller.errorMessage().contains("CONFIG003"));
+    controller.resetConfiguration();
+    controller.saveConfiguration();
+
+    QFile source(directory.filePath("codeqa.json"));
+    QVERIFY(source.open(QIODevice::ReadOnly));
+    QCOMPARE(source.readAll(), invalid);
+    QVERIFY(controller.errorMessage().contains("CONFIG003"));
+}
+
+void AppControllerTest::saveConfigurationWritesOnlyExplicitValidatedForm()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    controller.setRuleEnabled("complexity.cyclomatic", false);
+    controller.setRuleLimits("complexity.cyclomatic", 6, 9);
+    controller.addHeaderOverride("include/**/*.h", "cpp");
+    controller.setQualityGateSeverity("information");
+
+    QVERIFY(!QFile::exists(directory.filePath("codeqa.json")));
+    controller.saveConfiguration();
+
+    QVERIFY(QFile::exists(directory.filePath("codeqa.json")));
+    const codeqa::application::ProjectConfigLoadResult loaded =
+        codeqa::application::ApplicationFacade{}.loadProjectConfig(
+            std::filesystem::path(directory.path().toStdWString()));
+    QVERIFY(loaded.config.has_value());
+    QVERIFY(!loaded.error.hasError());
+    const auto& cyclomatic = loaded.config->rules.at("complexity.cyclomatic");
+    QVERIFY(!cyclomatic.enabled);
+    QCOMPARE(cyclomatic.warningLimit, 6LL);
+    QCOMPARE(cyclomatic.highLimit, 9LL);
+    QCOMPARE(loaded.config->headerOverrides.size(), std::size_t{1});
+    QCOMPARE(loaded.config->headerOverrides.front().pattern, std::string("include/**/*.h"));
+    QCOMPARE(loaded.config->headerOverrides.front().language, codeqa::core::Language::Cpp);
+    QCOMPARE(
+        loaded.config->qualityGate.minSeverity,
+        codeqa::core::DiagnosticSeverity::Information);
+    QVERIFY(!controller.configurationDirty());
+    QCOMPARE(controller.errorMessage(), QString{});
+}
+
+void AppControllerTest::invalidFormDoesNotOverwriteExistingConfiguration()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QByteArray original = QByteArray::fromStdString(
+        codeqa::config::toJson(codeqa::config::defaultConfig()).dump(2));
+    writeTextFile(directory.filePath("codeqa.json"), original);
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+
+    controller.setRuleLimits("complexity.cyclomatic", 20, 10);
+    controller.saveConfiguration();
+
+    QFile source(directory.filePath("codeqa.json"));
+    QVERIFY(source.open(QIODevice::ReadOnly));
+    QCOMPARE(source.readAll(), original);
+    QVERIFY(controller.configurationDirty());
+    QVERIFY(controller.errorMessage().contains("CONFIG008"));
+}
+
+void AppControllerTest::resetConfigurationChangesOnlyTheForm()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.rules.at("size.function-length").warningLimit = 12;
+    config.rules.at("size.function-length").highLimit = 20;
+    const QByteArray original = QByteArray::fromStdString(codeqa::config::toJson(config).dump(2));
+    writeTextFile(directory.filePath("codeqa.json"), original);
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+
+    controller.resetConfiguration();
+
+    QCOMPARE(
+        controller.rules()->data(controller.rules()->index(0), RuleConfigModel::WarningLimitRole).toLongLong(),
+        50LL);
+    QVERIFY(controller.configurationDirty());
+    QFile source(directory.filePath("codeqa.json"));
+    QVERIFY(source.open(QIODevice::ReadOnly));
+    QCOMPARE(source.readAll(), original);
+}
+
+void AppControllerTest::headerOverrideLanguagesAreConstrained()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+
+    controller.addHeaderOverride("include/**/*.h", "rust");
+
+    QCOMPARE(controller.headerOverrides()->rowCount(), 0);
+    QVERIFY(controller.errorMessage().contains("must be c or cpp"));
+    controller.addHeaderOverride("include/**/*.h", "c");
+    QCOMPARE(controller.headerOverrides()->rowCount(), 1);
+    QCOMPARE(controller.errorMessage(), QString{});
+}
+
+void AppControllerTest::analysisUsesUnsavedFormValuesButDoesNotWriteConfiguration()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    writeTextFile(
+        directory.filePath("sample.cpp"),
+        "int classify(int value)\n"
+        "{\n"
+        "    if (value > 0)\n"
+        "    {\n"
+        "        return 1;\n"
+        "    }\n"
+        "    return 0;\n"
+        "}\n");
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    controller.rules()->setLimit("complexity.cyclomatic", 1, 3);
+
+    controller.startAnalysis();
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.analysisRunning(), 30000);
+
+    QVERIFY(!QFile::exists(directory.filePath("codeqa.json")));
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QCOMPARE(
+        controller.findings()->data(controller.findings()->index(0), FindingListModel::RuleIdRole).toString(),
+        QString("complexity.cyclomatic"));
+}
 
 void AppControllerTest::successfulImportReplacesTheCurrentReport()
 {
