@@ -101,6 +101,8 @@ TestCase {
         property url selectedProjectUrl: ""
         property string openedTimestamp: ""
         property string deletedTimestamp: ""
+        property bool nextProjectConfigurationAvailable: true
+        property string nextProjectErrorMessage: ""
 
         signal currentReportChanged()
 
@@ -108,6 +110,8 @@ TestCase {
             ++selectProjectCalls
             selectedProjectUrl = projectRoot
             currentProject = projectRoot
+            configurationAvailable = nextProjectConfigurationAvailable
+            errorMessage = nextProjectErrorMessage
         }
         function saveConfiguration() {}
         function resetConfiguration() {}
@@ -122,6 +126,7 @@ TestCase {
         function startAnalysis() {}
         function refreshSnapshots() {
             ++refreshSnapshotCalls
+            errorMessage = ""
         }
         function openSnapshot(timestamp) {
             ++openSnapshotCalls
@@ -195,6 +200,9 @@ TestCase {
         fixtureController.deletedTimestamp = ""
         fixtureController.errorMessage = ""
         fixtureController.currentProject = "file:///C:/projects/sample"
+        fixtureController.configurationAvailable = true
+        fixtureController.nextProjectConfigurationAvailable = true
+        fixtureController.nextProjectErrorMessage = ""
     }
 
     function findVisualText(parent, expectedText) {
@@ -281,7 +289,7 @@ TestCase {
         compare(fixtureController.deleteSnapshotCalls, 0)
     }
 
-    function test_history_project_selection_refreshes_and_errors_are_inline() {
+    function test_history_project_selection_refreshes_available_configuration() {
         resetHistoryCalls()
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
@@ -293,8 +301,25 @@ TestCase {
         compare(fixtureController.selectProjectCalls, 1)
         compare(fixtureController.selectedProjectUrl, "file:///C:/projects/alternate")
         compare(fixtureController.refreshSnapshotCalls, 1)
-        fixtureController.errorMessage = "Error [SNAPSHOT006]: C:/projects/alternate/.codeqa/snapshots"
-        compare(shell.findChild("historyErrorMessage").text, fixtureController.errorMessage)
+        compare(shell.findChild("refreshSnapshotsButton").enabled, true)
+    }
+
+    function test_history_invalid_configuration_selection_keeps_error_inline() {
+        resetHistoryCalls()
+        fixtureController.nextProjectConfigurationAvailable = false
+        fixtureController.nextProjectErrorMessage = "Error [CONFIG003]: unknown rule in C:/projects/invalid/codeqa.json"
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+        const history = shell.findChild("historyPage")
+
+        history.selectProject("file:///C:/projects/invalid")
+
+        compare(fixtureController.selectProjectCalls, 1)
+        compare(fixtureController.refreshSnapshotCalls, 0)
+        compare(shell.findChild("refreshSnapshotsButton").enabled, false)
+        compare(shell.findChild("historyErrorMessage").text,
+                "Error [CONFIG003]: unknown rule in C:/projects/invalid/codeqa.json")
     }
 
     function test_history_shows_the_selected_project_path() {

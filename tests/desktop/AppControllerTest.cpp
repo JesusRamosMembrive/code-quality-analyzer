@@ -165,6 +165,7 @@ private slots:
     void idleSignalCanStartTheNextAnalysisAfterCompletionIsPublished();
     void workerAnalysisFailureKeepsTheCurrentReport();
     void emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport();
+    void selectingAnotherProjectClearsSnapshotsFromPreviousProject();
     void historyOpensWithoutCreatingAnotherSnapshot();
     void snapshotOpenFailureKeepsTheCurrentReport();
     void snapshotDeleteFailureKeepsTheCurrentReport();
@@ -758,6 +759,31 @@ void AppControllerTest::emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport
     QVERIFY(!controller.analysisRunning());
     QCOMPARE(controller.findings()->rowCount(), 1);
     QVERIFY(controller.errorMessage().contains("project", Qt::CaseInsensitive));
+}
+
+void AppControllerTest::selectingAnotherProjectClearsSnapshotsFromPreviousProject()
+{
+    QTemporaryDir settingsDirectory;
+    QTemporaryDir firstProject;
+    QTemporaryDir secondProject;
+    QVERIFY(settingsDirectory.isValid());
+    QVERIFY(firstProject.isValid());
+    QVERIFY(secondProject.isValid());
+    const QString snapshots = firstProject.filePath(".codeqa/snapshots");
+    QVERIFY(QDir{}.mkpath(snapshots));
+    const QByteArray report = QByteArray::fromStdString(reportJson(
+        std::filesystem::path(firstProject.path().toStdWString()), oneFinding()).dump(2));
+    writeTextFile(QDir(snapshots).filePath("20260101T000000Z.json"), report);
+    AppController controller(settingsPath(settingsDirectory));
+
+    controller.selectProject(QUrl::fromLocalFile(firstProject.path()));
+    controller.refreshSnapshots();
+    QCOMPARE(controller.snapshots()->rowCount(), 1);
+
+    controller.selectProject(QUrl::fromLocalFile(secondProject.path()));
+
+    QCOMPARE(controller.currentProject(), QUrl::fromLocalFile(secondProject.path()));
+    QCOMPARE(controller.snapshots()->rowCount(), 0);
 }
 
 void AppControllerTest::historyOpensWithoutCreatingAnotherSnapshot()

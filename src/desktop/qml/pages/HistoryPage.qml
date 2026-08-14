@@ -18,7 +18,9 @@ Item {
         }
 
         controller.selectProject(projectRoot)
-        controller.refreshSnapshots()
+        if (controller.configurationAvailable) {
+            controller.refreshSnapshots()
+        }
     }
 
     FolderDialog {
@@ -78,6 +80,7 @@ Item {
                 text: "Refresh"
                 enabled: historyPage.controller
                     && historyPage.controller.currentProject.toString() !== ""
+                    && historyPage.controller.configurationAvailable
                     && !historyPage.controller.analysisRunning
                 onClicked: historyPage.controller.refreshSnapshots()
             }

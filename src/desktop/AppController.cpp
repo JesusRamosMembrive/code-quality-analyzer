@@ -637,6 +637,7 @@ void AppController::setCurrentProject(const QUrl& projectRoot)
         currentProjectPath_.clear();
         if (currentProject() != previous)
         {
+            snapshots_.setSnapshots({});
             emit currentProjectChanged(currentProject());
         }
         setErrorMessage(QStringLiteral("Error [DESKTOP001]: choose a local project folder."));
@@ -645,6 +646,7 @@ void AppController::setCurrentProject(const QUrl& projectRoot)
     currentProjectPath_ = path;
     if (currentProject() != previous)
     {
+        snapshots_.setSnapshots({});
         emit currentProjectChanged(currentProject());
     }
     addRecentProject(normalizedSettingsPath(path));
