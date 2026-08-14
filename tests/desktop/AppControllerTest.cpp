@@ -152,6 +152,8 @@ private slots:
     void overloadedFindingsUseMetricsFromTheirOwnSourceRange();
     void replacementPreservesPersistedFindingFilters();
     void analysisReportsRealPhasesAndFailedQualityGate();
+    void analysisModelResetSeesOneConsistentCompletedState();
+    void idleSignalCanStartTheNextAnalysisAfterCompletionIsPublished();
     void workerAnalysisFailureKeepsTheCurrentReport();
     void emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport();
     void snapshotOpenFailureKeepsTheCurrentReport();
@@ -350,6 +352,93 @@ void AppControllerTest::analysisReportsRealPhasesAndFailedQualityGate()
     QCOMPARE(controller.findings()->rowCount(), 1);
     QCOMPARE(controller.snapshots()->rowCount(), 1);
     QCOMPARE(controller.errorMessage(), QString{});
+}
+
+void AppControllerTest::analysisModelResetSeesOneConsistentCompletedState()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    writeTextFile(
+        directory.filePath("sample.c"),
+        "int classify(int a, int b, int c, int d, int e)\n"
+        "{\n"
+        "    return a + b + c + d + e;\n"
+        "}\n");
+    const QString previous = writeReport(
+        directory,
+        "previous.json",
+        {{"src/old-one.cpp", "information", "old.one", "oldOne", 2},
+         {"src/old-two.cpp", "warning", "old.two", "oldTwo", 4}});
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(previous));
+    QCOMPARE(controller.files()->rowCount(), 2);
+    QCOMPARE(controller.qualityGateStatus(), QString("Not evaluated"));
+
+    int filesAtReset = -1;
+    int snapshotsAtReset = -1;
+    QString qualityGateAtReset;
+    QString errorAtReset;
+    bool runningAtReset = false;
+    connect(controller.findings(), &QAbstractItemModel::modelReset, &controller, [&]()
+    {
+        filesAtReset = controller.files()->rowCount();
+        snapshotsAtReset = controller.snapshots()->rowCount();
+        qualityGateAtReset = controller.qualityGateStatus();
+        errorAtReset = controller.errorMessage();
+        runningAtReset = controller.analysisRunning();
+    });
+
+    controller.startAnalysis(QUrl::fromLocalFile(directory.path()));
+
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.analysisRunning(), 30000);
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QCOMPARE(filesAtReset, 1);
+    QCOMPARE(snapshotsAtReset, 1);
+    QCOMPARE(qualityGateAtReset, QString("Failed"));
+    QCOMPARE(errorAtReset, QString{});
+    QVERIFY(runningAtReset);
+}
+
+void AppControllerTest::idleSignalCanStartTheNextAnalysisAfterCompletionIsPublished()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    writeTextFile(
+        directory.filePath("sample.c"),
+        "int classify(int a, int b, int c, int d, int e)\n"
+        "{\n"
+        "    return a + b + c + d + e;\n"
+        "}\n");
+    AppController controller(settingsPath(directory));
+    QList<int> snapshotCountsAtIdle;
+    QStringList gatesAtIdle;
+    QStringList errorsAtIdle;
+
+    connect(&controller, &AppController::analysisRunningChanged, &controller, [&](const bool running)
+    {
+        if (running)
+        {
+            return;
+        }
+
+        snapshotCountsAtIdle.push_back(controller.snapshots()->rowCount());
+        gatesAtIdle.push_back(controller.qualityGateStatus());
+        errorsAtIdle.push_back(controller.errorMessage());
+        if (snapshotCountsAtIdle.size() == 1)
+        {
+            controller.startAnalysis();
+        }
+    });
+
+    controller.startAnalysis(QUrl::fromLocalFile(directory.path()));
+
+    QTRY_COMPARE_WITH_TIMEOUT(snapshotCountsAtIdle.size(), 2, 30000);
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.analysisRunning(), 30000);
+    QCOMPARE(snapshotCountsAtIdle.front(), 1);
+    QVERIFY(snapshotCountsAtIdle.back() >= 1);
+    QCOMPARE(gatesAtIdle, QStringList({"Failed", "Passed"}));
+    QCOMPARE(errorsAtIdle, QStringList({"", ""}));
+    QCOMPARE(controller.snapshots()->rowCount(), snapshotCountsAtIdle.back());
 }
 
 void AppControllerTest::workerAnalysisFailureKeepsTheCurrentReport()

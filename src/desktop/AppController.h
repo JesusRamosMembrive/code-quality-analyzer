@@ -13,6 +13,8 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
+#include <vector>
 
 class QSettings;
 
@@ -86,10 +88,12 @@ private:
     [[nodiscard]] bool requireCurrentProject(const QString& action);
     void applyAnalysisPhase(codeqa::application::AnalysisPhase phase);
     void finishAnalysis();
-    void replaceDocument(codeqa::application::ReportDocument document);
+    void replaceDocument(
+        codeqa::application::ReportDocument document,
+        std::optional<std::vector<codeqa::application::SnapshotEntry>> snapshots = std::nullopt,
+        QString message = {});
     void setAnalysisRunning(bool running);
     void setErrorMessage(const QString& message);
-    void setQualityGateStatus(const QString& status);
     void addRecentProject(const QString& path);
     void addRecentReport(const QString& path);
     static void addRecentPath(QStringList& paths, const QString& path);

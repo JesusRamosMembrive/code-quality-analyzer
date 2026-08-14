@@ -227,7 +227,6 @@ void AppController::openReport(const QUrl& reportUrl)
 
     replaceDocument(std::move(*result.document));
     addRecentReport(normalizedSettingsPath(path));
-    setErrorMessage({});
 }
 
 void AppController::openSnapshot(const QString& timestamp)
@@ -251,7 +250,6 @@ void AppController::openSnapshot(const QString& timestamp)
     }
 
     replaceDocument(std::move(*result.document));
-    setErrorMessage({});
 }
 
 void AppController::refreshSnapshots()
@@ -440,10 +438,24 @@ void AppController::finishAnalysis()
     const codeqa::application::AnalysisFacadeResult result = analysisWatcher_.result();
     if (result.document.has_value())
     {
-        replaceDocument(*result.document);
+        codeqa::application::SnapshotListResult snapshotResult = facade_.listSnapshots(currentProjectPath_);
+        std::optional<std::vector<codeqa::application::SnapshotEntry>> snapshots;
+        QString message = result.warning.has_value() ? QString::fromStdString(*result.warning) : QString{};
+        if (snapshotResult.error.hasError())
+        {
+            if (!message.isEmpty())
+            {
+                message += QLatin1Char('\n');
+            }
+            message += QString::fromStdString(*snapshotResult.error.message);
+        }
+        else
+        {
+            snapshots = std::move(snapshotResult.snapshots);
+        }
+
+        replaceDocument(*result.document, std::move(snapshots), std::move(message));
         setAnalysisRunning(false);
-        refreshSnapshots();
-        setErrorMessage(result.warning.has_value() ? QString::fromStdString(*result.warning) : QString{});
         return;
     }
 
@@ -452,13 +464,48 @@ void AppController::finishAnalysis()
     setAnalysisRunning(false);
 }
 
-void AppController::replaceDocument(codeqa::application::ReportDocument document)
+void AppController::replaceDocument(
+    codeqa::application::ReportDocument document,
+    std::optional<std::vector<codeqa::application::SnapshotEntry>> snapshots,
+    QString message)
 {
     auto next = std::make_shared<const codeqa::application::ReportDocument>(std::move(document));
+    const QString nextQualityGateStatus = qualityGateText(next->qualityGateOutcome);
+    const bool qualityGateChanged = qualityGateStatus_ != nextQualityGateStatus;
+    const bool errorChanged = errorMessage_ != message;
+
+    findings_.beginDocumentReset();
+    files_.beginDocumentReset();
+    if (snapshots.has_value())
+    {
+        snapshots_.beginSnapshotsReset();
+    }
+
     currentDocument_ = next;
-    findings_.setDocument(next);
-    files_.setDocument(next);
-    setQualityGateStatus(qualityGateText(next->qualityGateOutcome));
+    findings_.applyDocument(next);
+    files_.applyDocument(next);
+    if (snapshots.has_value())
+    {
+        snapshots_.applySnapshots(std::move(*snapshots));
+    }
+    qualityGateStatus_ = nextQualityGateStatus;
+    errorMessage_ = std::move(message);
+
+    if (snapshots.has_value())
+    {
+        snapshots_.endSnapshotsReset();
+    }
+    files_.endDocumentReset();
+    findings_.endDocumentReset();
+
+    if (qualityGateChanged)
+    {
+        emit qualityGateStatusChanged(qualityGateStatus_);
+    }
+    if (errorChanged)
+    {
+        emit errorMessageChanged(errorMessage_);
+    }
     emit currentReportChanged();
 }
 
@@ -480,16 +527,6 @@ void AppController::setErrorMessage(const QString& message)
     }
     errorMessage_ = message;
     emit errorMessageChanged(errorMessage_);
-}
-
-void AppController::setQualityGateStatus(const QString& status)
-{
-    if (qualityGateStatus_ == status)
-    {
-        return;
-    }
-    qualityGateStatus_ = status;
-    emit qualityGateStatusChanged(qualityGateStatus_);
 }
 
 void AppController::addRecentProject(const QString& path)

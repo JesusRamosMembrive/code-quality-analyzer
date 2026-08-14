@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 
+class AppController;
+
 class FindingListModel final : public QAbstractListModel
 {
     Q_OBJECT
@@ -46,6 +48,8 @@ public:
     [[nodiscard]] QString searchText() const;
 
 private:
+    friend class AppController;
+
     struct Row
     {
         const codeqa::application::ReportFile* file{nullptr};
@@ -55,6 +59,9 @@ private:
 
     void rebuild();
     void rebuildRows();
+    void beginDocumentReset();
+    void applyDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
+    void endDocumentReset();
 
     std::shared_ptr<const codeqa::application::ReportDocument> document_;
     std::vector<Row> rows_;
@@ -89,6 +96,12 @@ public:
     void setDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
 
 private:
+    friend class AppController;
+
+    void beginDocumentReset();
+    void applyDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
+    void endDocumentReset();
+
     std::shared_ptr<const codeqa::application::ReportDocument> document_;
 };
 
@@ -113,5 +126,11 @@ public:
     void setSnapshots(std::vector<codeqa::application::SnapshotEntry> snapshots);
 
 private:
+    friend class AppController;
+
+    void beginSnapshotsReset();
+    void applySnapshots(std::vector<codeqa::application::SnapshotEntry> snapshots);
+    void endSnapshotsReset();
+
     std::vector<codeqa::application::SnapshotEntry> snapshots_;
 };

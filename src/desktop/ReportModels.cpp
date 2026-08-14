@@ -213,9 +213,25 @@ QHash<int, QByteArray> FindingListModel::roleNames() const
 void FindingListModel::setDocument(
     std::shared_ptr<const codeqa::application::ReportDocument> document)
 {
+    beginDocumentReset();
+    applyDocument(std::move(document));
+    endDocumentReset();
+}
+
+void FindingListModel::beginDocumentReset()
+{
     beginResetModel();
+}
+
+void FindingListModel::applyDocument(
+    std::shared_ptr<const codeqa::application::ReportDocument> document)
+{
     document_ = std::move(document);
     rebuildRows();
+}
+
+void FindingListModel::endDocumentReset()
+{
     endResetModel();
 }
 
@@ -391,8 +407,24 @@ QHash<int, QByteArray> FileListModel::roleNames() const
 void FileListModel::setDocument(
     std::shared_ptr<const codeqa::application::ReportDocument> document)
 {
+    beginDocumentReset();
+    applyDocument(std::move(document));
+    endDocumentReset();
+}
+
+void FileListModel::beginDocumentReset()
+{
     beginResetModel();
+}
+
+void FileListModel::applyDocument(
+    std::shared_ptr<const codeqa::application::ReportDocument> document)
+{
     document_ = std::move(document);
+}
+
+void FileListModel::endDocumentReset()
+{
     endResetModel();
 }
 
@@ -429,11 +461,26 @@ QHash<int, QByteArray> SnapshotListModel::roleNames() const
 
 void SnapshotListModel::setSnapshots(std::vector<codeqa::application::SnapshotEntry> snapshots)
 {
+    beginSnapshotsReset();
+    applySnapshots(std::move(snapshots));
+    endSnapshotsReset();
+}
+
+void SnapshotListModel::beginSnapshotsReset()
+{
+    beginResetModel();
+}
+
+void SnapshotListModel::applySnapshots(std::vector<codeqa::application::SnapshotEntry> snapshots)
+{
     std::stable_sort(snapshots.begin(), snapshots.end(), [](const auto& left, const auto& right)
     {
         return left.timestamp > right.timestamp;
     });
-    beginResetModel();
     snapshots_ = std::move(snapshots);
+}
+
+void SnapshotListModel::endSnapshotsReset()
+{
     endResetModel();
 }
