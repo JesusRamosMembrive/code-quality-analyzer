@@ -53,6 +53,12 @@ TestCase {
 
         function setFindingSeverityFilter(value) {
             findingSeverityFilter = value
+            fixtureFindings.clear()
+            if (value === "") {
+                resetFixtureFindings()
+            } else if (value === "warning") {
+                fixtureFindings.append(warningFinding)
+            }
         }
 
         function setFindingRuleFilter(value) {
@@ -62,6 +68,40 @@ TestCase {
         function setFindingSearchText(value) {
             findingSearchText = value
         }
+    }
+
+    property var errorFinding: ({
+        severity: "error",
+        ruleId: "first.rule",
+        symbolName: "firstFunction",
+        path: "first.cpp",
+        line: 3,
+        column: 5,
+        observedValue: 8,
+        limitValue: 4,
+        description: "first finding",
+        recommendation: "reduce complexity",
+        metricSummary: "Cyclomatic: 8"
+    })
+    property var warningFinding: ({
+        severity: "warning",
+        ruleId: "second.rule",
+        symbolName: "secondFunction",
+        path: "second.cpp",
+        line: 9,
+        column: 2,
+        observedValue: 3,
+        limitValue: 2,
+        description: "second finding",
+        recommendation: "reduce parameters",
+        metricSummary: "Parameters: 3"
+    })
+
+    function resetFixtureFindings() {
+        fixtureFindings.clear()
+        fixtureFindings.append(errorFinding)
+        fixtureFindings.append(warningFinding)
+        fixtureController.findingSeverityFilter = ""
     }
 
     function test_shell_has_the_three_primary_pages() {
@@ -94,6 +134,7 @@ TestCase {
     }
 
     function test_selecting_a_finding_shows_its_details() {
+        resetFixtureFindings()
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
@@ -107,5 +148,27 @@ TestCase {
 
         const details = shell.findChild("findingDetails")
         tryVerify(function() { return details.text === "second.rule" })
+    }
+
+    function test_filtering_out_the_selected_finding_clears_details() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        const table = shell.findChild("findingTable")
+        tryVerify(function() { return table.count === 2 })
+        const firstFinding = table.itemAtIndex(0)
+        mouseClick(firstFinding, firstFinding.width / 2, firstFinding.height / 2)
+
+        const details = shell.findChild("findingDetails")
+        tryVerify(function() { return details.text === "first.rule" })
+
+        const severityFilter = shell.findChild("findingSeverityFilter")
+        severityFilter.currentIndex = 2
+        severityFilter.activated(2)
+
+        tryVerify(function() { return table.count === 1 })
+        tryVerify(function() { return details.text === "Finding details" })
     }
 }

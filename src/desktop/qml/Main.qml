@@ -67,6 +67,24 @@ ApplicationWindow {
         }
     }
 
+    header: ToolBar {
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Button {
+                objectName: "openReportButton"
+                text: "Open report…"
+                onClicked: openReportDialog.open()
+            }
+        }
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -120,13 +138,6 @@ ApplicationWindow {
 
                 Item {
                     Layout.fillHeight: true
-                }
-
-                Button {
-                    objectName: "openReportButton"
-                    Layout.fillWidth: true
-                    text: "Open report…"
-                    onClicked: openReportDialog.open()
                 }
             }
         }

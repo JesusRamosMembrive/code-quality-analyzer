@@ -17,6 +17,11 @@ Item {
         selectedFinding = finding
     }
 
+    function clearFindingSelection() {
+        findingTable.currentIndex = -1
+        selectedFinding = null
+    }
+
     function detailValue(value) {
         return value === undefined || value === null || value === "" ? "Not available" : String(value)
     }
@@ -87,20 +92,22 @@ Item {
         target: root.controller
 
         function onCurrentReportChanged() {
-            findingTable.currentIndex = -1
-            root.selectedFinding = null
+            root.clearFindingSelection()
             Qt.callLater(root.recalculateSummary)
         }
 
         function onFindingSeverityFilterChanged(severity) {
+            root.clearFindingSelection()
             severityFilter.currentIndex = severityFilter.indexForSeverity(severity)
         }
 
         function onFindingRuleFilterChanged(ruleId) {
+            root.clearFindingSelection()
             ruleFilter.text = ruleId
         }
 
         function onFindingSearchTextChanged(searchText) {
+            root.clearFindingSelection()
             searchFilter.text = searchText
         }
     }
@@ -212,6 +219,7 @@ Item {
                                 Component.onCompleted: currentIndex = indexForSeverity(root.controller ? root.controller.findingSeverityFilter : "")
                                 onActivated: {
                                     if (root.controller) {
+                                        root.clearFindingSelection()
                                         root.controller.setFindingSeverityFilter(currentIndex === 0 ? "" : currentText.toLowerCase())
                                     }
                                 }
@@ -225,6 +233,7 @@ Item {
                                 text: root.controller ? root.controller.findingRuleFilter : ""
                                 onTextEdited: {
                                     if (root.controller) {
+                                        root.clearFindingSelection()
                                         root.controller.setFindingRuleFilter(text)
                                     }
                                 }
@@ -238,6 +247,7 @@ Item {
                                 text: root.controller ? root.controller.findingSearchText : ""
                                 onTextEdited: {
                                     if (root.controller) {
+                                        root.clearFindingSelection()
                                         root.controller.setFindingSearchText(text)
                                     }
                                 }
