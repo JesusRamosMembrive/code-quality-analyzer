@@ -134,6 +134,7 @@ private:
 
     codeqa::application::ApplicationFacade facade_;
     std::filesystem::path currentProjectPath_;
+    std::filesystem::path analysisProjectPath_;
     std::shared_ptr<const codeqa::application::ReportDocument> currentDocument_;
     RuleConfigModel rules_;
     HeaderOverrideModel headerOverrides_;

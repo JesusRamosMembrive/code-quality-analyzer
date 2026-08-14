@@ -568,18 +568,33 @@ void AppController::startAnalysis(
 
 void AppController::openSnapshot(const QUrl& projectRoot, const QString& timestamp)
 {
+    if (analysisRunning_)
+    {
+        openSnapshot(timestamp);
+        return;
+    }
     setCurrentProject(projectRoot);
     openSnapshot(timestamp);
 }
 
 void AppController::refreshSnapshots(const QUrl& projectRoot)
 {
+    if (analysisRunning_)
+    {
+        refreshSnapshots();
+        return;
+    }
     setCurrentProject(projectRoot);
     refreshSnapshots();
 }
 
 void AppController::deleteSnapshot(const QUrl& projectRoot, const QString& timestamp)
 {
+    if (analysisRunning_)
+    {
+        deleteSnapshot(timestamp);
+        return;
+    }
     setCurrentProject(projectRoot);
     deleteSnapshot(timestamp);
 }
@@ -705,10 +720,11 @@ void AppController::launchAnalysis(codeqa::config::ProjectConfig config)
         analysisPhase_.clear();
         emit analysisPhaseChanged(analysisPhase_);
     }
+    analysisProjectPath_ = currentProjectPath_;
     setAnalysisRunning(true);
 
     codeqa::application::FacadeAnalysisRequest request;
-    request.projectRoot = currentProjectPath_;
+    request.projectRoot = analysisProjectPath_;
     request.config = std::move(config);
     const codeqa::application::ApplicationFacade facade = facade_;
 
@@ -738,9 +754,10 @@ void AppController::applyAnalysisPhase(const codeqa::application::AnalysisPhase 
 void AppController::finishAnalysis()
 {
     const codeqa::application::AnalysisFacadeResult result = analysisWatcher_.result();
+    const std::filesystem::path completedProjectPath = analysisProjectPath_;
     if (result.document.has_value())
     {
-        codeqa::application::SnapshotListResult snapshotResult = facade_.listSnapshots(currentProjectPath_);
+        codeqa::application::SnapshotListResult snapshotResult = facade_.listSnapshots(completedProjectPath);
         std::optional<std::vector<codeqa::application::SnapshotEntry>> snapshots;
         QString message = result.warning.has_value() ? QString::fromStdString(*result.warning) : QString{};
         if (snapshotResult.error.hasError())
@@ -757,12 +774,14 @@ void AppController::finishAnalysis()
         }
 
         replaceDocument(*result.document, std::move(snapshots), std::move(message));
+        analysisProjectPath_.clear();
         setAnalysisRunning(false);
         return;
     }
 
     setErrorMessage(QString::fromStdString(
         result.error.message.value_or("Error [APPLICATION001]: analysis did not produce a report.")));
+    analysisProjectPath_.clear();
     setAnalysisRunning(false);
 }
 

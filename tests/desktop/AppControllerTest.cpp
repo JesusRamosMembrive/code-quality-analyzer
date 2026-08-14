@@ -159,6 +159,7 @@ private slots:
     void findingsExposeRolesAndSortBySeverityThenLocation();
     void overloadedFindingsUseMetricsFromTheirOwnSourceRange();
     void replacementPreservesPersistedFindingFilters();
+    void urlSnapshotActionDuringAnalysisCannotChangeProjectOrCompletionSnapshots();
     void analysisReportsRealPhasesAndFailedQualityGate();
     void analysisModelResetSeesOneConsistentCompletedState();
     void idleSignalCanStartTheNextAnalysisAfterCompletionIsPublished();
@@ -535,6 +536,66 @@ void AppControllerTest::replacementPreservesPersistedFindingFilters()
     QCOMPARE(restored.property("findingRuleFilter").toString(), QString("target.rule"));
     QCOMPARE(restored.property("findingSearchText").toString(), QString("target"));
     QCOMPARE(restored.findings()->rowCount(), 1);
+}
+
+void AppControllerTest::urlSnapshotActionDuringAnalysisCannotChangeProjectOrCompletionSnapshots()
+{
+    QTemporaryDir analysisProject;
+    QTemporaryDir alternateProject;
+    QVERIFY(analysisProject.isValid());
+    QVERIFY(alternateProject.isValid());
+    writeTextFile(
+        analysisProject.filePath("sample.c"),
+        "int classify(int a, int b, int c, int d, int e)\n"
+        "{\n"
+        "    return a + b + c + d + e;\n"
+        "}\n");
+
+    const QString alternateSnapshots = alternateProject.filePath(".codeqa/snapshots");
+    QVERIFY(QDir{}.mkpath(alternateSnapshots));
+    const QByteArray alternateReport = QByteArray::fromStdString(reportJson(
+        std::filesystem::path(alternateProject.path().toStdWString()), oneFinding()).dump(2));
+    writeTextFile(QDir(alternateSnapshots).filePath("20260101T000000Z.json"), alternateReport);
+    writeTextFile(QDir(alternateSnapshots).filePath("20260201T000000Z.json"), alternateReport);
+
+    AppController controller(settingsPath(analysisProject));
+    const QUrl analysisProjectUrl = QUrl::fromLocalFile(analysisProject.path());
+    controller.selectProject(analysisProjectUrl);
+    QSignalSpy currentProjectSpy(&controller, &AppController::currentProjectChanged);
+    QSignalSpy recentPathsSpy(&controller, &AppController::recentPathsChanged);
+    bool blockedActionAttempted = false;
+    QUrl projectDuringBlockedAction;
+    QStringList recentProjectsDuringBlockedAction;
+    QString blockedActionError;
+    connect(&controller, &AppController::analysisPhaseChanged, &controller, [&](const QString& phase)
+    {
+        if (blockedActionAttempted || phase.isEmpty())
+        {
+            return;
+        }
+
+        blockedActionAttempted = true;
+        controller.refreshSnapshots(QUrl::fromLocalFile(alternateProject.path()));
+        projectDuringBlockedAction = controller.currentProject();
+        recentProjectsDuringBlockedAction = controller.recentProjects();
+        blockedActionError = controller.errorMessage();
+    });
+
+    controller.startAnalysis();
+
+    QTRY_VERIFY_WITH_TIMEOUT(blockedActionAttempted, 30000);
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.analysisRunning(), 30000);
+    QCOMPARE(projectDuringBlockedAction, analysisProjectUrl);
+    QCOMPARE(
+        recentProjectsDuringBlockedAction,
+        QStringList{QDir::cleanPath(analysisProject.path())});
+    QVERIFY(blockedActionError.contains("DESKTOP002"));
+    QCOMPARE(currentProjectSpy.count(), 0);
+    QCOMPARE(recentPathsSpy.count(), 0);
+    QCOMPARE(controller.currentProject(), analysisProjectUrl);
+    QCOMPARE(controller.snapshots()->rowCount(), 1);
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QCOMPARE(controller.errorMessage(), QString{});
 }
 
 void AppControllerTest::analysisReportsRealPhasesAndFailedQualityGate()
