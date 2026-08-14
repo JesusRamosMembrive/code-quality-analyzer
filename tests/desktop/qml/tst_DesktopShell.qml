@@ -42,6 +42,20 @@ TestCase {
     }
 
     ListModel {
+        id: fixtureSnapshots
+
+        ListElement {
+            timestamp: "20260301T000000Z"
+            path: "C:/projects/sample/.codeqa/snapshots/20260301T000000Z.json"
+        }
+
+        ListElement {
+            timestamp: "20260101T000000Z"
+            path: "C:/projects/sample/.codeqa/snapshots/20260101T000000Z.json"
+        }
+    }
+
+    ListModel {
         id: fixtureRules
 
         ListElement {
@@ -65,6 +79,7 @@ TestCase {
         id: fixtureController
         property var findings: fixtureFindings
         property var files: fixtureFiles
+        property var snapshots: fixtureSnapshots
         property var rules: fixtureRules
         property var headerOverrides: fixtureHeaderOverrides
         property string qualityGateStatus: "Not evaluated"
@@ -79,10 +94,21 @@ TestCase {
         property bool analysisRunning: false
         property string analysisPhase: ""
         property string errorMessage: ""
+        property int selectProjectCalls: 0
+        property int refreshSnapshotCalls: 0
+        property int openSnapshotCalls: 0
+        property int deleteSnapshotCalls: 0
+        property url selectedProjectUrl: ""
+        property string openedTimestamp: ""
+        property string deletedTimestamp: ""
 
         signal currentReportChanged()
 
-        function selectProject(projectRoot) {}
+        function selectProject(projectRoot) {
+            ++selectProjectCalls
+            selectedProjectUrl = projectRoot
+            currentProject = projectRoot
+        }
         function saveConfiguration() {}
         function resetConfiguration() {}
         function setQualityGateSeverity(severity) {
@@ -94,6 +120,17 @@ TestCase {
         function updateHeaderOverride(row, pattern, language) {}
         function removeHeaderOverride(row) {}
         function startAnalysis() {}
+        function refreshSnapshots() {
+            ++refreshSnapshotCalls
+        }
+        function openSnapshot(timestamp) {
+            ++openSnapshotCalls
+            openedTimestamp = timestamp
+        }
+        function deleteSnapshot(timestamp) {
+            ++deleteSnapshotCalls
+            deletedTimestamp = timestamp
+        }
 
         function setFindingSeverityFilter(value) {
             findingSeverityFilter = value
@@ -148,6 +185,38 @@ TestCase {
         fixtureController.findingSeverityFilter = ""
     }
 
+    function resetHistoryCalls() {
+        fixtureController.selectProjectCalls = 0
+        fixtureController.refreshSnapshotCalls = 0
+        fixtureController.openSnapshotCalls = 0
+        fixtureController.deleteSnapshotCalls = 0
+        fixtureController.selectedProjectUrl = ""
+        fixtureController.openedTimestamp = ""
+        fixtureController.deletedTimestamp = ""
+        fixtureController.errorMessage = ""
+        fixtureController.currentProject = "file:///C:/projects/sample"
+    }
+
+    function findVisualText(parent, expectedText) {
+        if (!parent) {
+            return null
+        }
+        if (parent.text === expectedText) {
+            return parent
+        }
+        const children = parent.children
+        if (!children) {
+            return null
+        }
+        for (let index = 0; index < children.length; ++index) {
+            const match = findVisualText(children[index], expectedText)
+            if (match) {
+                return match
+            }
+        }
+        return null
+    }
+
     function test_shell_has_the_three_primary_pages() {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         verify(shell !== null)
@@ -189,6 +258,95 @@ TestCase {
         compare(shell.findChild("resetConfigurationButton").text, "Reset")
         compare(shell.findChild("startAnalysisButton").text, "Analyze project")
         compare(shell.findChild("headerLanguageSelector").currentText, "cpp")
+    }
+
+    function test_history_lists_newest_first_and_open_is_non_destructive() {
+        resetHistoryCalls()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+
+        const history = shell.findChild("historyPage")
+        verify(history !== null)
+        const list = shell.findChild("snapshotList")
+        verify(list !== null)
+        tryCompare(list, "count", 2)
+        tryVerify(function() { return list.itemAtIndex(0) !== null })
+        const newest = list.itemAtIndex(0)
+        compare(newest.timestampText, "20260301T000000Z")
+        mouseClick(newest.openAction, newest.openAction.width / 2, newest.openAction.height / 2)
+
+        compare(fixtureController.openSnapshotCalls, 1)
+        compare(fixtureController.openedTimestamp, "20260301T000000Z")
+        compare(fixtureController.deleteSnapshotCalls, 0)
+    }
+
+    function test_history_project_selection_refreshes_and_errors_are_inline() {
+        resetHistoryCalls()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+        const history = shell.findChild("historyPage")
+
+        history.selectProject("file:///C:/projects/alternate")
+
+        compare(fixtureController.selectProjectCalls, 1)
+        compare(fixtureController.selectedProjectUrl, "file:///C:/projects/alternate")
+        compare(fixtureController.refreshSnapshotCalls, 1)
+        fixtureController.errorMessage = "Error [SNAPSHOT006]: C:/projects/alternate/.codeqa/snapshots"
+        compare(shell.findChild("historyErrorMessage").text, fixtureController.errorMessage)
+    }
+
+    function test_history_shows_the_selected_project_path() {
+        resetHistoryCalls()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+
+        verify(findVisualText(shell.findChild("historyPage"), "file:///C:/projects/sample") !== null)
+    }
+
+    function test_history_delete_requires_named_confirmation() {
+        resetHistoryCalls()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+        const history = shell.findChild("historyPage")
+        const list = shell.findChild("snapshotList")
+        tryCompare(list, "count", 2)
+        tryVerify(function() { return list.itemAtIndex(0) !== null })
+        const newest = list.itemAtIndex(0)
+
+        mouseClick(newest.deleteAction, newest.deleteAction.width / 2, newest.deleteAction.height / 2)
+
+        compare(fixtureController.deleteSnapshotCalls, 0)
+        compare(history.deleteConfirmation.title, "Delete snapshot?")
+        verify(history.deleteConfirmationText.indexOf("20260301T000000Z") !== -1)
+        history.deleteConfirmation.reject()
+        compare(fixtureController.deleteSnapshotCalls, 0)
+
+        mouseClick(newest.deleteAction, newest.deleteAction.width / 2, newest.deleteAction.height / 2)
+        history.deleteConfirmation.accept()
+        compare(fixtureController.deleteSnapshotCalls, 1)
+        compare(fixtureController.deletedTimestamp, "20260301T000000Z")
+    }
+
+    function test_running_analysis_disables_history_actions() {
+        fixtureController.analysisRunning = true
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+        const list = shell.findChild("snapshotList")
+        tryCompare(list, "count", 2)
+        tryVerify(function() { return list.itemAtIndex(0) !== null })
+        const newest = list.itemAtIndex(0)
+
+        compare(shell.findChild("historySelectProjectButton").enabled, false)
+        compare(shell.findChild("refreshSnapshotsButton").enabled, false)
+        compare(newest.openAction.enabled, false)
+        compare(newest.deleteAction.enabled, false)
+
+        fixtureController.analysisRunning = false
     }
 
     function test_running_analysis_disables_conflicting_controls_and_shows_phase() {

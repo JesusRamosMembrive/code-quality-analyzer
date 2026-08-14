@@ -165,7 +165,9 @@ private slots:
     void idleSignalCanStartTheNextAnalysisAfterCompletionIsPublished();
     void workerAnalysisFailureKeepsTheCurrentReport();
     void emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport();
+    void historyOpensWithoutCreatingAnotherSnapshot();
     void snapshotOpenFailureKeepsTheCurrentReport();
+    void snapshotDeleteFailureKeepsTheCurrentReport();
     void snapshotsAreNewestFirstAndDeleteRefreshesTheModel();
     void clearRecentPathsRetainsTheCurrentReport();
 };
@@ -758,6 +760,29 @@ void AppControllerTest::emptyProjectAnalysisIsActionableAndKeepsTheCurrentReport
     QVERIFY(controller.errorMessage().contains("project", Qt::CaseInsensitive));
 }
 
+void AppControllerTest::historyOpensWithoutCreatingAnotherSnapshot()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString snapshots = directory.filePath(".codeqa/snapshots");
+    QVERIFY(QDir{}.mkpath(snapshots));
+    const QByteArray report = QByteArray::fromStdString(reportJson(
+        std::filesystem::path(directory.path().toStdWString()), oneFinding()).dump(2));
+    writeTextFile(QDir(snapshots).filePath("20260101T000000Z.json"), report);
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    controller.refreshSnapshots();
+    QCOMPARE(
+        controller.snapshots()->data(
+            controller.snapshots()->index(0), SnapshotListModel::TimestampRole).toString(),
+        QString("20260101T000000Z"));
+
+    controller.openSnapshot("20260101T000000Z");
+
+    QCOMPARE(QDir(snapshots).entryList({"*.json"}, QDir::Files).size(), 1);
+    QCOMPARE(controller.qualityGateStatus(), QString("Not evaluated"));
+}
+
 void AppControllerTest::snapshotOpenFailureKeepsTheCurrentReport()
 {
     QTemporaryDir directory;
@@ -773,6 +798,23 @@ void AppControllerTest::snapshotOpenFailureKeepsTheCurrentReport()
 
     QCOMPARE(controller.findings()->rowCount(), 1);
     QVERIFY(controller.errorMessage().contains("REPORT002"));
+}
+
+void AppControllerTest::snapshotDeleteFailureKeepsTheCurrentReport()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString valid = writeReport(directory, "valid.json", oneFinding());
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(valid));
+    QCOMPARE(controller.findings()->rowCount(), 1);
+
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    controller.deleteSnapshot("20260101T000000Z");
+
+    QCOMPARE(controller.findings()->rowCount(), 1);
+    QVERIFY(controller.errorMessage().contains(".codeqa"));
+    QVERIFY(controller.errorMessage().contains("20260101T000000Z"));
 }
 
 void AppControllerTest::snapshotsAreNewestFirstAndDeleteRefreshesTheModel()

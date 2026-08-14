@@ -163,11 +163,9 @@ ApplicationWindow {
                 controller: shell.controller
             }
 
-            Item {
-                Label {
-                    anchors.centerIn: parent
-                    text: "History"
-                }
+            HistoryPage {
+                id: historyPage
+                controller: shell.controller
             }
 
             ResultsPage {
