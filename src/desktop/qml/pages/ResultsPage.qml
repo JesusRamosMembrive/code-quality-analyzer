@@ -200,6 +200,8 @@ Item {
                             model: root.controller ? root.controller.findings : null
                             spacing: 4
 
+                            ScrollBar.vertical: ScrollBar {}
+
                             delegate: Rectangle {
                                 required property int index
                                 required property string severity
@@ -286,17 +288,21 @@ Item {
                         radius: 4
 
                         ScrollView {
+                            id: detailScroll
                             anchors.fill: parent
                             anchors.margins: 14
                             clip: true
+                            contentWidth: availableWidth
+                            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
                             ColumnLayout {
-                                width: parent.width
+                                width: detailScroll.availableWidth
                                 spacing: 10
 
                                 Label {
                                     id: findingDetails
                                     objectName: "findingDetails"
+                                    Layout.fillWidth: true
                                     text: root.selectedFinding ? root.selectedFinding.ruleId : "Finding details"
                                     font.pixelSize: 18
                                     font.bold: true
@@ -305,42 +311,49 @@ Item {
 
                                 Label {
                                     visible: !root.selectedFinding
+                                    Layout.fillWidth: true
                                     text: "Select a finding to inspect its details."
                                     wrapMode: Text.Wrap
                                 }
 
                                 Label {
                                     visible: root.selectedFinding
+                                    Layout.fillWidth: true
                                     text: "Description: " + root.detailValue(root.selectedFinding ? root.selectedFinding.description : undefined)
                                     wrapMode: Text.Wrap
                                 }
 
                                 Label {
                                     visible: root.selectedFinding
+                                    Layout.fillWidth: true
                                     text: "Recommendation: " + root.detailValue(root.selectedFinding ? root.selectedFinding.recommendation : undefined)
                                     wrapMode: Text.Wrap
                                 }
 
                                 Label {
                                     visible: root.selectedFinding
+                                    Layout.fillWidth: true
                                     text: "Observed value: " + root.detailValue(root.selectedFinding ? root.selectedFinding.observedValue : undefined)
                                     wrapMode: Text.Wrap
                                 }
 
                                 Label {
                                     visible: root.selectedFinding
+                                    Layout.fillWidth: true
                                     text: "Limit value: " + root.detailValue(root.selectedFinding ? root.selectedFinding.limitValue : undefined)
                                     wrapMode: Text.Wrap
                                 }
 
                                 Label {
                                     visible: root.selectedFinding
+                                    Layout.fillWidth: true
                                     text: "Path: " + root.detailValue(root.selectedFinding ? root.selectedFinding.path : undefined)
                                     wrapMode: Text.Wrap
                                 }
 
                                 Label {
                                     visible: root.selectedFinding
+                                    Layout.fillWidth: true
                                     text: "Location: Line " + root.detailValue(root.selectedFinding ? root.selectedFinding.line : undefined)
                                         + ", column " + root.detailValue(root.selectedFinding ? root.selectedFinding.column : undefined)
                                     wrapMode: Text.Wrap
@@ -348,6 +361,7 @@ Item {
 
                                 Label {
                                     visible: root.selectedFinding
+                                    Layout.fillWidth: true
                                     text: "Metrics: " + root.detailValue(root.selectedFinding ? root.selectedFinding.metricSummary : undefined)
                                     wrapMode: Text.Wrap
                                 }
