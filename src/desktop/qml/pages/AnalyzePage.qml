@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import "../controls"
 
 ScrollView {
     id: root
@@ -53,7 +54,7 @@ ScrollView {
                 }
             }
 
-            Button {
+            PulseButton {
                 id: selectProjectButton
                 objectName: "selectProjectButton"
                 text: "Select project…"
@@ -255,7 +256,7 @@ ScrollView {
                             }
                         }
 
-                        Button {
+                        PulseButton {
                             text: "Remove"
                             onClicked: root.controller.removeHeaderOverride(headerRow.index)
                         }
@@ -277,7 +278,7 @@ ScrollView {
                         model: ["c", "cpp"]
                     }
 
-                    Button {
+                    PulseButton {
                         text: "Add override"
                         onClicked: {
                             root.controller.addHeaderOverride(
@@ -320,7 +321,7 @@ ScrollView {
         RowLayout {
             Layout.fillWidth: true
 
-            Button {
+            PulseButton {
                 id: resetConfigurationButton
                 objectName: "resetConfigurationButton"
                 text: "Reset"
@@ -328,7 +329,7 @@ ScrollView {
                 onClicked: root.controller.resetConfiguration()
             }
 
-            Button {
+            PulseButton {
                 id: saveConfigurationButton
                 objectName: "saveConfigurationButton"
                 text: "Save"
@@ -354,7 +355,7 @@ ScrollView {
                 visible: root.analysisRunning
             }
 
-            Button {
+            PulseButton {
                 id: startAnalysisButton
                 objectName: "startAnalysisButton"
                 text: "Analyze project"

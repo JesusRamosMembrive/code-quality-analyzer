@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import "../controls"
 
 Item {
     id: historyPage
@@ -66,14 +67,14 @@ Item {
             Layout.fillWidth: true
             spacing: 10
 
-            Button {
+            PulseButton {
                 objectName: "historySelectProjectButton"
                 text: "Select project…"
                 enabled: historyPage.controller && !historyPage.controller.analysisRunning
                 onClicked: projectFolderDialog.open()
             }
 
-            Button {
+            PulseButton {
                 objectName: "refreshSnapshotsButton"
                 text: "Refresh"
                 enabled: historyPage.controller
@@ -143,14 +144,14 @@ Item {
                         font.family: "monospace"
                     }
 
-                    Button {
+                    PulseButton {
                         id: openButton
                         text: "Open"
                         enabled: historyPage.controller && !historyPage.controller.analysisRunning
                         onClicked: historyPage.controller.openSnapshot(snapshotRow.timestamp)
                     }
 
-                    Button {
+                    PulseButton {
                         id: deleteButton
                         text: "Delete"
                         enabled: historyPage.controller && !historyPage.controller.analysisRunning

@@ -45,6 +45,10 @@ set_source_files_properties(qml/pages/HistoryPage.qml PROPERTIES
     QT_RESOURCE_ALIAS pages/HistoryPage.qml
 )
 
+set_source_files_properties(qml/controls/PulseButton.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/PulseButton.qml
+)
+
 qt_add_qml_module(codeqa_desktop
     URI CodeQA.Desktop
     VERSION 1.0
@@ -53,6 +57,7 @@ qt_add_qml_module(codeqa_desktop
         qml/pages/AnalyzePage.qml
         qml/pages/HistoryPage.qml
         qml/pages/ResultsPage.qml
+        qml/controls/PulseButton.qml
 )
 
 get_target_property(_codeqa_qmake_executable Qt6::qmake IMPORTED_LOCATION)

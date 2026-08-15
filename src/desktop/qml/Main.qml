@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import "pages"
+import "controls"
 
 ApplicationWindow {
     id: shell
@@ -12,6 +13,16 @@ ApplicationWindow {
     minimumWidth: 960
     minimumHeight: 600
     title: "CodeQA"
+    color: "#eef1f5"
+
+    palette.window: "#eef1f5"
+    palette.windowText: "#1c1f26"
+    palette.base: "#ffffff"
+    palette.text: "#1c1f26"
+    palette.button: "#ffffff"
+    palette.buttonText: "#1c1f26"
+    palette.highlight: "#2f6fed"
+    palette.highlightedText: "#ffffff"
 
     property var controller: typeof appController !== "undefined" ? appController : null
     property string selectedPage: controller && controller.lastPage !== "" ? controller.lastPage : "Results"
@@ -77,25 +88,6 @@ ApplicationWindow {
         }
     }
 
-    header: ToolBar {
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            Button {
-                objectName: "openReportButton"
-                text: "Open report…"
-                enabled: shell.controller && !shell.controller.analysisRunning
-                onClicked: openReportDialog.open()
-            }
-        }
-    }
-
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -117,7 +109,7 @@ ApplicationWindow {
                     font.bold: true
                 }
 
-                Button {
+                PulseButton {
                     id: analyzeNavigationButton
                     objectName: "analyzeNavigationButton"
                     Layout.fillWidth: true
@@ -127,7 +119,7 @@ ApplicationWindow {
                     onClicked: shell.selectPage("Analyze")
                 }
 
-                Button {
+                PulseButton {
                     id: historyNavigationButton
                     objectName: "historyNavigationButton"
                     Layout.fillWidth: true
@@ -137,7 +129,7 @@ ApplicationWindow {
                     onClicked: shell.selectPage("History")
                 }
 
-                Button {
+                PulseButton {
                     id: resultsNavigationButton
                     objectName: "resultsNavigationButton"
                     Layout.fillWidth: true
@@ -151,7 +143,16 @@ ApplicationWindow {
                     Layout.fillHeight: true
                 }
 
-                Button {
+                PulseButton {
+                    id: openReportButton
+                    objectName: "openReportButton"
+                    Layout.fillWidth: true
+                    text: "Open report…"
+                    enabled: shell.controller && !shell.controller.analysisRunning
+                    onClicked: openReportDialog.open()
+                }
+
+                PulseButton {
                     id: clearRecentPathsButton
                     objectName: "clearRecentPathsButton"
                     Layout.fillWidth: true
@@ -167,9 +168,22 @@ ApplicationWindow {
         }
 
         StackLayout {
+            id: pageStack
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: shell.selectedPage === "Analyze" ? 0 : shell.selectedPage === "History" ? 1 : 2
+
+            NumberAnimation {
+                id: pageFadeIn
+                target: pageStack
+                property: "opacity"
+                from: 0
+                to: 1
+                duration: 180
+                easing.type: Easing.OutCubic
+            }
+
+            onCurrentIndexChanged: pageFadeIn.restart()
 
             AnalyzePage {
                 id: analyzePage

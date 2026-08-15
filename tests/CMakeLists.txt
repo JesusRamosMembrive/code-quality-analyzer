@@ -242,6 +242,12 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/HistoryPage.qml
         COPYONLY
     )
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/PulseButton.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/PulseButton.qml
+        COPYONLY
+    )
     file(GENERATE
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
         CONTENT "module CodeQA.Desktop\nMain 1.0 Main.qml\n"
@@ -254,6 +260,7 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalyzePage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/HistoryPage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsPage.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/PulseButton.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
     )
 
