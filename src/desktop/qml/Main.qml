@@ -22,6 +22,7 @@ ApplicationWindow {
     palette.windowText: "#e7e9ee"
     palette.base: "#242832"
     palette.text: "#e7e9ee"
+    palette.placeholderText: "#9aa1b0"
     palette.button: "#2a2f3a"
     palette.buttonText: "#e7e9ee"
     palette.highlight: "#2f6fed"
