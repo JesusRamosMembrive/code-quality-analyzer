@@ -100,7 +100,7 @@ Item {
             Layout.fillWidth: true
             visible: text !== ""
             text: historyPage.controller ? historyPage.controller.errorMessage : ""
-            color: "#b3261e"
+            color: "#ff6b6b"
             wrapMode: Text.Wrap
         }
 
@@ -133,6 +133,18 @@ Item {
                 property string timestampText: timestamp
                 property alias openAction: openButton
                 property alias deleteAction: deleteButton
+
+                background: Rectangle {
+                    color: "transparent"
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: "#333844"
+                    }
+                }
 
                 RowLayout {
                     anchors.fill: parent

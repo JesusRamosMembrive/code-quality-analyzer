@@ -8,10 +8,10 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication application(argc, argv);
-    // The UI's colors (e.g. "#f4f6f8" panels) assume a light palette; without this,
-    // Qt 6.8+ auto-follows the OS color scheme and flips default text/control colors
-    // to light on Windows dark mode, making them unreadable against those backgrounds.
-    application.styleHints()->setColorScheme(Qt::ColorScheme::Light);
+    // The UI is a permanent dark theme; without this, Qt 6.8+ auto-follows the OS
+    // color scheme and flips default text/control colors on Windows light mode,
+    // making them unreadable against the app's dark backgrounds.
+    application.styleHints()->setColorScheme(Qt::ColorScheme::Dark);
     AppController appController;
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("appController"), &appController);

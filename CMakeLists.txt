@@ -145,6 +145,7 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         Quick
         QuickControls2
         QuickDialogs2
+        QuickEffects
         Concurrent
         Test
         QuickTest

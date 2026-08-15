@@ -219,7 +219,7 @@ Item {
                                 width: findingTable.width
                                 height: findingRow.implicitHeight + 16
                                 radius: 4
-                                color: ListView.isCurrentItem ? "#dceeff" : "#f4f6f8"
+                                color: ListView.isCurrentItem ? "#26385c" : "#242832"
 
                                 RowLayout {
                                     id: findingRow
@@ -284,7 +284,7 @@ Item {
                     Rectangle {
                         Layout.fillHeight: true
                         Layout.preferredWidth: 350
-                        color: "#f4f6f8"
+                        color: "#242832"
                         radius: 4
 
                         ScrollView {
@@ -389,7 +389,7 @@ Item {
                     width: fileMetricsList.width
                     height: metricsColumn.implicitHeight + 20
                     radius: 4
-                    color: "#f4f6f8"
+                    color: "#242832"
 
                     ColumnLayout {
                         id: metricsColumn

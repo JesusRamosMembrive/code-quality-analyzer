@@ -26,6 +26,7 @@ target_link_libraries(codeqa_desktop PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::QuickDialogs2
+    Qt6::QuickEffects
     Qt6::Concurrent
 )
 
@@ -49,6 +50,10 @@ set_source_files_properties(qml/controls/PulseButton.qml PROPERTIES
     QT_RESOURCE_ALIAS controls/PulseButton.qml
 )
 
+set_source_files_properties(qml/controls/GlassPanel.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/GlassPanel.qml
+)
+
 qt_add_qml_module(codeqa_desktop
     URI CodeQA.Desktop
     VERSION 1.0
@@ -58,6 +63,7 @@ qt_add_qml_module(codeqa_desktop
         qml/pages/HistoryPage.qml
         qml/pages/ResultsPage.qml
         qml/controls/PulseButton.qml
+        qml/controls/GlassPanel.qml
 )
 
 get_target_property(_codeqa_qmake_executable Qt6::qmake IMPORTED_LOCATION)

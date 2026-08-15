@@ -13,14 +13,17 @@ ApplicationWindow {
     minimumWidth: 960
     minimumHeight: 600
     title: "CodeQA"
-    color: "#eef1f5"
+    color: "#1a1d24"
 
-    palette.window: "#eef1f5"
-    palette.windowText: "#1c1f26"
-    palette.base: "#ffffff"
-    palette.text: "#1c1f26"
-    palette.button: "#ffffff"
-    palette.buttonText: "#1c1f26"
+    font.family: "Segoe UI Variable Text"
+    font.pointSize: 11
+
+    palette.window: "#1a1d24"
+    palette.windowText: "#e7e9ee"
+    palette.base: "#242832"
+    palette.text: "#e7e9ee"
+    palette.button: "#2a2f3a"
+    palette.buttonText: "#e7e9ee"
     palette.highlight: "#2f6fed"
     palette.highlightedText: "#ffffff"
 
@@ -88,14 +91,65 @@ ApplicationWindow {
         }
     }
 
+    // Confined to (and a bit wider than) the sidebar's own footprint so it
+    // never shows through the main content pages. Blurring a smooth gradient
+    // produces the same smooth gradient (no visible texture), so the glass
+    // effect needs actual shapes/edges behind it — hence the overlapping
+    // circles instead of a flat wash.
+    Item {
+        id: backdrop
+        width: 230
+        height: parent.height
+        // Without this, children wider/taller than backdrop itself (the
+        // decorative circles) paint straight onto the screen past its
+        // bounds — they're not confined by GlassPanel's own clip since
+        // backdrop is a directly rendered sibling, not a child of the panel.
+        clip: true
+
+        Rectangle {
+            anchors.fill: parent
+            color: "#20242c"
+        }
+
+        Rectangle {
+            width: 220
+            height: 220
+            radius: width / 2
+            color: "#2f6fed"
+            x: -70
+            y: -50
+        }
+
+        Rectangle {
+            width: 180
+            height: 180
+            radius: width / 2
+            color: "#22d3c7"
+            x: 90
+            y: parent.height * 0.35
+        }
+
+        Rectangle {
+            width: 260
+            height: 260
+            radius: width / 2
+            color: "#ff6f91"
+            opacity: 0.85
+            x: -60
+            y: parent.height * 0.7
+        }
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
 
-        Rectangle {
+        GlassPanel {
             Layout.fillHeight: true
             Layout.preferredWidth: 190
-            color: "#20242c"
+            backgroundItem: backdrop
+            blurRadius: 40
+            tintColor: Qt.rgba(0, 0, 0, 0.28)
 
             ColumnLayout {
                 anchors.fill: parent
@@ -171,6 +225,7 @@ ApplicationWindow {
             id: pageStack
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.leftMargin: 16
             currentIndex: shell.selectedPage === "Analyze" ? 0 : shell.selectedPage === "History" ? 1 : 2
 
             NumberAnimation {

@@ -49,7 +49,7 @@ ScrollView {
                     text: root.hasProject
                         ? root.controller.currentProject.toString()
                         : "Select a local C or C++ project to configure and analyze."
-                    color: "#5f6673"
+                    color: "#9aa1b0"
                     elide: Text.ElideMiddle
                 }
             }
@@ -73,8 +73,8 @@ ScrollView {
                         ? "Configuration has unsaved changes."
                         : "Configuration loaded."
             color: root.controller && !root.controller.configurationAvailable && root.hasProject
-                ? "#a15c00"
-                : "#5f6673"
+                ? "#ffb454"
+                : "#9aa1b0"
             wrapMode: Text.Wrap
         }
 
@@ -82,7 +82,7 @@ ScrollView {
             Layout.fillWidth: true
             visible: root.controller && root.controller.errorMessage !== ""
             text: root.controller ? root.controller.errorMessage : ""
-            color: "#9b2c2c"
+            color: "#ff6b6b"
             wrapMode: Text.Wrap
         }
 
