@@ -165,32 +165,26 @@ ApplicationWindow {
                 }
 
                 PulseButton {
-                    id: analyzeNavigationButton
                     objectName: "analyzeNavigationButton"
                     Layout.fillWidth: true
                     text: "Analyze"
-                    checkable: true
-                    checked: shell.selectedPage === "Analyze"
+                    highlighted: shell.selectedPage === "Analyze"
                     onClicked: shell.selectPage("Analyze")
                 }
 
                 PulseButton {
-                    id: historyNavigationButton
                     objectName: "historyNavigationButton"
                     Layout.fillWidth: true
                     text: "History"
-                    checkable: true
-                    checked: shell.selectedPage === "History"
+                    highlighted: shell.selectedPage === "History"
                     onClicked: shell.selectPage("History")
                 }
 
                 PulseButton {
-                    id: resultsNavigationButton
                     objectName: "resultsNavigationButton"
                     Layout.fillWidth: true
                     text: "Results"
-                    checkable: true
-                    checked: shell.selectedPage === "Results"
+                    highlighted: shell.selectedPage === "Results"
                     onClicked: shell.selectPage("Results")
                 }
 
@@ -199,7 +193,6 @@ ApplicationWindow {
                 }
 
                 PulseButton {
-                    id: openReportButton
                     objectName: "openReportButton"
                     Layout.fillWidth: true
                     text: "Open report…"
@@ -208,7 +201,6 @@ ApplicationWindow {
                 }
 
                 PulseButton {
-                    id: clearRecentPathsButton
                     objectName: "clearRecentPathsButton"
                     Layout.fillWidth: true
                     text: "Clear recent paths"

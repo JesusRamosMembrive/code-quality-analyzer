@@ -53,11 +53,11 @@ public:
     [[nodiscard]] bool configurationAvailable() const;
     [[nodiscard]] bool configurationDirty() const;
     [[nodiscard]] QString qualityGateSeverity() const;
-    [[nodiscard]] RuleConfigModel* rules();
-    [[nodiscard]] HeaderOverrideModel* headerOverrides();
-    [[nodiscard]] FindingListModel* findings();
-    [[nodiscard]] FileListModel* files();
-    [[nodiscard]] SnapshotListModel* snapshots();
+    [[nodiscard]] RuleConfigModel* rules() const;
+    [[nodiscard]] HeaderOverrideModel* headerOverrides() const;
+    [[nodiscard]] FindingListModel* findings() const;
+    [[nodiscard]] FileListModel* files() const;
+    [[nodiscard]] SnapshotListModel* snapshots() const;
     [[nodiscard]] QString lastPage() const;
     [[nodiscard]] QString findingSeverityFilter() const;
     [[nodiscard]] QString findingRuleFilter() const;
@@ -116,6 +116,7 @@ private:
     void initializeSettingsState();
     void initializeConfigurationState();
     void setCurrentProject(const QUrl& projectRoot);
+    [[nodiscard]] bool requireIdle(const QString& action);
     [[nodiscard]] bool requireCurrentProject(const QString& action);
     [[nodiscard]] bool requireEditableConfiguration(const QString& action);
     [[nodiscard]] std::optional<codeqa::core::Language> supportedLanguage(const QString& language) const;
@@ -130,6 +131,7 @@ private:
         QString message = {});
     void setAnalysisRunning(bool running);
     void setErrorMessage(const QString& message);
+    void persistSettings();
     void setConfigurationAvailable(bool available);
     void setConfigurationDirty(bool dirty);
     void addRecentProject(const QString& path);

@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -10,6 +12,7 @@ Item {
 
     property var controller: null
     property string pendingDeleteTimestamp: ""
+    readonly property bool hasProject: controller && controller.currentProject.toString() !== ""
     property alias deleteConfirmation: deleteConfirmationDialog
     property alias deleteConfirmationText: deleteConfirmationMessage.text
 
@@ -77,16 +80,13 @@ Item {
             PulseButton {
                 objectName: "refreshSnapshotsButton"
                 text: "Refresh"
-                enabled: historyPage.controller
-                    && historyPage.controller.currentProject.toString() !== ""
-                    && !historyPage.controller.analysisRunning
+                enabled: historyPage.hasProject && !historyPage.controller.analysisRunning
                 onClicked: historyPage.controller.refreshSnapshots()
             }
 
             Label {
                 Layout.fillWidth: true
-                text: historyPage.controller
-                    && historyPage.controller.currentProject.toString() !== ""
+                text: historyPage.hasProject
                     ? historyPage.controller.currentProject.toString()
                     : "No project selected"
                 elide: Text.ElideMiddle
@@ -108,8 +108,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: !snapshotList.count
-            text: historyPage.controller
-                && historyPage.controller.currentProject.toString() !== ""
+            text: historyPage.hasProject
                 ? "No snapshots found in .codeqa/snapshots."
                 : "Select a project to view its snapshots."
             horizontalAlignment: Text.AlignHCenter
@@ -130,7 +129,7 @@ Item {
                 id: snapshotRow
                 width: ListView.view.width
                 required property string timestamp
-                property string timestampText: timestamp
+                readonly property string timestampText: timestamp
                 property alias openAction: openButton
                 property alias deleteAction: deleteButton
 
@@ -154,6 +153,7 @@ Item {
                         Layout.fillWidth: true
                         text: snapshotRow.timestamp
                         font.family: "monospace"
+                        textFormat: Text.PlainText
                     }
 
                     PulseButton {

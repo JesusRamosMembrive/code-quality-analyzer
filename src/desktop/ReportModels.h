@@ -6,6 +6,7 @@
 
 #include <QAbstractListModel>
 #include <QString>
+#include <QVariantList>
 
 #include <memory>
 #include <map>
@@ -23,7 +24,7 @@ public:
         IdRole = Qt::UserRole + 1,
         EnabledRole,
         WarningLimitRole,
-        HighLimitRole
+        HighLimitRole,
     };
     Q_ENUM(Role)
 
@@ -61,7 +62,7 @@ public:
     enum Role
     {
         PatternRole = Qt::UserRole + 1,
-        LanguageRole
+        LanguageRole,
     };
     Q_ENUM(Role)
 
@@ -104,7 +105,7 @@ public:
         LimitValueRole,
         DescriptionRole,
         RecommendationRole,
-        MetricSummaryRole
+        MetricSummaryRole,
     };
     Q_ENUM(Role)
 
@@ -132,11 +133,17 @@ signals:
 private:
     friend class AppController;
 
+    // file/finding/metrics point directly into document_'s vectors. Safe only
+    // because every reassignment of document_ (applyDocument()) is always
+    // immediately followed by rebuildRows() in the same call, so rows_ never
+    // outlives the document it was built from. If a future change ever
+    // separates those two steps, these pointers would dangle silently.
     struct Row
     {
         const codeqa::application::ReportFile* file{nullptr};
         const codeqa::rules::Finding* finding{nullptr};
         const codeqa::metrics::FunctionMetricsModel* metrics{nullptr};
+        QString path;
     };
 
     void rebuild();
@@ -169,7 +176,7 @@ public:
         DiagnosticCountRole,
         FindingCountRole,
         FunctionCountRole,
-        FunctionMetricsRole
+        FunctionMetricsRole,
     };
     Q_ENUM(Role)
 
@@ -194,6 +201,7 @@ private:
     void endDocumentReset();
 
     std::shared_ptr<const codeqa::application::ReportDocument> document_;
+    std::vector<QVariantList> functionMetricsCache_;
     int diagnosticCount_{0};
 };
 
@@ -205,7 +213,7 @@ public:
     enum Role
     {
         TimestampRole = Qt::UserRole + 1,
-        PathRole
+        PathRole,
     };
     Q_ENUM(Role)
 

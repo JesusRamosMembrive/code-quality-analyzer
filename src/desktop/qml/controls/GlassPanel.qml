@@ -8,13 +8,22 @@ import QtQuick.Effects
 Rectangle {
     id: root
 
-    // Item to capture and blur. Must be an ancestor or a sibling sharing the
-    // same coordinate system as this panel (NOT a ShaderEffectSource itself).
+    // Item to capture and blur. Any item under the same window works (NOT a
+    // ShaderEffectSource itself) -- backdropOffset below maps its position
+    // through the visual tree, so it doesn't need to be a direct sibling.
     property Item backgroundItem
 
     property real blurRadius: 28
     property color tintColor: Qt.rgba(0, 0, 0, 0.35)
     property real borderOpacity: 0.12
+
+    // Position of backgroundItem's origin in root's own coordinate system.
+    // Using mapFromItem (rather than assuming root.x/root.y is the offset)
+    // stays correct regardless of layout margins or where backgroundItem
+    // actually sits in the tree relative to root.
+    readonly property point backdropOffset: root.backgroundItem
+        ? root.mapFromItem(root.backgroundItem, 0, 0)
+        : Qt.point(0, 0)
 
     clip: true
     color: "transparent"
@@ -22,8 +31,8 @@ Rectangle {
     ShaderEffectSource {
         id: bgCapture
         sourceItem: root.backgroundItem
-        x: root.backgroundItem ? -root.x : 0
-        y: root.backgroundItem ? -root.y : 0
+        x: root.backdropOffset.x
+        y: root.backdropOffset.y
         width: root.backgroundItem ? root.backgroundItem.width : root.width
         height: root.backgroundItem ? root.backgroundItem.height : root.height
         // backgroundItem exists only to be blurred into this panel — it must

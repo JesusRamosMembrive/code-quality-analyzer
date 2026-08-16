@@ -199,11 +199,12 @@ QVariant RuleConfigModel::data(const QModelIndex& index, const int role) const
 
 QHash<int, QByteArray> RuleConfigModel::roleNames() const
 {
-    return {
+    static const QHash<int, QByteArray> roles = {
         {IdRole, "id"},
         {EnabledRole, "enabled"},
         {WarningLimitRole, "warningLimit"},
         {HighLimitRole, "highLimit"}};
+    return roles;
 }
 
 bool RuleConfigModel::setEnabled(const QString& ruleId, const bool enabled)
@@ -318,7 +319,8 @@ QVariant HeaderOverrideModel::data(const QModelIndex& index, const int role) con
 
 QHash<int, QByteArray> HeaderOverrideModel::roleNames() const
 {
-    return {{PatternRole, "pattern"}, {LanguageRole, "language"}};
+    static const QHash<int, QByteArray> roles = {{PatternRole, "pattern"}, {LanguageRole, "language"}};
+    return roles;
 }
 
 void HeaderOverrideModel::setOverrides(
@@ -440,7 +442,7 @@ QVariant FindingListModel::data(const QModelIndex& index, const int role) const
 
 QHash<int, QByteArray> FindingListModel::roleNames() const
 {
-    return {
+    static const QHash<int, QByteArray> roles = {
         {SeverityRole, "severity"},
         {RuleIdRole, "ruleId"},
         {SymbolNameRole, "symbolName"},
@@ -452,6 +454,7 @@ QHash<int, QByteArray> FindingListModel::roleNames() const
         {DescriptionRole, "description"},
         {RecommendationRole, "recommendation"},
         {MetricSummaryRole, "metricSummary"}};
+    return roles;
 }
 
 void FindingListModel::setDocument(
@@ -549,25 +552,23 @@ void FindingListModel::rebuildRows()
             const QString path = fromPath(file.path);
             for (const codeqa::rules::Finding& finding : file.findings)
             {
-                const QString severity = severityText(finding.severity);
-                const QString ruleId = QString::fromStdString(finding.ruleId);
-                const QString symbolName = QString::fromStdString(finding.symbolName);
-                if (!severityFilter_.isEmpty() && severity != severityFilter_)
+                if (!severityFilter_.isEmpty() && severityText(finding.severity) != severityFilter_)
                 {
                     continue;
                 }
-                if (!ruleFilter_.isEmpty() && ruleId.compare(ruleFilter_, Qt::CaseInsensitive) != 0)
+                if (!ruleFilter_.isEmpty()
+                    && QString::fromStdString(finding.ruleId).compare(ruleFilter_, Qt::CaseInsensitive) != 0)
                 {
                     continue;
                 }
                 if (!searchText_.isEmpty()
-                    && !ruleId.contains(searchText_, Qt::CaseInsensitive)
-                    && !symbolName.contains(searchText_, Qt::CaseInsensitive)
+                    && !QString::fromStdString(finding.ruleId).contains(searchText_, Qt::CaseInsensitive)
+                    && !QString::fromStdString(finding.symbolName).contains(searchText_, Qt::CaseInsensitive)
                     && !path.contains(searchText_, Qt::CaseInsensitive))
                 {
                     continue;
                 }
-                rows_.push_back(Row{&file, &finding, findMetrics(file, finding)});
+                rows_.push_back(Row{&file, &finding, findMetrics(file, finding), path});
                 if (finding.severity == codeqa::core::DiagnosticSeverity::Error)
                 {
                     ++errorCount_;
@@ -588,11 +589,10 @@ void FindingListModel::rebuildRows()
                 return leftSeverity < rightSeverity;
             }
 
-            const std::string leftPath = left.file->path.generic_string();
-            const std::string rightPath = right.file->path.generic_string();
-            if (leftPath != rightPath)
+            const int pathOrder = QString::compare(left.path, right.path, Qt::CaseInsensitive);
+            if (pathOrder != 0)
             {
-                return leftPath < rightPath;
+                return pathOrder < 0;
             }
             if (left.finding->location.line != right.finding->location.line)
             {
@@ -644,15 +644,7 @@ QVariant FileListModel::data(const QModelIndex& index, const int role) const
     case FunctionCountRole:
         return static_cast<qulonglong>(file.metrics.size());
     case FunctionMetricsRole:
-    {
-        QVariantList functions;
-        functions.reserve(static_cast<qsizetype>(file.metrics.size()));
-        for (const codeqa::metrics::FunctionMetricsModel& metrics : file.metrics)
-        {
-            functions.push_back(metricsMap(metrics));
-        }
-        return functions;
-    }
+        return functionMetricsCache_[static_cast<std::size_t>(index.row())];
     default:
         return {};
     }
@@ -660,14 +652,15 @@ QVariant FileListModel::data(const QModelIndex& index, const int role) const
 
 QHash<int, QByteArray> FileListModel::roleNames() const
 {
-    return {
+    static const QHash<int, QByteArray> roles = {
         {PathRole, "path"},
         {LanguageRole, "language"},
-        {StateRole, "state"},
+        {StateRole, "fileState"},
         {DiagnosticCountRole, "diagnosticCount"},
         {FindingCountRole, "findingCount"},
         {FunctionCountRole, "functionCount"},
         {FunctionMetricsRole, "functionMetrics"}};
+    return roles;
 }
 
 void FileListModel::setDocument(
@@ -688,11 +681,21 @@ void FileListModel::applyDocument(
 {
     document_ = std::move(document);
     diagnosticCount_ = 0;
+    functionMetricsCache_.clear();
     if (document_)
     {
+        functionMetricsCache_.reserve(document_->files.size());
         for (const codeqa::application::ReportFile& file : document_->files)
         {
             diagnosticCount_ += static_cast<int>(file.diagnostics.size());
+
+            QVariantList functions;
+            functions.reserve(static_cast<qsizetype>(file.metrics.size()));
+            for (const codeqa::metrics::FunctionMetricsModel& metrics : file.metrics)
+            {
+                functions.push_back(metricsMap(metrics));
+            }
+            functionMetricsCache_.push_back(std::move(functions));
         }
     }
 }
@@ -731,7 +734,8 @@ QVariant SnapshotListModel::data(const QModelIndex& index, const int role) const
 
 QHash<int, QByteArray> SnapshotListModel::roleNames() const
 {
-    return {{TimestampRole, "timestamp"}, {PathRole, "path"}};
+    static const QHash<int, QByteArray> roles = {{TimestampRole, "timestamp"}, {PathRole, "path"}};
+    return roles;
 }
 
 void SnapshotListModel::setSnapshots(std::vector<codeqa::application::SnapshotEntry> snapshots)

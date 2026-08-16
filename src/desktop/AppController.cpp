@@ -59,9 +59,7 @@ QString normalizedSettingsPath(const std::filesystem::path& path)
 bool isSupportedSeverityFilter(const QString& severity)
 {
     return severity.isEmpty()
-        || severity == QStringLiteral("error")
-        || severity == QStringLiteral("warning")
-        || severity == QStringLiteral("information");
+        || codeqa::core::diagnosticSeverityFromJsonString(severity.toStdString()).has_value();
 }
 
 } // namespace
@@ -86,6 +84,11 @@ AppController::AppController(const QString& settingsPath, QObject* parent)
 
 AppController::~AppController()
 {
+    // launchAnalysis() captures a raw `this` into a QtConcurrent worker and
+    // its queued progress callback. This wait is what keeps that safe: it
+    // guarantees the worker lambda has returned (and every synchronous call
+    // it issued back into `this` has been made) before member teardown below
+    // begins. Do not remove or reorder without replacing the raw capture.
     if (analysisWatcher_.isRunning())
     {
         analysisWatcher_.waitForFinished();
@@ -134,29 +137,29 @@ QString AppController::qualityGateSeverity() const
     return qualityGateSeverity_;
 }
 
-RuleConfigModel* AppController::rules()
+RuleConfigModel* AppController::rules() const
 {
-    return &rules_;
+    return const_cast<RuleConfigModel*>(&rules_);
 }
 
-HeaderOverrideModel* AppController::headerOverrides()
+HeaderOverrideModel* AppController::headerOverrides() const
 {
-    return &headerOverrides_;
+    return const_cast<HeaderOverrideModel*>(&headerOverrides_);
 }
 
-FindingListModel* AppController::findings()
+FindingListModel* AppController::findings() const
 {
-    return &findings_;
+    return const_cast<FindingListModel*>(&findings_);
 }
 
-FileListModel* AppController::files()
+FileListModel* AppController::files() const
 {
-    return &files_;
+    return const_cast<FileListModel*>(&files_);
 }
 
-SnapshotListModel* AppController::snapshots()
+SnapshotListModel* AppController::snapshots() const
 {
-    return &snapshots_;
+    return const_cast<SnapshotListModel*>(&snapshots_);
 }
 
 QString AppController::lastPage() const
@@ -213,16 +216,14 @@ void AppController::setLastPage(const QString& page)
     }
     lastPage_ = normalized;
     settings_->setValue(QStringLiteral("ui/lastPage"), lastPage_);
-    settings_->sync();
+    persistSettings();
     emit lastPageChanged(lastPage_);
 }
 
 void AppController::selectProject(const QUrl& projectRoot)
 {
-    if (analysisRunning_)
+    if (!requireIdle(QStringLiteral("selecting a project")))
     {
-        setErrorMessage(QStringLiteral(
-            "Error [DESKTOP002]: wait for the current analysis before selecting a project."));
         return;
     }
 
@@ -230,8 +231,8 @@ void AppController::selectProject(const QUrl& projectRoot)
     if (currentProjectPath_.empty())
     {
         configurationLoadError_.clear();
+        applyConfiguration(codeqa::config::defaultConfig(), false);
         setConfigurationAvailable(false);
-        setConfigurationDirty(false);
         return;
     }
 
@@ -274,10 +275,8 @@ void AppController::saveConfiguration()
 
 void AppController::resetConfiguration()
 {
-    if (analysisRunning_)
+    if (!requireIdle(QStringLiteral("resetting configuration")))
     {
-        setErrorMessage(QStringLiteral(
-            "Error [DESKTOP002]: wait for the current analysis before resetting configuration."));
         return;
     }
     if (!requireCurrentProject(QStringLiteral("resetting configuration")))
@@ -338,6 +337,11 @@ void AppController::setRuleLimits(
 {
     if (!requireEditableConfiguration(QStringLiteral("changing rule limits")))
     {
+        return;
+    }
+    if (warningLimit < 0 || highLimit < 0)
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP014]: rule limits must not be negative."));
         return;
     }
     if (!rules_.setLimit(ruleId, warningLimit, highLimit))
@@ -416,9 +420,8 @@ void AppController::startAnalysis()
 
 void AppController::openReport(const QUrl& reportUrl)
 {
-    if (analysisRunning_)
+    if (!requireIdle(QStringLiteral("opening a report")))
     {
-        setErrorMessage(QStringLiteral("Error [DESKTOP002]: wait for the current analysis before opening a report."));
         return;
     }
 
@@ -429,7 +432,7 @@ void AppController::openReport(const QUrl& reportUrl)
         return;
     }
 
-    const codeqa::application::ReportDocumentResult result = facade_.openReport(path);
+    codeqa::application::ReportDocumentResult result = facade_.openReport(path);
     if (!result.document.has_value())
     {
         setErrorMessage(QString::fromStdString(result.error.value_or("Error [REPORT001]: unable to read report.")));
@@ -471,9 +474,8 @@ void AppController::exportMarkdown(const QUrl& destination)
 
 void AppController::openSnapshot(const QString& timestamp)
 {
-    if (analysisRunning_)
+    if (!requireIdle(QStringLiteral("opening a snapshot")))
     {
-        setErrorMessage(QStringLiteral("Error [DESKTOP002]: wait for the current analysis before opening a snapshot."));
         return;
     }
     if (!requireCurrentProject(QStringLiteral("opening a snapshot")))
@@ -481,7 +483,7 @@ void AppController::openSnapshot(const QString& timestamp)
         return;
     }
 
-    const codeqa::application::ReportDocumentResult result =
+    codeqa::application::ReportDocumentResult result =
         facade_.openSnapshot(currentProjectPath_, timestamp.toStdString());
     if (!result.document.has_value())
     {
@@ -494,9 +496,8 @@ void AppController::openSnapshot(const QString& timestamp)
 
 void AppController::refreshSnapshots()
 {
-    if (analysisRunning_)
+    if (!requireIdle(QStringLiteral("refreshing snapshots")))
     {
-        setErrorMessage(QStringLiteral("Error [DESKTOP002]: wait for the current analysis before refreshing snapshots."));
         return;
     }
     if (!requireCurrentProject(QStringLiteral("refreshing snapshots")))
@@ -516,9 +517,8 @@ void AppController::refreshSnapshots()
 
 void AppController::deleteSnapshot(const QString& timestamp)
 {
-    if (analysisRunning_)
+    if (!requireIdle(QStringLiteral("deleting a snapshot")))
     {
-        setErrorMessage(QStringLiteral("Error [DESKTOP002]: wait for the current analysis before deleting a snapshot."));
         return;
     }
     if (!requireCurrentProject(QStringLiteral("deleting a snapshot")))
@@ -542,7 +542,7 @@ void AppController::clearRecentPaths()
     recentReports_.clear();
     settings_->remove(QStringLiteral("recentProjects"));
     settings_->remove(QStringLiteral("recentReports"));
-    settings_->sync();
+    persistSettings();
     emit recentPathsChanged();
 }
 
@@ -561,7 +561,7 @@ void AppController::setFindingSeverityFilter(const QString& severity)
     }
     findings_.setSeverityFilter(normalized);
     settings_->setValue(QStringLiteral("filters/severity"), normalized);
-    settings_->sync();
+    persistSettings();
     emit findingSeverityFilterChanged(normalized);
 }
 
@@ -574,7 +574,7 @@ void AppController::setFindingRuleFilter(const QString& ruleId)
     }
     findings_.setRuleFilter(normalized);
     settings_->setValue(QStringLiteral("filters/ruleId"), normalized);
-    settings_->sync();
+    persistSettings();
     emit findingRuleFilterChanged(normalized);
 }
 
@@ -587,7 +587,7 @@ void AppController::setFindingSearchText(const QString& searchText)
     }
     findings_.setSearchText(normalized);
     settings_->setValue(QStringLiteral("filters/searchText"), normalized);
-    settings_->sync();
+    persistSettings();
     emit findingSearchTextChanged(normalized);
 }
 
@@ -701,6 +701,16 @@ void AppController::setCurrentProject(const QUrl& projectRoot)
     addRecentProject(normalizedSettingsPath(path));
 }
 
+bool AppController::requireIdle(const QString& action)
+{
+    if (!analysisRunning_)
+    {
+        return true;
+    }
+    setErrorMessage(QStringLiteral("Error [DESKTOP002]: wait for the current analysis before %1.").arg(action));
+    return false;
+}
+
 bool AppController::requireCurrentProject(const QString& action)
 {
     if (!currentProjectPath_.empty())
@@ -713,9 +723,8 @@ bool AppController::requireCurrentProject(const QString& action)
 
 bool AppController::requireEditableConfiguration(const QString& action)
 {
-    if (analysisRunning_)
+    if (!requireIdle(action))
     {
-        setErrorMessage(QStringLiteral("Error [DESKTOP002]: wait for the current analysis before %1.").arg(action));
         return false;
     }
     if (!requireCurrentProject(action))
@@ -812,7 +821,7 @@ void AppController::applyAnalysisPhase(const codeqa::application::AnalysisPhase 
 
 void AppController::finishAnalysis()
 {
-    const codeqa::application::AnalysisFacadeResult result = analysisWatcher_.result();
+    codeqa::application::AnalysisFacadeResult result = analysisWatcher_.result();
     const std::filesystem::path completedProjectPath = analysisProjectPath_;
     if (result.document.has_value())
     {
@@ -832,7 +841,7 @@ void AppController::finishAnalysis()
             snapshots = std::move(snapshotResult.snapshots);
         }
 
-        replaceDocument(*result.document, std::move(snapshots), std::move(message));
+        replaceDocument(std::move(*result.document), std::move(snapshots), std::move(message));
         analysisProjectPath_.clear();
         setAnalysisRunning(false);
         return;
@@ -909,6 +918,15 @@ void AppController::setErrorMessage(const QString& message)
     emit errorMessageChanged(errorMessage_);
 }
 
+void AppController::persistSettings()
+{
+    settings_->sync();
+    if (settings_->status() != QSettings::NoError)
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP013]: could not save application settings."));
+    }
+}
+
 void AppController::setConfigurationAvailable(const bool available)
 {
     if (configurationAvailable_ == available)
@@ -933,7 +951,7 @@ void AppController::addRecentProject(const QString& path)
 {
     addRecentPath(recentProjects_, path);
     settings_->setValue(QStringLiteral("recentProjects"), recentProjects_);
-    settings_->sync();
+    persistSettings();
     emit recentPathsChanged();
 }
 
@@ -941,7 +959,7 @@ void AppController::addRecentReport(const QString& path)
 {
     addRecentPath(recentReports_, path);
     settings_->setValue(QStringLiteral("recentReports"), recentReports_);
-    settings_->sync();
+    persistSettings();
     emit recentPathsChanged();
 }
 

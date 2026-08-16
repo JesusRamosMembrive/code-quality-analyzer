@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -151,7 +153,6 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        Layout.preferredWidth: 3
                         spacing: 10
 
                         RowLayout {
@@ -221,10 +222,17 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
+                            currentIndex: -1
                             model: root.controller ? root.controller.findings : null
                             spacing: 4
 
                             ScrollBar.vertical: ScrollBar {}
+
+                            // ListView snaps currentIndex to 0 whenever model
+                            // switches from empty/null to populated (QTBUG-48633),
+                            // even though currentIndex was declared -1 above.
+                            Component.onCompleted: currentIndex = -1
+                            onModelChanged: currentIndex = -1
 
                             delegate: Rectangle {
                                 required property int index
@@ -255,30 +263,33 @@ Item {
                                         Layout.preferredWidth: 90
                                         text: severity
                                         font.bold: true
+                                        textFormat: Text.PlainText
                                     }
 
                                     Label {
                                         Layout.preferredWidth: 180
                                         text: ruleId
                                         elide: Text.ElideRight
+                                        textFormat: Text.PlainText
                                     }
 
                                     Label {
                                         Layout.fillWidth: true
                                         text: path + ":" + line + ":" + column
                                         elide: Text.ElideMiddle
+                                        textFormat: Text.PlainText
                                     }
 
                                     Label {
                                         Layout.preferredWidth: 150
                                         text: symbolName
                                         elide: Text.ElideRight
+                                        textFormat: Text.PlainText
                                     }
                                 }
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    onClicked: {
+                                TapHandler {
+                                    onTapped: {
                                         findingTable.currentIndex = index
                                         root.selectFinding({
                                             severity: severity,
@@ -404,7 +415,7 @@ Item {
                 delegate: Rectangle {
                     required property string path
                     required property string language
-                    required property string state
+                    required property string fileState
                     required property var diagnosticCount
                     required property var findingCount
                     required property var functionCount
@@ -426,12 +437,14 @@ Item {
                             text: path
                             font.bold: true
                             elide: Text.ElideMiddle
+                            textFormat: Text.PlainText
                         }
 
                         Label {
-                            text: "Language: " + language + " | State: " + state + " | Diagnostics: " + diagnosticCount
+                            text: "Language: " + language + " | State: " + fileState + " | Diagnostics: " + diagnosticCount
                                 + " | Findings: " + findingCount + " | Functions: " + functionCount
                             wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
                         }
 
                         Repeater {
@@ -444,6 +457,7 @@ Item {
                                     + modelData.cyclomaticComplexity + ", Nesting " + modelData.maxNestingDepth
                                     + ", Parameters " + modelData.parameterCount + ", Code lines " + modelData.codeLines
                                 wrapMode: Text.Wrap
+                                textFormat: Text.PlainText
                             }
                         }
                     }

@@ -9,9 +9,13 @@ T.Button {
 
     property color pulseColor: "#2f6fed"
     property int pulseDuration: 1200
+    // Externally-driven "this is the active nav item" look. Deliberately
+    // separate from checkable/checked: AbstractButton writes checked
+    // directly on click, which would destroy a binding to external state.
+    property bool highlighted: false
 
-    readonly property color fillColor: root.checked ? pulseColor : "#ffffff"
-    readonly property color textColor: root.checked ? "#ffffff" : "#1c1f26"
+    readonly property color fillColor: root.highlighted ? pulseColor : "#ffffff"
+    readonly property color textColor: root.highlighted ? "#ffffff" : "#1c1f26"
 
     hoverEnabled: true
     leftPadding: 14
@@ -40,18 +44,40 @@ T.Button {
             border.width: 2
             opacity: 0
 
+            readonly property bool pulsing: root.hovered && root.enabled && !root.pressed
+
             SequentialAnimation on opacity {
                 loops: Animation.Infinite
-                running: root.hovered && root.enabled && !root.pressed
+                running: pulseRing.pulsing
                 NumberAnimation { to: 0.8; duration: root.pulseDuration / 2 }
                 NumberAnimation { to: 0; duration: root.pulseDuration / 2 }
             }
 
             SequentialAnimation on scale {
                 loops: Animation.Infinite
-                running: root.hovered && root.enabled && !root.pressed
+                running: pulseRing.pulsing
                 NumberAnimation { from: 1; to: 1.08; duration: root.pulseDuration / 2 }
                 NumberAnimation { from: 1.08; to: 1; duration: root.pulseDuration / 2 }
+            }
+
+            // The pulse can stop mid-cycle (pulsing turns false while opacity/
+            // scale are partway through a loop), leaving a visible ring or an
+            // enlarged button. Snap both back to their base values whenever
+            // pulsing stops.
+            NumberAnimation {
+                target: pulseRing
+                property: "opacity"
+                to: 0
+                duration: 150
+                running: !pulseRing.pulsing
+            }
+
+            NumberAnimation {
+                target: pulseRing
+                property: "scale"
+                to: 1
+                duration: 150
+                running: !pulseRing.pulsing
             }
         }
 
@@ -59,8 +85,8 @@ T.Button {
             anchors.fill: parent
             radius: 6
             color: root.pressed ? Qt.darker(root.fillColor, 1.15) : root.fillColor
-            border.color: root.checked ? "transparent" : "#d5d9e0"
-            border.width: root.checked ? 0 : 1
+            border.color: root.highlighted ? "transparent" : "#d5d9e0"
+            border.width: root.highlighted ? 0 : 1
         }
     }
 
