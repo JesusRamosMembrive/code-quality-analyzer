@@ -52,3 +52,19 @@ TEST_CASE("toAnalysisResult converts a ReportDocument into a parallel model/metr
     CHECK(result.findings.files.front().findings.size() == 1);
     CHECK(result.findings.files.front().findings.front().ruleId == "complexity.cyclomatic");
 }
+
+TEST_CASE("toAnalysisResult carries the duplicates model through unchanged")
+{
+    codeqa::application::ReportDocument document;
+    document.metadata.rootPath = "project";
+
+    codeqa::duplication::DuplicateGroup group;
+    group.members.push_back(codeqa::duplication::DuplicateMember{"a::run", codeqa::core::SourceRange{}});
+    group.members.push_back(codeqa::duplication::DuplicateMember{"b::run", codeqa::core::SourceRange{}});
+    document.duplicates.groups.push_back(group);
+
+    const codeqa::application::RunAnalysisResult result = codeqa::application::toAnalysisResult(document);
+
+    REQUIRE(result.duplicates.groups.size() == 1);
+    CHECK(result.duplicates.groups.front().members.size() == 2);
+}

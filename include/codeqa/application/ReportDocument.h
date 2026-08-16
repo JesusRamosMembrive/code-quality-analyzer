@@ -2,6 +2,7 @@
 
 #include "codeqa/config/ConfigModels.h"
 #include "codeqa/core/Diagnostic.h"
+#include "codeqa/duplication/DuplicationModels.h"
 #include "codeqa/metrics/MetricsModels.h"
 #include "codeqa/model/Models.h"
 #include "codeqa/rules/RuleModels.h"
@@ -54,6 +55,7 @@ struct ReportDocument
     std::vector<ReportFile> files;
     std::optional<ReportComparison> comparison;
     QualityGateOutcome qualityGateOutcome{QualityGateOutcome::NotEvaluated};
+    codeqa::duplication::ProjectDuplicationModel duplicates;
 };
 
 } // namespace codeqa::application

@@ -213,3 +213,44 @@ TEST_CASE("makeReportDocument maps fresh analysis without a JSON round trip")
     CHECK(document.comparison->newCount == 3);
     CHECK(document.qualityGateOutcome == codeqa::application::QualityGateOutcome::Passed);
 }
+
+TEST_CASE("parseReportDocument round-trips a duplicate group with its members")
+{
+    nlohmann::json report = makeCompleteReportJson();
+
+    nlohmann::json member1;
+    member1["qualifiedName"] = "sample::run";
+    member1["path"] = "src/sample.cpp";
+    member1["range"]["begin"] = {{"line", 2}, {"column", 1}};
+    member1["range"]["end"] = {{"line", 8}, {"column", 1}};
+
+    nlohmann::json member2;
+    member2["qualifiedName"] = "sample::runAgain";
+    member2["path"] = "src/other.cpp";
+    member2["range"]["begin"] = {{"line", 4}, {"column", 1}};
+    member2["range"]["end"] = {{"line", 10}, {"column", 1}};
+
+    nlohmann::json group;
+    group["members"] = nlohmann::json::array({member1, member2});
+
+    report["duplicates"] = nlohmann::json::array({group});
+
+    const auto result = codeqa::application::parseReportDocument(report);
+
+    REQUIRE(result.document.has_value());
+    REQUIRE(result.document->duplicates.groups.size() == 1);
+    REQUIRE(result.document->duplicates.groups.front().members.size() == 2);
+    CHECK(result.document->duplicates.groups.front().members[0].qualifiedName == "sample::run");
+    CHECK(result.document->duplicates.groups.front().members[1].qualifiedName == "sample::runAgain");
+}
+
+TEST_CASE("parseReportDocument defaults to no duplicate groups when the field is absent (pre-existing reports)")
+{
+    nlohmann::json report = makeCompleteReportJson();
+    report.erase("duplicates");
+
+    const auto result = codeqa::application::parseReportDocument(report);
+
+    REQUIRE(result.document.has_value());
+    CHECK(result.document->duplicates.groups.empty());
+}

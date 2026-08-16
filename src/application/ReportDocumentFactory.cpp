@@ -301,6 +301,39 @@ ReportFile parseFile(const Json& document, const std::string& path)
     return file;
 }
 
+codeqa::duplication::DuplicateMember parseDuplicateMember(const Json& document, const std::string& path)
+{
+    if (!document.is_object())
+    {
+        failRequired("'" + path + "' must be an object.");
+    }
+
+    codeqa::duplication::DuplicateMember member;
+    member.qualifiedName = requireString(document, "qualifiedName", path);
+    const std::string filePath = requireString(document, "path", path);
+    member.range = parseRange(requireObject(document, "range", path), path + ".range");
+    member.range.begin.filePath = filePath;
+    member.range.end.filePath = filePath;
+    return member;
+}
+
+codeqa::duplication::DuplicateGroup parseDuplicateGroup(const Json& document, const std::string& path)
+{
+    if (!document.is_object())
+    {
+        failRequired("'" + path + "' must be an object.");
+    }
+
+    codeqa::duplication::DuplicateGroup group;
+    const Json& members = requireArray(document, "members", path);
+    for (std::size_t index = 0; index < members.size(); ++index)
+    {
+        group.members.push_back(
+            parseDuplicateMember(members.at(index), path + ".members[" + std::to_string(index) + "]"));
+    }
+    return group;
+}
+
 } // namespace
 
 ReportDocument makeReportDocument(
@@ -323,6 +356,7 @@ ReportDocument makeReportDocument(
     document.config = config;
     document.comparison = comparison;
     document.qualityGateOutcome = qualityGateOutcome;
+    document.duplicates = analysis.duplicates;
 
     for (std::size_t index = 0; index < analysis.model.files.size(); ++index)
     {
@@ -391,6 +425,16 @@ ReportDocumentResult parseReportDocument(const nlohmann::json& document)
         for (std::size_t index = 0; index < files.size(); ++index)
         {
             result.files.push_back(parseFile(files.at(index), "report.files[" + std::to_string(index) + "]"));
+        }
+
+        if (document.contains("duplicates"))
+        {
+            const Json& duplicates = requireArray(document, "duplicates", "report");
+            for (std::size_t index = 0; index < duplicates.size(); ++index)
+            {
+                result.duplicates.groups.push_back(parseDuplicateGroup(
+                    duplicates.at(index), "report.duplicates[" + std::to_string(index) + "]"));
+            }
         }
 
         return ReportDocumentResult{std::move(result), std::nullopt};

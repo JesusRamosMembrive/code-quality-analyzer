@@ -11,6 +11,7 @@ RunAnalysisResult toAnalysisResult(const ReportDocument& document)
     analysis.model.rootPath = document.metadata.rootPath;
     analysis.metrics.rootPath = analysis.model.rootPath;
     analysis.findings.rootPath = analysis.model.rootPath;
+    analysis.duplicates = document.duplicates;
 
     for (const ReportFile& reportFile : document.files)
     {
