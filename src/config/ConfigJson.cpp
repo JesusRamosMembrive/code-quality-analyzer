@@ -237,7 +237,7 @@ DuplicationConfig parseDuplication(const Json& duplication)
         if (value <= 0)
         {
             throw ParseFailure(
-                "Error [CONFIG011]: 'duplication.minNormalizedTokens' must be a positive integer, got "
+                "Error [CONFIG012]: 'duplication.minNormalizedTokens' must be a positive integer, got "
                 + std::to_string(value) + ".");
         }
 

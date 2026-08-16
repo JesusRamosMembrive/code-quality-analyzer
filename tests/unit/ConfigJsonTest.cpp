@@ -309,14 +309,14 @@ TEST_CASE("parseConfig defaults duplication fields when duplication is absent")
     CHECK(result.config->duplication.minNormalizedTokens == 30);
 }
 
-TEST_CASE("parseConfig reports CONFIG011 for a non-positive duplication.minNormalizedTokens")
+TEST_CASE("parseConfig reports CONFIG012 for a non-positive duplication.minNormalizedTokens")
 {
     const std::string text = R"({ "duplication": { "minNormalizedTokens": 0 } })";
 
     const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
 
     REQUIRE(result.error.has_value());
-    CHECK(result.error->find("CONFIG011") != std::string::npos);
+    CHECK(result.error->find("CONFIG012") != std::string::npos);
 }
 
 TEST_CASE("parseConfig reports CONFIG002 for an unknown key inside duplication")
