@@ -1,5 +1,5 @@
 {
-  "constructs": ["CPP-FUNC-01"],
+  "constructs": ["CPP-FUNC-01", "CTRL-08"],
   "functions": [
     {"name": "computeChecksumA", "kind": "free", "startLine": 1, "endLine": 6, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "unsigned char"}, {"name": "seed", "passing": "value", "hasDefaultValue": false, "type": "unsigned char"}], "isStatic": false, "isVariadic": false},
     {"name": "computeChecksumB", "kind": "free", "startLine": 8, "endLine": 13, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "unsigned char"}, {"name": "seed", "passing": "value", "hasDefaultValue": false, "type": "unsigned char"}], "isStatic": false, "isVariadic": false}
