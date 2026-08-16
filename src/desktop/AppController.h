@@ -157,6 +157,7 @@ private:
     QString errorMessage_;
     QString qualityGateStatus_{QStringLiteral("Not evaluated")};
     QString qualityGateSeverity_{QStringLiteral("warning")};
+    codeqa::config::DuplicationConfig duplication_;
     QString excludePatterns_;
     QString configurationLoadError_;
     bool analysisRunning_{false};

@@ -754,6 +754,7 @@ codeqa::config::ProjectConfig AppController::currentFormConfiguration() const
     config.headerOverrides = headerOverrides_.overrides();
     config.qualityGate.minSeverity = codeqa::core::diagnosticSeverityFromJsonString(
         qualityGateSeverity_.toStdString()).value_or(codeqa::core::DiagnosticSeverity::Warning);
+    config.duplication = duplication_;
     return config;
 }
 
@@ -769,6 +770,7 @@ void AppController::applyConfiguration(codeqa::config::ProjectConfig config, con
         qualityGateSeverity_ = severity;
         emit qualityGateSeverityChanged(qualityGateSeverity_);
     }
+    duplication_ = config.duplication;
     setConfigurationDirty(dirty);
 }
 
