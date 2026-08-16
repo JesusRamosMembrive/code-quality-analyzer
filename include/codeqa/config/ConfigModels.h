@@ -3,6 +3,7 @@
 #include "codeqa/core/DiagnosticSeverity.h"
 #include "codeqa/core/Language.h"
 
+#include <cstddef>
 #include <map>
 #include <string>
 #include <vector>
@@ -28,11 +29,18 @@ struct QualityGateConfig
     codeqa::core::DiagnosticSeverity minSeverity{codeqa::core::DiagnosticSeverity::Warning};
 };
 
+struct DuplicationConfig
+{
+    bool enabled{true};
+    std::size_t minNormalizedTokens{30};
+};
+
 struct ProjectConfig
 {
     std::vector<HeaderOverrideConfig> headerOverrides;
     std::map<std::string, RuleConfig> rules;
     QualityGateConfig qualityGate;
+    DuplicationConfig duplication;
 };
 
 } // namespace codeqa::config

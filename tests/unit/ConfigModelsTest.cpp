@@ -43,3 +43,17 @@ TEST_CASE("ProjectConfig defaults qualityGate.minSeverity to Warning")
     codeqa::config::ProjectConfig config;
     CHECK(config.qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Warning);
 }
+
+TEST_CASE("DuplicationConfig defaults to enabled with a 30-token floor")
+{
+    codeqa::config::DuplicationConfig config;
+    CHECK(config.enabled);
+    CHECK(config.minNormalizedTokens == 30);
+}
+
+TEST_CASE("ProjectConfig defaults duplication to enabled with a 30-token floor")
+{
+    codeqa::config::ProjectConfig config;
+    CHECK(config.duplication.enabled);
+    CHECK(config.duplication.minNormalizedTokens == 30);
+}

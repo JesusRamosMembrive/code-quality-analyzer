@@ -80,3 +80,19 @@ TEST_CASE("mergeConfig with an empty user config resets qualityGate to the struc
     // struct default. The two only diverge in this direct unit test's contrived defaults.
     CHECK(merged.qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Warning);
 }
+
+TEST_CASE("mergeConfig replaces duplication wholesale with the user's value")
+{
+    codeqa::config::ProjectConfig defaults;
+    defaults.duplication.enabled = true;
+    defaults.duplication.minNormalizedTokens = 30;
+
+    codeqa::config::ProjectConfig user;
+    user.duplication.enabled = false;
+    user.duplication.minNormalizedTokens = 60;
+
+    const codeqa::config::ProjectConfig merged = codeqa::config::mergeConfig(defaults, user);
+
+    CHECK_FALSE(merged.duplication.enabled);
+    CHECK(merged.duplication.minNormalizedTokens == 60);
+}

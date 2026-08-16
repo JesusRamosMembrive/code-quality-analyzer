@@ -279,3 +279,76 @@ TEST_CASE("toJson round-trips qualityGate through parseConfig")
     REQUIRE(result.config.has_value());
     CHECK(result.config->qualityGate.minSeverity == codeqa::core::DiagnosticSeverity::Error);
 }
+
+TEST_CASE("parseConfig accepts a document with duplication")
+{
+    const std::string text = R"({ "duplication": { "enabled": false, "minNormalizedTokens": 50 } })";
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.config.has_value());
+    CHECK_FALSE(result.config->duplication.enabled);
+    CHECK(result.config->duplication.minNormalizedTokens == 50);
+}
+
+TEST_CASE("parseConfig defaults duplication fields when the object is present but empty")
+{
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(R"({ "duplication": {} })");
+
+    REQUIRE(result.config.has_value());
+    CHECK(result.config->duplication.enabled);
+    CHECK(result.config->duplication.minNormalizedTokens == 30);
+}
+
+TEST_CASE("parseConfig defaults duplication fields when duplication is absent")
+{
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig("{}");
+
+    REQUIRE(result.config.has_value());
+    CHECK(result.config->duplication.enabled);
+    CHECK(result.config->duplication.minNormalizedTokens == 30);
+}
+
+TEST_CASE("parseConfig reports CONFIG011 for a non-positive duplication.minNormalizedTokens")
+{
+    const std::string text = R"({ "duplication": { "minNormalizedTokens": 0 } })";
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG011") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG002 for an unknown key inside duplication")
+{
+    const std::string text = R"({ "duplication": { "enabled": true, "note": "x" } })";
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG002") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG002 for an unknown top-level key next to duplication")
+{
+    const std::string text = R"({ "duplication": { "enabled": true }, "outputFormat": "json" })";
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG002") != std::string::npos);
+}
+
+TEST_CASE("toJson round-trips duplication through parseConfig")
+{
+    codeqa::config::ProjectConfig original;
+    original.duplication.enabled = false;
+    original.duplication.minNormalizedTokens = 45;
+
+    const std::string serialized = codeqa::config::toJson(original).dump();
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(serialized);
+
+    REQUIRE(result.config.has_value());
+    CHECK_FALSE(result.config->duplication.enabled);
+    CHECK(result.config->duplication.minNormalizedTokens == 45);
+}

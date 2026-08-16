@@ -219,6 +219,34 @@ QualityGateConfig parseQualityGate(const Json& qualityGate)
     return config;
 }
 
+DuplicationConfig parseDuplication(const Json& duplication)
+{
+    requireKeysSubset(duplication, {"enabled", "minNormalizedTokens"}, "duplication");
+
+    DuplicationConfig config;
+
+    if (duplication.contains("enabled"))
+    {
+        config.enabled = requireBool(duplication, "enabled", "duplication");
+    }
+
+    if (duplication.contains("minNormalizedTokens"))
+    {
+        const long long value = requireInteger(duplication, "minNormalizedTokens", "duplication");
+
+        if (value <= 0)
+        {
+            throw ParseFailure(
+                "Error [CONFIG011]: 'duplication.minNormalizedTokens' must be a positive integer, got "
+                + std::to_string(value) + ".");
+        }
+
+        config.minNormalizedTokens = static_cast<std::size_t>(value);
+    }
+
+    return config;
+}
+
 } // namespace
 
 ParseConfigResult parseConfig(const std::string& jsonText)
@@ -237,7 +265,7 @@ ParseConfigResult parseConfig(const std::string& jsonText)
     try
     {
         requireObject(document, "config");
-        requireKeysSubset(document, {"languages", "rules", "qualityGate"}, "config");
+        requireKeysSubset(document, {"languages", "rules", "qualityGate", "duplication"}, "config");
 
         ProjectConfig config;
 
@@ -260,6 +288,13 @@ ParseConfigResult parseConfig(const std::string& jsonText)
             const Json& qualityGate = document.at("qualityGate");
             requireObject(qualityGate, "qualityGate");
             config.qualityGate = parseQualityGate(qualityGate);
+        }
+
+        if (document.contains("duplication"))
+        {
+            const Json& duplication = document.at("duplication");
+            requireObject(duplication, "duplication");
+            config.duplication = parseDuplication(duplication);
         }
 
         return ParseConfigResult{config, std::nullopt};
@@ -300,6 +335,10 @@ nlohmann::json toJson(const ProjectConfig& config)
 
     document["qualityGate"] = {
         {"minSeverity", codeqa::core::diagnosticSeverityToJsonString(config.qualityGate.minSeverity)}};
+
+    document["duplication"] = {
+        {"enabled", config.duplication.enabled},
+        {"minNormalizedTokens", config.duplication.minNormalizedTokens}};
 
     return document;
 }
