@@ -662,7 +662,7 @@ FunctionModel adaptFunction(
         extractBodyStructure(body, source, path, model);
     }
 
-    const NormalizedTokens normalized = normalizedTokensFor(candidate, source);
+    NormalizedTokens normalized = normalizedTokensFor(candidate, source);
     model.normalizedTokenSequence = std::move(normalized.sequence);
     model.normalizedTokenCount = normalized.count;
 
