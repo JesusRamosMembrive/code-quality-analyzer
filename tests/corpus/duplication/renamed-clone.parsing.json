@@ -1,0 +1,10 @@
+{
+  "constructs": ["CPP-FUNC-01", "CTRL-01", "CTRL-08"],
+  "functions": [
+    {"name": "mergeBuffersLeft", "kind": "free", "startLine": 1, "endLine": 9, "parameters": [{"name": "firstLength", "passing": "value", "hasDefaultValue": false, "type": "int"}, {"name": "secondLength", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false},
+    {"name": "mergeBuffersRight", "kind": "free", "startLine": 11, "endLine": 19, "parameters": [{"name": "leftSize", "passing": "value", "hasDefaultValue": false, "type": "int"}, {"name": "rightSize", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false}
+  ],
+  "classes": [],
+  "includes": [],
+  "diagnostics": []
+}

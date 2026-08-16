@@ -1,0 +1,10 @@
+{
+  "constructs": ["CPP-FUNC-01", "CTRL-08"],
+  "functions": [
+    {"name": "identityValue", "kind": "free", "startLine": 1, "endLine": 4, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false},
+    {"name": "passThroughValue", "kind": "free", "startLine": 6, "endLine": 9, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false}
+  ],
+  "classes": [],
+  "includes": [],
+  "diagnostics": []
+}

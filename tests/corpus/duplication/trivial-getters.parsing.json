@@ -1,0 +1,10 @@
+{
+  "constructs": ["CPP-FUNC-01", "CTRL-01", "CTRL-08"],
+  "functions": [
+    {"name": "isValidPercentage", "kind": "free", "startLine": 6, "endLine": 17, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false},
+    {"name": "isValidByteValue", "kind": "free", "startLine": 19, "endLine": 30, "parameters": [{"name": "value", "passing": "value", "hasDefaultValue": false, "type": "int"}], "isStatic": false, "isVariadic": false}
+  ],
+  "classes": [],
+  "includes": [],
+  "diagnostics": []
+}

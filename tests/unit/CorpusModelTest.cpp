@@ -224,7 +224,7 @@ TEST_CASE("corpus adapts to the common model")
     const codeqa::model::ProjectModel repeatedProject = useCase.execute(request);
 
     CHECK(project.rootPath == corpusRoot);
-    REQUIRE(project.files.size() == 16);
+    REQUIRE(project.files.size() == 20);
     REQUIRE(repeatedProject.files.size() == project.files.size());
 
     for (std::size_t index = 1; index < project.files.size(); ++index)
