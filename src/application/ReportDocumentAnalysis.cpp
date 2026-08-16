@@ -1,9 +1,30 @@
 #include "codeqa/application/ReportDocumentAnalysis.h"
 
+#include <filesystem>
 #include <utility>
 
 namespace codeqa::application
 {
+
+namespace
+{
+
+/// Rewrites every duplicate member's stored (relative) filePath to the rootPath-prefixed
+/// absolute form, mirroring how the per-file loop below absolutizes reportFile.path.
+void absolutizeDuplicateMembers(
+    codeqa::duplication::ProjectDuplicationModel& duplicates, const std::filesystem::path& rootPath)
+{
+    for (codeqa::duplication::DuplicateGroup& group : duplicates.groups)
+    {
+        for (codeqa::duplication::DuplicateMember& member : group.members)
+        {
+            member.range.begin.filePath = rootPath / member.range.begin.filePath;
+            member.range.end.filePath = rootPath / member.range.end.filePath;
+        }
+    }
+}
+
+} // namespace
 
 RunAnalysisResult toAnalysisResult(const ReportDocument& document)
 {
@@ -12,6 +33,7 @@ RunAnalysisResult toAnalysisResult(const ReportDocument& document)
     analysis.metrics.rootPath = analysis.model.rootPath;
     analysis.findings.rootPath = analysis.model.rootPath;
     analysis.duplicates = document.duplicates;
+    absolutizeDuplicateMembers(analysis.duplicates, analysis.model.rootPath);
 
     for (const ReportFile& reportFile : document.files)
     {

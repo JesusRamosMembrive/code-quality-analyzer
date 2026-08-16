@@ -1,5 +1,6 @@
 #include "doctest/doctest.h"
 
+#include "codeqa/application/ReportDocumentAnalysis.h"
 #include "codeqa/application/ReportDocumentFactory.h"
 #include "codeqa/config/DefaultConfig.h"
 #include "codeqa/duplication/DuplicationModels.h"
@@ -242,6 +243,15 @@ TEST_CASE("parseReportDocument round-trips a duplicate group with its members")
     REQUIRE(result.document->duplicates.groups.front().members.size() == 2);
     CHECK(result.document->duplicates.groups.front().members[0].qualifiedName == "sample::run");
     CHECK(result.document->duplicates.groups.front().members[1].qualifiedName == "sample::runAgain");
+
+    const codeqa::application::RunAnalysisResult analysis =
+        codeqa::application::toAnalysisResult(*result.document);
+
+    REQUIRE(analysis.duplicates.groups.size() == 1);
+    REQUIRE(analysis.duplicates.groups.front().members.size() == 2);
+    const std::filesystem::path expectedPath = std::filesystem::path{"project"} / "src" / "sample.cpp";
+    CHECK(analysis.duplicates.groups.front().members[0].range.begin.filePath == expectedPath);
+    CHECK(analysis.duplicates.groups.front().members[0].range.begin.line == 2);
 }
 
 TEST_CASE("parseReportDocument defaults to no duplicate groups when the field is absent (pre-existing reports)")
