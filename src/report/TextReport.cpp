@@ -216,6 +216,32 @@ void writeFindingsByFile(
     }
 }
 
+void writeDuplicates(
+    std::ostream& output, const codeqa::duplication::ProjectDuplicationModel& duplicates,
+    const std::filesystem::path& rootPath)
+{
+    if (duplicates.groups.empty())
+    {
+        return;
+    }
+
+    output << "\nDuplicated code\n----------------\n";
+
+    std::size_t groupNumber = 1;
+    for (const codeqa::duplication::DuplicateGroup& group : duplicates.groups)
+    {
+        output << "Group " << groupNumber << " (" << group.members.size() << " copies)\n";
+
+        for (const codeqa::duplication::DuplicateMember& member : group.members)
+        {
+            output << "  " << relativeDisplayPath(member.range.begin.filePath, rootPath) << ':'
+                   << member.range.begin.line << "  " << member.qualifiedName << '\n';
+        }
+
+        ++groupNumber;
+    }
+}
+
 void writeDiagnostics(
     std::ostream& output, const codeqa::model::ProjectModel& model, const std::filesystem::path& rootPath)
 {
@@ -294,12 +320,14 @@ void renderText(
     std::ostream& output,
     const codeqa::model::ProjectModel& model,
     const codeqa::metrics::ProjectMetricsModel& metrics,
-    const codeqa::rules::ProjectFindingsModel& findings)
+    const codeqa::rules::ProjectFindingsModel& findings,
+    const codeqa::duplication::ProjectDuplicationModel& duplicates)
 {
     output << "Code Quality Analysis Report\n=============================\n\n";
     writeSummary(output, model, metrics, findings);
     writeFindingsBySeverity(output, findings, model.rootPath);
     writeFindingsByFile(output, findings, model.rootPath);
+    writeDuplicates(output, duplicates, model.rootPath);
     writeDiagnostics(output, model, model.rootPath);
     writeResult(output, findings);
 }

@@ -29,6 +29,7 @@
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/infrastructure/DiscoveryResult.h"
 #include "codeqa/infrastructure/ExtensionCategory.h"
+#include "codeqa/duplication/DuplicationModels.h"
 #include "codeqa/report/MarkdownReport.h"
 #include "codeqa/report/TextReport.h"
 
@@ -753,7 +754,8 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
         const codeqa::application::RunAnalysisResult textAnalysis =
             codeqa::application::toAnalysisResult(*result.document);
         codeqa::report::renderText(
-            *destination, textAnalysis.model, textAnalysis.metrics, textAnalysis.findings);
+            *destination, textAnalysis.model, textAnalysis.metrics, textAnalysis.findings,
+            codeqa::duplication::ProjectDuplicationModel{});
 
         if (result.comparison.has_value())
         {

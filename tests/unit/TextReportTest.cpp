@@ -1,6 +1,7 @@
 #include "doctest/doctest.h"
 
 #include "codeqa/report/TextReport.h"
+#include "codeqa/duplication/DuplicationModels.h"
 
 #include <sstream>
 #include <string>
@@ -46,7 +47,7 @@ TEST_CASE("renderText with no diagnostics or findings reports zero and omits tho
     findings.files.push_back(fileFindings);
 
     std::ostringstream output;
-    codeqa::report::renderText(output, model, metrics, findings);
+    codeqa::report::renderText(output, model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{});
     const std::string text = output.str();
 
     CHECK(text.find("Code Quality Analysis Report") != std::string::npos);
@@ -91,7 +92,7 @@ TEST_CASE("renderText lists findings by severity with errors before warnings, th
     findings.files.push_back(findingsB);
 
     std::ostringstream output;
-    codeqa::report::renderText(output, model, metrics, findings);
+    codeqa::report::renderText(output, model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{});
     const std::string text = output.str();
 
     const std::size_t severitySection = text.find("Findings by severity");
@@ -132,10 +133,56 @@ TEST_CASE("renderText lists diagnostics grouped by file")
     codeqa::rules::ProjectFindingsModel findings;
 
     std::ostringstream output;
-    codeqa::report::renderText(output, model, metrics, findings);
+    codeqa::report::renderText(output, model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{});
     const std::string text = output.str();
 
     CHECK(text.find("Diagnostics\n-----------") != std::string::npos);
     CHECK(text.find("src/broken.cpp") != std::string::npos);
     CHECK(text.find("  line 8: error [PARSE001] unexpected token") != std::string::npos);
+}
+
+TEST_CASE("renderText omits the duplicated code section when there are no groups")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = "project";
+    codeqa::metrics::ProjectMetricsModel metrics;
+    codeqa::rules::ProjectFindingsModel findings;
+    const codeqa::duplication::ProjectDuplicationModel duplicates;
+
+    std::ostringstream output;
+    codeqa::report::renderText(output, model, metrics, findings, duplicates);
+
+    CHECK(output.str().find("Duplicated code") == std::string::npos);
+}
+
+TEST_CASE("renderText lists each duplicate group with its members")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = "project";
+    codeqa::metrics::ProjectMetricsModel metrics;
+    codeqa::rules::ProjectFindingsModel findings;
+
+    codeqa::duplication::ProjectDuplicationModel duplicates;
+    codeqa::duplication::DuplicateGroup group;
+    group.members.push_back(codeqa::duplication::DuplicateMember{
+        "first",
+        codeqa::core::SourceRange{
+            codeqa::core::SourceLocation{model.rootPath / "src" / "a.cpp", 3, 1, 20},
+            codeqa::core::SourceLocation{model.rootPath / "src" / "a.cpp", 6, 1, 60}}});
+    group.members.push_back(codeqa::duplication::DuplicateMember{
+        "second",
+        codeqa::core::SourceRange{
+            codeqa::core::SourceLocation{model.rootPath / "src" / "b.cpp", 8, 1, 100},
+            codeqa::core::SourceLocation{model.rootPath / "src" / "b.cpp", 11, 1, 140}}});
+    duplicates.groups.push_back(group);
+
+    std::ostringstream output;
+    codeqa::report::renderText(output, model, metrics, findings, duplicates);
+    const std::string text = output.str();
+
+    CHECK(text.find("Duplicated code") != std::string::npos);
+    CHECK(text.find("first") != std::string::npos);
+    CHECK(text.find("second") != std::string::npos);
+    CHECK(text.find("src/a.cpp:3") != std::string::npos);
+    CHECK(text.find("src/b.cpp:8") != std::string::npos);
 }
