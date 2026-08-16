@@ -107,3 +107,32 @@ TEST_CASE("RunAnalysis with a config that disables a rule produces no finding fo
         [](const codeqa::rules::Finding& finding) { return finding.ruleId == "signature.parameter-count"; });
     CHECK_FALSE(hasParameterCountFinding);
 }
+
+TEST_CASE("RunAnalysis detects a duplicated function pair across two files")
+{
+    const TempProject fixture;
+    fixture.addFile(
+        "a.c",
+        "int addFirst(int alpha, int beta)\n"
+        "{\n"
+        "    int total = alpha + beta;\n"
+        "    return total;\n"
+        "}\n");
+    fixture.addFile(
+        "b.c",
+        "int addSecond(int first, int second)\n"
+        "{\n"
+        "    int sum = first + second;\n"
+        "    return sum;\n"
+        "}\n");
+
+    codeqa::application::RunAnalysisRequest request;
+    request.analysis.discovery.rootPath = fixture.root();
+    request.config = codeqa::config::defaultConfig();
+    request.config.duplication.minNormalizedTokens = 10;
+
+    const codeqa::application::RunAnalysisResult result = codeqa::application::RunAnalysis{}.execute(request);
+
+    REQUIRE(result.duplicates.groups.size() == 1);
+    CHECK(result.duplicates.groups.front().members.size() == 2);
+}
