@@ -28,6 +28,44 @@ bool byLocation(const DuplicateMember& left, const DuplicateMember& right)
     return left.range.begin.offset < right.range.begin.offset;
 }
 
+std::vector<DuplicateGroup> clusterBucket(
+    const std::vector<Candidate>& candidates, const std::vector<std::size_t>& bucket)
+{
+    std::vector<DuplicateGroup> groups;
+    std::vector<bool> grouped(bucket.size(), false);
+
+    for (std::size_t i = 0; i < bucket.size(); ++i)
+    {
+        if (grouped[i])
+        {
+            continue;
+        }
+
+        const Candidate& base = candidates[bucket[i]];
+        DuplicateGroup group;
+        group.members.push_back(DuplicateMember{base.qualifiedName, base.range});
+        grouped[i] = true;
+
+        for (std::size_t j = i + 1; j < bucket.size(); ++j)
+        {
+            const Candidate& other = candidates[bucket[j]];
+            if (!grouped[j] && *other.normalizedTokenSequence == *base.normalizedTokenSequence)
+            {
+                group.members.push_back(DuplicateMember{other.qualifiedName, other.range});
+                grouped[j] = true;
+            }
+        }
+
+        if (group.members.size() >= 2)
+        {
+            std::sort(group.members.begin(), group.members.end(), byLocation);
+            groups.push_back(std::move(group));
+        }
+    }
+
+    return groups;
+}
+
 } // namespace
 
 ProjectDuplicationModel detectDuplicates(
@@ -42,68 +80,37 @@ ProjectDuplicationModel detectDuplicates(
 
     std::vector<Candidate> candidates;
 
-    for (const codeqa::model::FileModel& file : project.files)
-    {
-        for (const codeqa::model::CallableModel& callable : file.callables)
-        {
-            if (callable.normalizedTokenCount < config.minNormalizedTokens)
-            {
-                continue;
-            }
-
-            candidates.push_back(Candidate{
-                callable.symbol.qualifiedName, callable.symbol.range, &callable.normalizedTokenSequence});
-        }
-    }
-
     // Bucket by an in-process hash purely as a fast pre-filter -- std::hash has no
     // cross-implementation stability guarantee, so it is never serialized or compared
     // across runs. Membership within a bucket is always re-verified below by full
     // string equality, so a hash collision cannot fabricate a false duplicate group.
     std::unordered_map<std::size_t, std::vector<std::size_t>> buckets;
 
-    for (std::size_t index = 0; index < candidates.size(); ++index)
+    for (const codeqa::model::FileModel& file : project.files)
     {
-        buckets[std::hash<std::string>{}(*candidates[index].normalizedTokenSequence)].push_back(index);
-    }
-
-    for (const auto& [hash, bucket] : buckets)
-    {
-        std::vector<bool> grouped(bucket.size(), false);
-
-        for (std::size_t i = 0; i < bucket.size(); ++i)
+        for (const codeqa::model::CallableModel& callable : file.callables)
         {
-            if (grouped[i])
+            if (callable.normalizedTokenCount >= config.minNormalizedTokens)
             {
-                continue;
-            }
-
-            const Candidate& base = candidates[bucket[i]];
-            DuplicateGroup group;
-            group.members.push_back(DuplicateMember{base.qualifiedName, base.range});
-            grouped[i] = true;
-
-            for (std::size_t j = i + 1; j < bucket.size(); ++j)
-            {
-                const Candidate& other = candidates[bucket[j]];
-                if (!grouped[j] && *other.normalizedTokenSequence == *base.normalizedTokenSequence)
-                {
-                    group.members.push_back(DuplicateMember{other.qualifiedName, other.range});
-                    grouped[j] = true;
-                }
-            }
-
-            if (group.members.size() >= 2)
-            {
-                std::sort(group.members.begin(), group.members.end(), byLocation);
-                result.groups.push_back(std::move(group));
+                buckets[std::hash<std::string>{}(callable.normalizedTokenSequence)].push_back(candidates.size());
+                candidates.push_back(Candidate{
+                    callable.symbol.qualifiedName, callable.symbol.range, &callable.normalizedTokenSequence});
             }
         }
     }
 
-    std::sort(result.groups.begin(), result.groups.end(), [](const DuplicateGroup& left, const DuplicateGroup& right) {
-        return byLocation(left.members.front(), right.members.front());
-    });
+    for (const auto& [hash, bucket] : buckets)
+    {
+        for (DuplicateGroup& group : clusterBucket(candidates, bucket))
+        {
+            result.groups.push_back(std::move(group));
+        }
+    }
+
+    std::stable_sort(
+        result.groups.begin(), result.groups.end(), [](const DuplicateGroup& left, const DuplicateGroup& right) {
+            return byLocation(left.members.front(), right.members.front());
+        });
 
     return result;
 }
