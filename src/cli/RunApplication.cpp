@@ -755,7 +755,7 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
             codeqa::application::toAnalysisResult(*result.document);
         codeqa::report::renderText(
             *destination, textAnalysis.model, textAnalysis.metrics, textAnalysis.findings,
-            codeqa::duplication::ProjectDuplicationModel{});
+            textAnalysis.duplicates);
 
         if (result.comparison.has_value())
         {

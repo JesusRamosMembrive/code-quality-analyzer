@@ -929,3 +929,35 @@ TEST_CASE("--help documents the snapshot subcommand")
     CHECK(result.output.find("codeqa snapshot list") != std::string::npos);
     CHECK(result.output.find("codeqa snapshot show") != std::string::npos);
 }
+
+TEST_CASE("analyze reports a duplicated function pair in the default text report")
+{
+    const std::filesystem::path root =
+        std::filesystem::temp_directory_path() / "codeqa_run_application_duplication_test";
+    std::error_code ignored;
+    std::filesystem::remove_all(root, ignored);
+    std::filesystem::create_directories(root);
+    std::ofstream(root / "a.c") << "int addFirst(int alpha, int beta)\n"
+                                   "{\n"
+                                   "    int total = alpha + beta;\n"
+                                   "    return total;\n"
+                                   "}\n";
+    std::ofstream(root / "b.c") << "int addSecond(int first, int second)\n"
+                                   "{\n"
+                                   "    int sum = first + second;\n"
+                                   "    return sum;\n"
+                                   "}\n";
+    const std::filesystem::path configPath = root / "codeqa.json";
+    std::ofstream(configPath) << R"({ "duplication": { "minNormalizedTokens": 10 }, )"
+                                  R"("qualityGate": { "minSeverity": "error" } })";
+
+    const RunResult result = run({"analyze", root.string(), "--config", configPath.string()});
+
+    std::error_code cleanupError;
+    std::filesystem::remove_all(root, cleanupError);
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find("Duplicated code") != std::string::npos);
+    CHECK(result.output.find("addFirst") != std::string::npos);
+    CHECK(result.output.find("addSecond") != std::string::npos);
+}
