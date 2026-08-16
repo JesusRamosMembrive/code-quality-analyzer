@@ -41,7 +41,9 @@ add_executable(codeqa_tests
     unit/LoadProjectConfigTest.cpp
     unit/EnumJsonTest.cpp
     unit/RunAnalysisTest.cpp
+    unit/ReportDocumentAnalysisTest.cpp
     unit/TextReportTest.cpp
+    unit/MarkdownReportTest.cpp
     unit/FileJsonTest.cpp
     unit/ReportJsonTest.cpp
     unit/ReportDocumentTest.cpp

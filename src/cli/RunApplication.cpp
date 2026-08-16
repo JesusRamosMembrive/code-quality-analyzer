@@ -8,6 +8,7 @@
 #include "codeqa/application/LoadProjectConfig.h"
 #include "codeqa/application/ListSnapshots.h"
 #include "codeqa/application/LoadSnapshot.h"
+#include "codeqa/application/ReportDocumentAnalysis.h"
 #include "codeqa/application/RunAnalysis.h"
 #include "codeqa/cli/ExitCode.h"
 #include "codeqa/config/ConfigModels.h"
@@ -28,6 +29,7 @@
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/infrastructure/DiscoveryResult.h"
 #include "codeqa/infrastructure/ExtensionCategory.h"
+#include "codeqa/report/MarkdownReport.h"
 #include "codeqa/report/TextReport.h"
 
 #include <nlohmann/json.hpp>
@@ -55,7 +57,7 @@ void printHelp(std::ostream& output)
               "  codeqa discover <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
               "  codeqa parse <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
               "  codeqa analyze <path> [--exclude <glob>]... [--lang-override <pattern>=<lang>]...\n"
-              "                        [--config <path>] [--format text|json] [--output <file>]\n"
+              "                        [--config <path>] [--format text|json|markdown] [--output <file>]\n"
               "  codeqa snapshot list <path>\n"
               "  codeqa snapshot show <path> <timestamp>\n"
               "\n"
@@ -82,7 +84,9 @@ void printHelp(std::ostream& output)
               "      --config <path>                 Merge rule/language overrides from a\n"
               "                                       codeqa.json file over the defaults,\n"
               "                                       including qualityGate.minSeverity.\n"
-              "      --format text|json               Report format (default: text).\n"
+              "      --format text|json|markdown       Report format (default: text). 'markdown'\n"
+              "                                        writes a per-file checklist suitable for\n"
+              "                                        a human or an AI to work through.\n"
               "      --output <file>                  Write the report to a file instead of\n"
               "                                        stdout.\n"
               "  snapshot list <path>               List saved snapshot timestamps for <path>,\n"
@@ -518,10 +522,10 @@ AnalyzeArgumentsOutcome parseAnalyzeArguments(const std::vector<std::string>& ar
 
             const std::string& value = arguments[index + 1];
 
-            if (value != "text" && value != "json")
+            if (value != "text" && value != "json" && value != "markdown")
             {
                 errorOutput << "Error [CLI010]: Invalid --format value '" << value
-                               << "'. Expected 'text' or 'json'.\n";
+                               << "'. Expected 'text', 'json', or 'markdown'.\n";
                 return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
             }
 
@@ -572,39 +576,6 @@ AnalyzeArgumentsOutcome parseAnalyzeArguments(const std::vector<std::string>& ar
     return AnalyzeArgumentsOutcome{
         AnalyzeArguments{*path, excludePatterns, languageOverrides, configPath, format, outputPath},
         static_cast<int>(ExitCode::Success)};
-}
-
-codeqa::application::RunAnalysisResult toTextReportAnalysis(
-    const codeqa::application::ReportDocument& document)
-{
-    codeqa::application::RunAnalysisResult analysis;
-    analysis.model.rootPath = document.metadata.rootPath;
-    analysis.metrics.rootPath = analysis.model.rootPath;
-    analysis.findings.rootPath = analysis.model.rootPath;
-
-    for (const codeqa::application::ReportFile& reportFile : document.files)
-    {
-        const std::filesystem::path absolutePath = analysis.model.rootPath / reportFile.path;
-
-        codeqa::model::FileModel modelFile;
-        modelFile.path = absolutePath;
-        modelFile.language = reportFile.language;
-        modelFile.state = reportFile.state;
-        modelFile.diagnostics = reportFile.diagnostics;
-        analysis.model.files.push_back(std::move(modelFile));
-
-        codeqa::metrics::FileMetricsModel metricsFile;
-        metricsFile.path = absolutePath;
-        metricsFile.functions = reportFile.metrics;
-        analysis.metrics.files.push_back(std::move(metricsFile));
-
-        codeqa::rules::FileFindingsModel findingsFile;
-        findingsFile.path = absolutePath;
-        findingsFile.findings = reportFile.findings;
-        analysis.findings.files.push_back(std::move(findingsFile));
-    }
-
-    return analysis;
 }
 
 std::filesystem::path normalizedPath(const std::filesystem::path& path)
@@ -770,9 +741,17 @@ int runAnalyze(const std::vector<std::string>& arguments, std::ostream& output, 
 
         *destination << displayJson.dump(2) << '\n';
     }
+    else if (parsedArguments.format == "markdown")
+    {
+        const codeqa::application::RunAnalysisResult textAnalysis =
+            codeqa::application::toAnalysisResult(*result.document);
+        codeqa::report::renderMarkdown(
+            *destination, textAnalysis.model, textAnalysis.metrics, textAnalysis.findings);
+    }
     else
     {
-        const codeqa::application::RunAnalysisResult textAnalysis = toTextReportAnalysis(*result.document);
+        const codeqa::application::RunAnalysisResult textAnalysis =
+            codeqa::application::toAnalysisResult(*result.document);
         codeqa::report::renderText(
             *destination, textAnalysis.model, textAnalysis.metrics, textAnalysis.findings);
 

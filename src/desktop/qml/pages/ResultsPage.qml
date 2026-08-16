@@ -1,6 +1,9 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
+
+import "../controls"
 
 Item {
     id: root
@@ -41,6 +44,20 @@ Item {
         function onFindingSearchTextChanged(searchText) {
             root.clearFindingSelection()
             searchFilter.text = searchText
+        }
+    }
+
+    FileDialog {
+        id: exportMarkdownDialog
+        title: "Export report as Markdown"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Markdown files (*.md)", "All files (*)"]
+        defaultSuffix: "md"
+
+        onAccepted: {
+            if (root.controller) {
+                root.controller.exportMarkdown(selectedFile)
+            }
         }
     }
 
@@ -97,6 +114,13 @@ Item {
                 Label {
                     text: "Quality gate: " + (root.controller ? root.controller.qualityGateStatus : "Not evaluated")
                 }
+            }
+
+            PulseButton {
+                id: exportMarkdownButton
+                objectName: "exportMarkdownButton"
+                text: "Export Markdown"
+                onClicked: exportMarkdownDialog.open()
             }
         }
 

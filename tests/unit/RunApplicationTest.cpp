@@ -558,6 +558,29 @@ TEST_CASE("analyze --format json --output writes a valid JSON report to a file")
     CHECK(report.at("files").size() == 2);
 }
 
+TEST_CASE("analyze --format markdown --output writes a checklist report to a file")
+{
+    const std::filesystem::path root = makeTempAnalyzeRoot();
+    const std::filesystem::path outputPath = root / "report.md";
+
+    const RunResult result =
+        run({"analyze", root.string(), "--format", "markdown", "--output", outputPath.string()});
+
+    // Same gate-triggering fixture as above; the report file is still written regardless.
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::QualityGateFailed));
+    CHECK(result.output.empty());
+    REQUIRE(std::filesystem::exists(outputPath));
+
+    std::ifstream reportFile(outputPath);
+    std::ostringstream reportContent;
+    reportContent << reportFile.rdbuf();
+    const std::string report = reportContent.str();
+
+    CHECK(report.find("# Code Quality Analysis Report") != std::string::npos);
+    CHECK(report.find("- [ ] **[") != std::string::npos);
+    CHECK(report.find("signature.parameter-count") != std::string::npos);
+}
+
 TEST_CASE("analyze rejects an output path that is an analysis source without changing it")
 {
     const std::filesystem::path root = makeTempAnalyzeRoot();

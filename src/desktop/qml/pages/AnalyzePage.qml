@@ -291,6 +291,29 @@ ScrollView {
         }
 
         GroupBox {
+            title: "Exclusions"
+            Layout.fillWidth: true
+            enabled: root.hasProject && !root.analysisRunning
+
+            RowLayout {
+                anchors.fill: parent
+
+                TextField {
+                    id: excludePatternsField
+                    objectName: "excludePatternsField"
+                    Layout.fillWidth: true
+                    placeholderText: "Comma-separated glob patterns to skip, for example json.hpp, third_party/**"
+                    text: root.controller ? root.controller.excludePatterns : ""
+                    onEditingFinished: {
+                        if (root.controller) {
+                            root.controller.excludePatterns = text
+                        }
+                    }
+                }
+            }
+        }
+
+        GroupBox {
             title: "Quality gate"
             Layout.fillWidth: true
             enabled: root.canEdit

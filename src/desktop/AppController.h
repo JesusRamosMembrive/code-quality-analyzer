@@ -38,6 +38,7 @@ class AppController final : public QObject
     Q_PROPERTY(QString findingSeverityFilter READ findingSeverityFilter NOTIFY findingSeverityFilterChanged)
     Q_PROPERTY(QString findingRuleFilter READ findingRuleFilter NOTIFY findingRuleFilterChanged)
     Q_PROPERTY(QString findingSearchText READ findingSearchText NOTIFY findingSearchTextChanged)
+    Q_PROPERTY(QString excludePatterns READ excludePatterns WRITE setExcludePatterns NOTIFY excludePatternsChanged)
 
 public:
     explicit AppController(QObject* parent = nullptr);
@@ -61,10 +62,12 @@ public:
     [[nodiscard]] QString findingSeverityFilter() const;
     [[nodiscard]] QString findingRuleFilter() const;
     [[nodiscard]] QString findingSearchText() const;
+    [[nodiscard]] QString excludePatterns() const;
     [[nodiscard]] QStringList recentProjects() const;
     [[nodiscard]] QStringList recentReports() const;
 
     void setLastPage(const QString& page);
+    void setExcludePatterns(const QString& patterns);
 
     Q_INVOKABLE void selectProject(const QUrl& projectRoot);
     Q_INVOKABLE void saveConfiguration();
@@ -77,6 +80,7 @@ public:
     Q_INVOKABLE void removeHeaderOverride(int row);
     Q_INVOKABLE void startAnalysis();
     Q_INVOKABLE void openReport(const QUrl& reportUrl);
+    Q_INVOKABLE void exportMarkdown(const QUrl& destination);
     Q_INVOKABLE void openSnapshot(const QString& timestamp);
     Q_INVOKABLE void refreshSnapshots();
     Q_INVOKABLE void deleteSnapshot(const QString& timestamp);
@@ -105,6 +109,7 @@ signals:
     void findingSeverityFilterChanged(const QString& severity);
     void findingRuleFilterChanged(const QString& ruleId);
     void findingSearchTextChanged(const QString& searchText);
+    void excludePatternsChanged(const QString& patterns);
     void recentPathsChanged();
 
 private:
@@ -150,6 +155,7 @@ private:
     QString errorMessage_;
     QString qualityGateStatus_{QStringLiteral("Not evaluated")};
     QString qualityGateSeverity_{QStringLiteral("warning")};
+    QString excludePatterns_;
     QString configurationLoadError_;
     bool analysisRunning_{false};
     bool configurationAvailable_{false};

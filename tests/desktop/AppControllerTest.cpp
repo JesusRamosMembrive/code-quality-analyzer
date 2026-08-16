@@ -174,6 +174,12 @@ private slots:
     void snapshotDeleteFailureKeepsTheCurrentReport();
     void snapshotsAreNewestFirstAndDeleteRefreshesTheModel();
     void clearRecentPathsRetainsTheCurrentReport();
+    void exportMarkdownWritesTheCurrentReportAsAChecklist();
+    void exportMarkdownWithoutAReportReportsAnError();
+    void exportMarkdownRejectsANonLocalDestination();
+    void exportMarkdownReportsAWriteFailureForAnUnwritableDestination();
+    void excludePatternsAreSplitTrimmedAndAppliedWhenStartingAnalysis();
+    void selectingAnotherProjectClearsExcludePatterns();
 };
 
 void AppControllerTest::selectingProjectLoadsSemanticConfiguration()
@@ -1003,6 +1009,105 @@ void AppControllerTest::clearRecentPathsRetainsTheCurrentReport()
             "filters/searchText",
             "filters/severity",
             "ui/lastPage"}));
+}
+
+void AppControllerTest::exportMarkdownWritesTheCurrentReportAsAChecklist()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString report = writeReport(directory, "report.json", oneFinding("complexity.cyclomatic"));
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(report));
+    QTRY_COMPARE(controller.findings()->rowCount(), 1);
+    const QString destination = directory.filePath("export.md");
+
+    controller.exportMarkdown(QUrl::fromLocalFile(destination));
+
+    QCOMPARE(controller.errorMessage(), QString{});
+    QVERIFY(QFile::exists(destination));
+    QFile exported(destination);
+    QVERIFY(exported.open(QIODevice::ReadOnly));
+    const QString content = QString::fromUtf8(exported.readAll());
+    QVERIFY(content.contains("# Code Quality Analysis Report"));
+    QVERIFY(content.contains("- [ ] **[WARNING]**"));
+    QVERIFY(content.contains("complexity.cyclomatic"));
+}
+
+void AppControllerTest::exportMarkdownWithoutAReportReportsAnError()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    AppController controller(settingsPath(directory));
+    const QString destination = directory.filePath("export.md");
+
+    controller.exportMarkdown(QUrl::fromLocalFile(destination));
+
+    QVERIFY(controller.errorMessage().contains("DESKTOP010"));
+    QVERIFY(!QFile::exists(destination));
+}
+
+void AppControllerTest::exportMarkdownRejectsANonLocalDestination()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString report = writeReport(directory, "report.json", oneFinding());
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(report));
+    QTRY_COMPARE(controller.findings()->rowCount(), 1);
+
+    controller.exportMarkdown(QUrl("https://example.com/report.md"));
+
+    QVERIFY(controller.errorMessage().contains("DESKTOP011"));
+}
+
+void AppControllerTest::exportMarkdownReportsAWriteFailureForAnUnwritableDestination()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString report = writeReport(directory, "report.json", oneFinding());
+    AppController controller(settingsPath(directory));
+    controller.openReport(QUrl::fromLocalFile(report));
+    QTRY_COMPARE(controller.findings()->rowCount(), 1);
+    const QString destination = directory.filePath("missing-subdir/export.md");
+
+    controller.exportMarkdown(QUrl::fromLocalFile(destination));
+
+    QVERIFY(controller.errorMessage().contains("DESKTOP012"));
+    QVERIFY(!QFile::exists(destination));
+}
+
+void AppControllerTest::excludePatternsAreSplitTrimmedAndAppliedWhenStartingAnalysis()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    writeTextFile(directory.filePath("keep.cpp"), "int classify(int value)\n{\n    return value;\n}\n");
+    writeTextFile(directory.filePath("excluded.cpp"), "int discard(int value)\n{\n    return value;\n}\n");
+    writeTextFile(directory.filePath("other.cpp"), "int ignore(int value)\n{\n    return value;\n}\n");
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    controller.setExcludePatterns("excluded.cpp,  other.cpp ");
+    QCOMPARE(controller.excludePatterns(), QString("excluded.cpp,  other.cpp "));
+
+    controller.startAnalysis();
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.analysisRunning(), 30000);
+
+    QCOMPARE(controller.files()->rowCount(), 1);
+}
+
+void AppControllerTest::selectingAnotherProjectClearsExcludePatterns()
+{
+    QTemporaryDir directoryA;
+    QTemporaryDir directoryB;
+    QVERIFY(directoryA.isValid());
+    QVERIFY(directoryB.isValid());
+    AppController controller(settingsPath(directoryA));
+    controller.selectProject(QUrl::fromLocalFile(directoryA.path()));
+    controller.setExcludePatterns("json.hpp");
+    QCOMPARE(controller.excludePatterns(), QString("json.hpp"));
+
+    controller.selectProject(QUrl::fromLocalFile(directoryB.path()));
+
+    QCOMPARE(controller.excludePatterns(), QString());
 }
 
 QTEST_GUILESS_MAIN(AppControllerTest)

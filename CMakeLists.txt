@@ -115,7 +115,9 @@ add_library(codeqa_core STATIC
     src/config/ConfigJson.cpp
     src/core/EnumJson.cpp
     src/application/RunAnalysis.cpp
+    src/application/ReportDocumentAnalysis.cpp
     src/report/TextReport.cpp
+    src/report/MarkdownReport.cpp
     src/report/FileJson.cpp
     src/report/ReportJson.cpp
     src/history/CompareSnapshots.cpp

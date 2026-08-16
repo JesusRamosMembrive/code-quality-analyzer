@@ -1,7 +1,9 @@
 #include "AppController.h"
 
+#include "codeqa/application/ReportDocumentAnalysis.h"
 #include "codeqa/config/DefaultConfig.h"
 #include "codeqa/core/EnumJson.h"
+#include "codeqa/report/MarkdownReport.h"
 
 #include <QDir>
 #include <QMetaObject>
@@ -9,6 +11,7 @@
 #include <QtConcurrentRun>
 
 #include <algorithm>
+#include <fstream>
 #include <utility>
 
 namespace
@@ -176,6 +179,11 @@ QString AppController::findingSearchText() const
     return findings_.searchText();
 }
 
+QString AppController::excludePatterns() const
+{
+    return excludePatterns_;
+}
+
 QStringList AppController::recentProjects() const
 {
     return recentProjects_;
@@ -184,6 +192,16 @@ QStringList AppController::recentProjects() const
 QStringList AppController::recentReports() const
 {
     return recentReports_;
+}
+
+void AppController::setExcludePatterns(const QString& patterns)
+{
+    if (excludePatterns_ == patterns)
+    {
+        return;
+    }
+    excludePatterns_ = patterns;
+    emit excludePatternsChanged(excludePatterns_);
 }
 
 void AppController::setLastPage(const QString& page)
@@ -422,6 +440,35 @@ void AppController::openReport(const QUrl& reportUrl)
     addRecentReport(normalizedSettingsPath(path));
 }
 
+void AppController::exportMarkdown(const QUrl& destination)
+{
+    if (!currentDocument_)
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP010]: run or open an analysis before exporting a report."));
+        return;
+    }
+
+    const std::filesystem::path path = localPath(destination);
+    if (path.empty())
+    {
+        setErrorMessage(QStringLiteral("Error [DESKTOP011]: choose a local destination for the report."));
+        return;
+    }
+
+    std::ofstream output(path);
+    if (!output)
+    {
+        setErrorMessage(
+            QStringLiteral("Error [DESKTOP012]: could not write '%1'.").arg(QString::fromStdString(path.string())));
+        return;
+    }
+
+    const codeqa::application::RunAnalysisResult analysis =
+        codeqa::application::toAnalysisResult(*currentDocument_);
+    codeqa::report::renderMarkdown(output, analysis.model, analysis.metrics, analysis.findings);
+    setErrorMessage({});
+}
+
 void AppController::openSnapshot(const QString& timestamp)
 {
     if (analysisRunning_)
@@ -638,6 +685,7 @@ void AppController::setCurrentProject(const QUrl& projectRoot)
         if (currentProject() != previous)
         {
             snapshots_.setSnapshots({});
+            setExcludePatterns({});
             emit currentProjectChanged(currentProject());
         }
         setErrorMessage(QStringLiteral("Error [DESKTOP001]: choose a local project folder."));
@@ -647,6 +695,7 @@ void AppController::setCurrentProject(const QUrl& projectRoot)
     if (currentProject() != previous)
     {
         snapshots_.setSnapshots({});
+        setExcludePatterns({});
         emit currentProjectChanged(currentProject());
     }
     addRecentProject(normalizedSettingsPath(path));
@@ -728,6 +777,14 @@ void AppController::launchAnalysis(codeqa::config::ProjectConfig config)
     codeqa::application::FacadeAnalysisRequest request;
     request.projectRoot = analysisProjectPath_;
     request.config = std::move(config);
+    for (const QString& pattern : excludePatterns_.split(QLatin1Char(','), Qt::SkipEmptyParts))
+    {
+        const QString trimmed = pattern.trimmed();
+        if (!trimmed.isEmpty())
+        {
+            request.excludePatterns.push_back(trimmed.toStdString());
+        }
+    }
     const codeqa::application::ApplicationFacade facade = facade_;
 
     analysisWatcher_.setFuture(QtConcurrent::run([this, facade, request]()
