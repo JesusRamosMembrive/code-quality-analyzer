@@ -86,13 +86,13 @@ ScrollView {
             wrapMode: Text.Wrap
         }
 
-        GroupBox {
+        Section {
             title: "Rules"
             Layout.fillWidth: true
             enabled: root.canEdit
 
             ColumnLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
                 spacing: 6
 
                 RowLayout {
@@ -100,31 +100,45 @@ ScrollView {
 
                     Label {
                         Layout.preferredWidth: 360
-                        text: "Rule"
-                        font.bold: true
+                        text: "RULE"
+                        font.pixelSize: 11
+                        font.letterSpacing: 1
+                        color: "#9aa1b0"
                     }
 
                     Label {
                         Layout.preferredWidth: 90
-                        text: "Enabled"
-                        font.bold: true
+                        text: "ENABLED"
+                        font.pixelSize: 11
+                        font.letterSpacing: 1
+                        color: "#9aa1b0"
                     }
 
                     Label {
                         Layout.preferredWidth: 140
-                        text: "Warning limit"
-                        font.bold: true
+                        text: "WARNING LIMIT"
+                        font.pixelSize: 11
+                        font.letterSpacing: 1
+                        color: "#9aa1b0"
                     }
 
                     Label {
                         Layout.preferredWidth: 140
-                        text: "High limit"
-                        font.bold: true
+                        text: "HIGH LIMIT"
+                        font.pixelSize: 11
+                        font.letterSpacing: 1
+                        color: "#9aa1b0"
                     }
 
                     Item {
                         Layout.fillWidth: true
                     }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    color: "#333844"
                 }
 
                 ListView {
@@ -202,13 +216,13 @@ ScrollView {
             }
         }
 
-        GroupBox {
+        Section {
             title: "Header language overrides"
             Layout.fillWidth: true
             enabled: root.canEdit
 
             ColumnLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
                 spacing: 8
 
                 ListView {
@@ -290,13 +304,13 @@ ScrollView {
             }
         }
 
-        GroupBox {
+        Section {
             title: "Exclusions"
             Layout.fillWidth: true
             enabled: root.hasProject && !root.analysisRunning
 
             RowLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
 
                 TextField {
                     id: excludePatternsField
@@ -313,13 +327,13 @@ ScrollView {
             }
         }
 
-        GroupBox {
+        Section {
             title: "Quality gate"
             Layout.fillWidth: true
             enabled: root.canEdit
 
             RowLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
 
                 Label {
                     text: "Minimum finding severity"

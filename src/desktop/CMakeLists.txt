@@ -54,6 +54,10 @@ set_source_files_properties(qml/controls/GlassPanel.qml PROPERTIES
     QT_RESOURCE_ALIAS controls/GlassPanel.qml
 )
 
+set_source_files_properties(qml/controls/Section.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/Section.qml
+)
+
 qt_add_qml_module(codeqa_desktop
     URI CodeQA.Desktop
     VERSION 1.0
@@ -64,6 +68,7 @@ qt_add_qml_module(codeqa_desktop
         qml/pages/ResultsPage.qml
         qml/controls/PulseButton.qml
         qml/controls/GlassPanel.qml
+        qml/controls/Section.qml
 )
 
 get_target_property(_codeqa_qmake_executable Qt6::qmake IMPORTED_LOCATION)

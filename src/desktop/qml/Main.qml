@@ -9,7 +9,7 @@ ApplicationWindow {
     id: shell
     visible: true
     width: 1280
-    height: 800
+    height: 900
     minimumWidth: 960
     minimumHeight: 600
     title: "CodeQA"
@@ -226,7 +226,9 @@ ApplicationWindow {
             id: pageStack
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.margins: 16
             Layout.leftMargin: 16
+            Layout.rightMargin: 16
             currentIndex: shell.selectedPage === "Analyze" ? 0 : shell.selectedPage === "History" ? 1 : 2
 
             NumberAnimation {
