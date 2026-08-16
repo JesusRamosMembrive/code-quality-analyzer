@@ -376,3 +376,27 @@ TEST_CASE("ApplicationFacade keeps an in-memory report when snapshot saving fail
     REQUIRE(result.warning.has_value());
     CHECK(*result.warning == "Warning: could not save snapshot.");
 }
+
+TEST_CASE("ApplicationFacade reports a duplicated function pair in the JSON report and the ReportDocument")
+{
+    const TempProject project;
+    std::ofstream(project.root() / "a.c")
+        << "int addFirst(int alpha, int beta)\n{\n    int total = alpha + beta;\n    return total;\n}\n";
+    std::ofstream(project.root() / "b.c")
+        << "int addSecond(int first, int second)\n{\n    int sum = first + second;\n    return sum;\n}\n";
+
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.duplication.minNormalizedTokens = 10;
+    config.qualityGate.minSeverity = codeqa::core::DiagnosticSeverity::Error;
+
+    const codeqa::application::AnalysisFacadeResult result =
+        codeqa::application::ApplicationFacade{}.analyzeProject({project.root(), config, {}, {}});
+
+    REQUIRE_FALSE(result.error.hasError());
+    REQUIRE(result.reportJson.has_value());
+    CHECK(result.reportJson->at("duplicates").size() == 1);
+
+    REQUIRE(result.document.has_value());
+    REQUIRE(result.document->duplicates.groups.size() == 1);
+    CHECK(result.document->duplicates.groups.front().members.size() == 2);
+}

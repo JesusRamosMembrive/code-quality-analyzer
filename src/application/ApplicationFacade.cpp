@@ -191,7 +191,7 @@ AnalysisFacadeResult ApplicationFacade::analyzeProject(
 
         const std::string toolVersion = GetApplicationInfo{}.execute().version;
         result.reportJson = codeqa::report::toReportJson(
-            analysis.model, analysis.metrics, analysis.findings, codeqa::duplication::ProjectDuplicationModel{},
+            analysis.model, analysis.metrics, analysis.findings, analysis.duplicates,
             request.config, toolVersion);
         result.document = makeReportDocument(
             analysis, request.config, toolVersion, result.qualityGateOutcome, result.comparison);
