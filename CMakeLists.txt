@@ -110,6 +110,7 @@ add_library(codeqa_core STATIC
     src/model/ProjectModelBuilder.cpp
     src/metrics/CalculateFunctionMetrics.cpp
     src/rules/Rules.cpp
+    src/duplication/DetectDuplicates.cpp
     src/config/DefaultConfig.cpp
     src/config/MergeConfig.cpp
     src/config/ConfigJson.cpp

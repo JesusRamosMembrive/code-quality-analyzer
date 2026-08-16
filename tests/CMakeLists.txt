@@ -31,6 +31,7 @@ add_executable(codeqa_tests
     unit/ReadFileContentsTest.cpp
     unit/RuleTest.cpp
     unit/RulesTest.cpp
+    unit/DetectDuplicatesTest.cpp
     unit/ApplyRulesTest.cpp
     unit/CorpusFindingsTest.cpp
     unit/CorpusReportTest.cpp
