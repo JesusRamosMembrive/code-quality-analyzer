@@ -163,8 +163,10 @@ New types (`codeqa::duplication`):
 struct DuplicateMember
 {
     std::string qualifiedName;
-    std::filesystem::path filePath;   // relative to ProjectModel.rootPath
-    core::SourceRange range;
+    core::SourceRange range;   // range.begin.filePath / range.end.filePath already
+                                // carry the file path (see core::SourceLocation) —
+                                // no separate filePath field, avoiding a second
+                                // source of truth for the same value
 };
 
 struct DuplicateGroup
