@@ -2,6 +2,7 @@
 
 #include "codeqa/application/RunAnalysis.h"
 #include "codeqa/config/DefaultConfig.h"
+#include "codeqa/duplication/DuplicationModels.h"
 #include "codeqa/report/ReportJson.h"
 
 #include <filesystem>
@@ -33,8 +34,9 @@ TEST_CASE("toReportJson over the real corpus reproduces the deep-nesting fixture
     request.config = codeqa::config::defaultConfig();
 
     const codeqa::application::RunAnalysisResult result = codeqa::application::RunAnalysis{}.execute(request);
-    const nlohmann::json document =
-        codeqa::report::toReportJson(result.model, result.metrics, result.findings, request.config, "test");
+    const nlohmann::json document = codeqa::report::toReportJson(
+        result.model, result.metrics, result.findings, codeqa::duplication::ProjectDuplicationModel{},
+        request.config, "test");
 
     CHECK(document.at("schemaVersion").get<int>() == 1);
 

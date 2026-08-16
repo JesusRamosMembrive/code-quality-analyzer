@@ -2,6 +2,7 @@
 
 #include "codeqa/application/ReportDocumentFactory.h"
 #include "codeqa/config/DefaultConfig.h"
+#include "codeqa/duplication/DuplicationModels.h"
 #include "codeqa/report/ReportJson.h"
 
 #include <filesystem>
@@ -64,7 +65,9 @@ nlohmann::json makeCompleteReportJson()
     fileFindings.findings.push_back(finding);
     findings.files.push_back(fileFindings);
 
-    return codeqa::report::toReportJson(model, metrics, findings, codeqa::config::defaultConfig(), "9.9.9");
+    return codeqa::report::toReportJson(
+        model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::config::defaultConfig(),
+        "9.9.9");
 }
 
 std::filesystem::path temporaryReportPath()

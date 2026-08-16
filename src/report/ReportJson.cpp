@@ -64,12 +64,28 @@ Json findingJson(const codeqa::rules::Finding& finding)
     return document;
 }
 
+Json duplicateGroupJson(const codeqa::duplication::DuplicateGroup& group, const std::filesystem::path& rootPath)
+{
+    Json members = Json::array();
+
+    for (const codeqa::duplication::DuplicateMember& member : group.members)
+    {
+        members.push_back(Json{
+            {"qualifiedName", member.qualifiedName},
+            {"path", std::filesystem::relative(member.range.begin.filePath, rootPath).generic_string()},
+            {"range", {{"begin", locationJson(member.range.begin)}, {"end", locationJson(member.range.end)}}}});
+    }
+
+    return Json{{"members", members}};
+}
+
 } // namespace
 
 nlohmann::json toReportJson(
     const codeqa::model::ProjectModel& model,
     const codeqa::metrics::ProjectMetricsModel& metrics,
     const codeqa::rules::ProjectFindingsModel& findings,
+    const codeqa::duplication::ProjectDuplicationModel& duplicates,
     const codeqa::config::ProjectConfig& config,
     const std::string& toolVersion)
 {
@@ -110,6 +126,12 @@ nlohmann::json toReportJson(
         }
 
         document["files"].push_back(std::move(fileDocument));
+    }
+
+    document["duplicates"] = Json::array();
+    for (const codeqa::duplication::DuplicateGroup& group : duplicates.groups)
+    {
+        document["duplicates"].push_back(duplicateGroupJson(group, model.rootPath));
     }
 
     return document;

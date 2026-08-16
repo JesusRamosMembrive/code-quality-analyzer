@@ -1,6 +1,7 @@
 #include "doctest/doctest.h"
 
 #include "codeqa/config/DefaultConfig.h"
+#include "codeqa/duplication/DuplicationModels.h"
 #include "codeqa/report/ReportJson.h"
 
 #include <filesystem>
@@ -43,7 +44,7 @@ TEST_CASE("toReportJson wraps each file's symbols with its metrics and findings,
     findings.files.push_back(fileFindings);
 
     const codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
-    const nlohmann::json document = codeqa::report::toReportJson(model, metrics, findings, config, "9.9.9");
+    const nlohmann::json document = codeqa::report::toReportJson(model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, config, "9.9.9");
 
     CHECK(document.at("schemaVersion").get<int>() == 1);
     CHECK(document.at("metadata").at("rootPath").get<std::string>() == model.rootPath.generic_string());
@@ -84,7 +85,7 @@ TEST_CASE("toReportJson serializes an absent observedValue/limitValue as null")
     findings.files.push_back(fileFindings);
 
     const nlohmann::json document =
-        codeqa::report::toReportJson(model, metrics, findings, codeqa::config::defaultConfig(), "0.0.0");
+        codeqa::report::toReportJson(model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::config::defaultConfig(), "0.0.0");
 
     CHECK(document.at("files")[0].at("findings")[0].at("observedValue").is_null());
     CHECK(document.at("files")[0].at("findings")[0].at("limitValue").is_null());
@@ -107,7 +108,54 @@ TEST_CASE("toReportJson throws when metrics or findings are not index-aligned wi
     findings.files.push_back(fileFindings);
 
     auto callToReportJson = [&]() {
-        (void)codeqa::report::toReportJson(model, metrics, findings, codeqa::config::defaultConfig(), "0.0.0");
+        (void)codeqa::report::toReportJson(model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::config::defaultConfig(), "0.0.0");
     };
     CHECK_THROWS_AS(callToReportJson(), std::invalid_argument);
+}
+
+TEST_CASE("toReportJson includes a duplicates section with relativized paths")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = std::filesystem::path{"project"};
+    codeqa::metrics::ProjectMetricsModel metrics;
+    codeqa::rules::ProjectFindingsModel findings;
+
+    codeqa::duplication::ProjectDuplicationModel duplicates;
+    codeqa::duplication::DuplicateGroup group;
+    group.members.push_back(codeqa::duplication::DuplicateMember{
+        "first",
+        codeqa::core::SourceRange{
+            codeqa::core::SourceLocation{model.rootPath / "src" / "a.cpp", 1, 1, 0},
+            codeqa::core::SourceLocation{model.rootPath / "src" / "a.cpp", 4, 1, 40}}});
+    group.members.push_back(codeqa::duplication::DuplicateMember{
+        "second",
+        codeqa::core::SourceRange{
+            codeqa::core::SourceLocation{model.rootPath / "src" / "b.cpp", 1, 1, 0},
+            codeqa::core::SourceLocation{model.rootPath / "src" / "b.cpp", 4, 1, 40}}});
+    duplicates.groups.push_back(group);
+
+    const codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    const nlohmann::json document =
+        codeqa::report::toReportJson(model, metrics, findings, duplicates, config, "9.9.9");
+
+    REQUIRE(document.at("duplicates").size() == 1);
+    const nlohmann::json& groupDocument = document.at("duplicates")[0];
+    REQUIRE(groupDocument.at("members").size() == 2);
+    CHECK(groupDocument.at("members")[0].at("qualifiedName").get<std::string>() == "first");
+    CHECK(groupDocument.at("members")[0].at("path").get<std::string>() == "src/a.cpp");
+    CHECK(groupDocument.at("members")[1].at("path").get<std::string>() == "src/b.cpp");
+}
+
+TEST_CASE("toReportJson emits an empty duplicates array when there are no groups")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = std::filesystem::path{"project"};
+    codeqa::metrics::ProjectMetricsModel metrics;
+    codeqa::rules::ProjectFindingsModel findings;
+    const codeqa::duplication::ProjectDuplicationModel duplicates;
+
+    const nlohmann::json document = codeqa::report::toReportJson(
+        model, metrics, findings, duplicates, codeqa::config::defaultConfig(), "9.9.9");
+
+    CHECK(document.at("duplicates").empty());
 }

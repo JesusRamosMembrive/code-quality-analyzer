@@ -10,6 +10,7 @@
 #include "codeqa/application/SaveSnapshot.h"
 #include "codeqa/config/ConfigJson.h"
 #include "codeqa/config/DefaultConfig.h"
+#include "codeqa/duplication/DuplicationModels.h"
 #include "codeqa/history/CompareSnapshots.h"
 #include "codeqa/report/ReportJson.h"
 
@@ -190,7 +191,8 @@ AnalysisFacadeResult ApplicationFacade::analyzeProject(
 
         const std::string toolVersion = GetApplicationInfo{}.execute().version;
         result.reportJson = codeqa::report::toReportJson(
-            analysis.model, analysis.metrics, analysis.findings, request.config, toolVersion);
+            analysis.model, analysis.metrics, analysis.findings, codeqa::duplication::ProjectDuplicationModel{},
+            request.config, toolVersion);
         result.document = makeReportDocument(
             analysis, request.config, toolVersion, result.qualityGateOutcome, result.comparison);
 
