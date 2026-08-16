@@ -103,6 +103,30 @@ ejemplo:
 { "qualityGate": { "minSeverity": "warning" } }
 ```
 
+## Duplicación
+
+`analyze` detecta funciones/métodos duplicados: compara la secuencia de tokens
+normalizada de cada función (identificadores, literales y comentarios
+neutralizados) y agrupa las que coinciden exactamente. Solo se comparan
+funciones con al menos `duplication.minNormalizedTokens` tokens normalizados,
+para evitar ruido de funciones triviales que coinciden por ser demasiado
+cortas.
+
+El campo `duplication.enabled` (por defecto `true`) activa o desactiva la
+detección por completo. El campo `duplication.minNormalizedTokens` (por
+defecto `30`) es el umbral mínimo de tokens; es una estimación inicial sin
+validar, igual que otros umbrales por defecto de este proyecto.
+
+```json
+{ "duplication": { "enabled": true, "minNormalizedTokens": 30 } }
+```
+
+La salida de `analyze` en texto y en JSON incluye una sección de duplicados
+(`"Duplicated code"` en texto, `"duplicates"` en JSON) cuando se detectan
+grupos. Limitaciones actuales, deliberadas: los duplicados no participan en el
+quality gate (ver arriba), y la salida `--format markdown` todavía no incluye
+esta sección.
+
 ## Estado
 
 Proyecto en fase de fundación. Descubre archivos fuente C/C++, detecta su lenguaje y los

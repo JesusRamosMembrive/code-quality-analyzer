@@ -14,6 +14,7 @@ de este directorio prueban la extracción estructural de cada archivo fuente.
 | `parameters/` | Valores por defecto, referencias y punteros |
 | `complexity/`, `nesting/` | Construcciones que la Fase 6 medirá |
 | `size/` | Construcciones de tamaño excesivo que la Fase 11 mide |
+| `duplication/` | Pares de funciones clon y no-clon para la detección de duplicados; sin `.duplicates.json` hermano, se valida directamente en `tests/unit/CorpusDuplicationTest.cpp` |
 | `malformed/` | Fuentes rotas con diagnósticos estables |
 | `mixed/` | Combinaciones de varias categorías |
 | `validation/` | Ledgers de validación contra proyectos reales (Fase 11), fuera de la suite automatizada |
