@@ -1252,3 +1252,26 @@ TEST_CASE("normalization ignores comments and whitespace-only differences")
     REQUIRE(result.functions.size() == 2);
     CHECK(result.functions[0].normalizedTokenSequence == result.functions[1].normalizedTokenSequence);
 }
+
+TEST_CASE("normalizes string and char literals into the same placeholder regardless of content")
+{
+    const TempSourceFile file{
+        "normalize-string-literals.cpp",
+        "void logFoo()\n"
+        "{\n"
+        "    throwError(\"foo\", 'a');\n"
+        "}\n"
+        "\n"
+        "void logBar()\n"
+        "{\n"
+        "    throwError(\"a much longer bar message\", 'z');\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    CHECK(result.functions[0].normalizedTokenSequence == result.functions[1].normalizedTokenSequence);
+}

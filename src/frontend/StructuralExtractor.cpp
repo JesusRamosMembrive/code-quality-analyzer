@@ -172,35 +172,36 @@ struct NormalizedTokens
 // clone comparison, which cares about body structure, not storage class.
 void appendNormalizedTokens(TSNode node, std::string_view source, NormalizedTokens& tokens)
 {
-    const uint32_t childCount = ts_node_child_count(node);
-
-    if (childCount == 0)
+    if (isNodeType(node, "comment"))
     {
-        if (isNodeType(node, "comment"))
-        {
-            return;
-        }
+        return;
+    }
 
+    const bool isIdentifier = isNodeType(node, "identifier") || isNodeType(node, "field_identifier")
+        || isNodeType(node, "type_identifier");
+    const bool isLiteral = isNodeType(node, "number_literal") || isNodeType(node, "string_literal")
+        || isNodeType(node, "char_literal");
+
+    if (isIdentifier || isLiteral)
+    {
         if (!tokens.sequence.empty())
         {
             tokens.sequence += ' ';
         }
+        tokens.sequence += isIdentifier ? "ID" : "LIT";
+        ++tokens.count;
+        return;
+    }
 
-        if (isNodeType(node, "identifier") || isNodeType(node, "field_identifier")
-            || isNodeType(node, "type_identifier"))
-        {
-            tokens.sequence += "ID";
-        }
-        else if (isNodeType(node, "number_literal") || isNodeType(node, "string_literal")
-            || isNodeType(node, "char_literal"))
-        {
-            tokens.sequence += "LIT";
-        }
-        else
-        {
-            tokens.sequence += nodeText(node, source);
-        }
+    const uint32_t childCount = ts_node_child_count(node);
 
+    if (childCount == 0)
+    {
+        if (!tokens.sequence.empty())
+        {
+            tokens.sequence += ' ';
+        }
+        tokens.sequence += nodeText(node, source);
         ++tokens.count;
         return;
     }
@@ -662,7 +663,7 @@ FunctionModel adaptFunction(
     }
 
     const NormalizedTokens normalized = normalizedTokensFor(candidate, source);
-    model.normalizedTokenSequence = normalized.sequence;
+    model.normalizedTokenSequence = std::move(normalized.sequence);
     model.normalizedTokenCount = normalized.count;
 
     return model;
