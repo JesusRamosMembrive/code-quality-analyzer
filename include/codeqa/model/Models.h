@@ -126,6 +126,8 @@ struct CallableModel
     std::vector<CallModel> calls;
     std::optional<core::SourceRange> parameterListRange;
     std::vector<core::SourceRange> statements;
+    std::string normalizedTokenSequence;
+    std::size_t normalizedTokenCount{0};
 };
 
 struct CppTypeDetails

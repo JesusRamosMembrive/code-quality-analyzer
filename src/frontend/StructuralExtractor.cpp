@@ -160,6 +160,64 @@ std::string nodeText(TSNode node, std::string_view source)
     return std::string(source.substr(start, end - start));
 }
 
+struct NormalizedTokens
+{
+    std::string sequence;
+    std::size_t count{0};
+};
+
+// ponytail: walks `candidate`'s own subtree only -- a leading storage-class
+// specifier like `static` that tree-sitter parks in a sibling/parent node
+// (see sourceRangeForCandidate) is not included. Acceptable for Type-1/Type-2
+// clone comparison, which cares about body structure, not storage class.
+void appendNormalizedTokens(TSNode node, std::string_view source, NormalizedTokens& tokens)
+{
+    const uint32_t childCount = ts_node_child_count(node);
+
+    if (childCount == 0)
+    {
+        if (isNodeType(node, "comment"))
+        {
+            return;
+        }
+
+        if (!tokens.sequence.empty())
+        {
+            tokens.sequence += ' ';
+        }
+
+        if (isNodeType(node, "identifier") || isNodeType(node, "field_identifier")
+            || isNodeType(node, "type_identifier"))
+        {
+            tokens.sequence += "ID";
+        }
+        else if (isNodeType(node, "number_literal") || isNodeType(node, "string_literal")
+            || isNodeType(node, "char_literal"))
+        {
+            tokens.sequence += "LIT";
+        }
+        else
+        {
+            tokens.sequence += nodeText(node, source);
+        }
+
+        ++tokens.count;
+        return;
+    }
+
+    for (uint32_t index = 0; index < childCount; ++index)
+    {
+        appendNormalizedTokens(ts_node_child(node, index), source, tokens);
+    }
+}
+
+NormalizedTokens normalizedTokensFor(TSNode node, std::string_view source)
+{
+    NormalizedTokens tokens;
+    appendNormalizedTokens(node, source, tokens);
+    return tokens;
+}
+
 std::string trim(std::string text)
 {
     const auto isSpace = [](unsigned char value) { return std::isspace(value) != 0; };
@@ -602,6 +660,10 @@ FunctionModel adaptFunction(
     {
         extractBodyStructure(body, source, path, model);
     }
+
+    const NormalizedTokens normalized = normalizedTokensFor(candidate, source);
+    model.normalizedTokenSequence = normalized.sequence;
+    model.normalizedTokenCount = normalized.count;
 
     return model;
 }

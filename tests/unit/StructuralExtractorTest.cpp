@@ -1158,3 +1158,97 @@ TEST_CASE("counts a for-loop once and excludes its header clauses")
     // (total += index;), return_statement.
     CHECK(result.functions[0].statements.size() == 4);
 }
+
+TEST_CASE("normalizes identifiers into placeholders so a renamed clone compares equal")
+{
+    const TempSourceFile file{
+        "normalize-identifiers.cpp",
+        "int addValues(int first, int second)\n"
+        "{\n"
+        "    return first + second;\n"
+        "}\n"
+        "\n"
+        "int addNumbers(int alpha, int beta)\n"
+        "{\n"
+        "    return alpha + beta;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    CHECK(result.functions[0].normalizedTokenSequence == result.functions[1].normalizedTokenSequence);
+    CHECK(result.functions[0].normalizedTokenCount > 0);
+    CHECK(result.functions[0].normalizedTokenCount == result.functions[1].normalizedTokenCount);
+}
+
+TEST_CASE("normalizes numeric literals into the same placeholder regardless of value")
+{
+    const TempSourceFile file{
+        "normalize-literals.cpp",
+        "int returnOne()\n"
+        "{\n"
+        "    return 1;\n"
+        "}\n"
+        "\n"
+        "int returnFortyTwo()\n"
+        "{\n"
+        "    return 42;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    CHECK(result.functions[0].normalizedTokenSequence == result.functions[1].normalizedTokenSequence);
+}
+
+TEST_CASE("normalization is sensitive to a real structural change")
+{
+    const TempSourceFile file{
+        "normalize-structural.cpp",
+        "int addValues(int first, int second)\n"
+        "{\n"
+        "    return first + second;\n"
+        "}\n"
+        "\n"
+        "int subtractValues(int first, int second)\n"
+        "{\n"
+        "    return first - second;\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    CHECK(result.functions[0].normalizedTokenSequence != result.functions[1].normalizedTokenSequence);
+}
+
+TEST_CASE("normalization ignores comments and whitespace-only differences")
+{
+    const TempSourceFile file{
+        "normalize-comments.cpp",
+        "int plainAdd(int first, int second)\n"
+        "{\n"
+        "    return first + second;\n"
+        "}\n"
+        "\n"
+        "int /* commented */ commentedAdd( int   first , int second )\n"
+        "{\n"
+        "    return first + second; // inline comment\n"
+        "}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 2);
+    CHECK(result.functions[0].normalizedTokenSequence == result.functions[1].normalizedTokenSequence);
+}

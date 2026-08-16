@@ -344,6 +344,8 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
         callable.isVariadic = function.isVariadic;
         callable.parameterListRange = function.parameterListRange;
         callable.statements = function.statements;
+        callable.normalizedTokenSequence = function.normalizedTokenSequence;
+        callable.normalizedTokenCount = function.normalizedTokenCount;
 
         for (const frontend::ParameterModel& parameter : function.parameters)
         {
