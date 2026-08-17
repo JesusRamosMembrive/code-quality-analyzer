@@ -46,6 +46,7 @@ struct ReportFile
     std::vector<codeqa::core::Diagnostic> diagnostics;
     std::vector<codeqa::metrics::FunctionMetricsModel> metrics;
     std::vector<codeqa::rules::Finding> findings;
+    std::vector<codeqa::rules::Finding> suppressedFindings;
 };
 
 struct ReportDocument

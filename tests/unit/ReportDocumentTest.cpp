@@ -94,6 +94,7 @@ TEST_CASE("parseReportDocument accepts a schema-version-1 CodeQA report")
     CHECK(result.document->files.front().diagnostics.front().code == "PARSE001");
     CHECK(result.document->files.front().metrics.front().complexity.cyclomaticComplexity == 12);
     CHECK(result.document->files.front().findings.front().ruleId == "complexity.cyclomatic");
+    CHECK(result.document->files.front().suppressedFindings.empty());
     CHECK(result.document->qualityGateOutcome == codeqa::application::QualityGateOutcome::NotEvaluated);
 }
 
@@ -196,6 +197,10 @@ TEST_CASE("makeReportDocument maps fresh analysis without a JSON round trip")
     finding.ruleId = "complexity.cyclomatic";
     finding.observedValue = 12;
     findings.findings.push_back(finding);
+    codeqa::rules::Finding suppressed;
+    suppressed.ruleId = "signature.parameter-count";
+    suppressed.symbolName = "run";
+    findings.suppressedFindings.push_back(suppressed);
     analysis.findings.files.push_back(findings);
 
     const codeqa::application::ReportComparison comparison{"20260814T101112Z", 3, 4, 5};
@@ -211,6 +216,7 @@ TEST_CASE("makeReportDocument maps fresh analysis without a JSON round trip")
     CHECK(document.files.front().diagnostics.front().location.filePath.generic_string() == "src/sample.cpp");
     CHECK(document.files.front().metrics.front().complexity.cyclomaticComplexity == 12);
     CHECK(document.files.front().findings.front().ruleId == "complexity.cyclomatic");
+    CHECK(document.files.front().suppressedFindings.front().ruleId == "signature.parameter-count");
     CHECK(document.comparison->newCount == 3);
     CHECK(document.qualityGateOutcome == codeqa::application::QualityGateOutcome::Passed);
 }

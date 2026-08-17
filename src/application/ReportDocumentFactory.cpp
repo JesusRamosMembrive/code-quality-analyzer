@@ -372,6 +372,7 @@ ReportDocument makeReportDocument(
         }
         file.metrics = analysis.metrics.files[index].functions;
         file.findings = analysis.findings.files[index].findings;
+        file.suppressedFindings = analysis.findings.files[index].suppressedFindings;
         for (codeqa::rules::Finding& finding : file.findings)
         {
             finding.location.filePath = file.path;
