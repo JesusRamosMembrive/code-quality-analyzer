@@ -141,7 +141,7 @@ Item {
             }
 
             TabButton {
-                text: "Suprimidos"
+                text: "Suppressed"
             }
         }
 
@@ -528,7 +528,7 @@ Item {
                     objectName: "suppressedFindingsEmptyLabel"
                     anchors.centerIn: parent
                     visible: suppressedFindingsList.count === 0
-                    text: "No hay findings suprimidos en esta ejecución."
+                    text: "No suppressed findings in this run."
                 }
             }
         }
