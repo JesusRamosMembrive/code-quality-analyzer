@@ -41,6 +41,18 @@ TestCase {
     }
 
     ListModel {
+        id: fixtureSuppressedFindings
+
+        ListElement {
+            ruleId: "signature.parameter-count"
+            symbolName: "manyParams"
+            path: "suppressed.cpp"
+            line: 4
+            column: 1
+        }
+    }
+
+    ListModel {
         id: fixtureFiles
         property int fileCount: 3
         property int diagnosticCount: 4
@@ -83,6 +95,7 @@ TestCase {
     QtObject {
         id: fixtureController
         property var findings: fixtureFindings
+        property var suppressedFindings: fixtureSuppressedFindings
         property var files: fixtureFiles
         property var snapshots: fixtureSnapshots
         property var rules: fixtureRules
@@ -453,6 +466,39 @@ TestCase {
         fixtureController.currentReportChanged()
 
         tryCompare(shell, "selectedPage", "Results")
+    }
+
+    function test_suppressed_findings_tab_lists_rows_and_shows_empty_state() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        const suppressedList = shell.findChild("suppressedFindingsList")
+        verify(suppressedList !== null)
+        tryVerify(function() { return suppressedList.count === 1 })
+
+        // StackLayout only instantiates ListView delegates for the current
+        // tab, so the "Suprimidos" tab must be selected before its rows
+        // can be inspected via itemAtIndex().
+        shell.findChild("resultsTabs").currentIndex = 2
+        tryVerify(function() { return suppressedList.itemAtIndex(0) !== null })
+
+        const row = suppressedList.itemAtIndex(0)
+        verify(row !== null)
+
+        fixtureSuppressedFindings.clear()
+        tryVerify(function() { return suppressedList.count === 0 })
+
+        const emptyLabel = shell.findChild("suppressedFindingsEmptyLabel")
+        tryVerify(function() { return emptyLabel.visible === true })
+
+        fixtureSuppressedFindings.append({
+            ruleId: "signature.parameter-count",
+            symbolName: "manyParams",
+            path: "suppressed.cpp",
+            line: 4,
+            column: 1
+        })
     }
 
     function test_selecting_a_finding_shows_its_details() {

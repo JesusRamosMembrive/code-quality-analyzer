@@ -128,6 +128,7 @@ Item {
 
         TabBar {
             id: resultsTabs
+            objectName: "resultsTabs"
             Layout.fillWidth: true
             currentIndex: 0
 
@@ -137,6 +138,10 @@ Item {
 
             TabButton {
                 text: "Files and metrics"
+            }
+
+            TabButton {
+                text: "Suprimidos"
             }
         }
 
@@ -467,6 +472,63 @@ Item {
                     anchors.centerIn: parent
                     visible: fileMetricsList.count === 0
                     text: "No file metrics are available."
+                }
+            }
+
+            ListView {
+                id: suppressedFindingsList
+                objectName: "suppressedFindingsList"
+                clip: true
+                model: root.controller ? root.controller.suppressedFindings : null
+                spacing: 4
+
+                delegate: Rectangle {
+                    required property string ruleId
+                    required property string symbolName
+                    required property string path
+                    required property var line
+                    required property var column
+
+                    width: suppressedFindingsList.width
+                    height: suppressedRow.implicitHeight + 16
+                    radius: 4
+                    color: "#242832"
+
+                    RowLayout {
+                        id: suppressedRow
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        spacing: 12
+
+                        Label {
+                            Layout.preferredWidth: 180
+                            text: ruleId
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: path + ":" + line + ":" + column
+                            elide: Text.ElideMiddle
+                            textFormat: Text.PlainText
+                        }
+
+                        Label {
+                            Layout.preferredWidth: 150
+                            text: symbolName
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                        }
+                    }
+                }
+
+                Label {
+                    id: suppressedFindingsEmptyLabel
+                    objectName: "suppressedFindingsEmptyLabel"
+                    anchors.centerIn: parent
+                    visible: suppressedFindingsList.count === 0
+                    text: "No hay findings suprimidos en esta ejecución."
                 }
             }
         }
