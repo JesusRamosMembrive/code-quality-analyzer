@@ -2,7 +2,7 @@
 
 Static analysis tool for measuring and improving the quality, maintainability, and evolution of C and C++ source projects. It targets issues that don't prevent compilation but progressively degrade design: excessively long functions, high cyclomatic complexity, deep nesting, poor naming, duplication, and more.
 
-This repository is currently in the **foundation phase**: the project builds, runs, and tests itself. It discovers C and C++ source files, detects their language, and parses them with tree-sitter, but does not yet perform static analysis on them.
+The analyzer is functional end to end: it discovers C and C++ source files, detects their language, parses them with tree-sitter, computes metrics, applies configurable rules, evaluates a quality gate, detects duplicated functions, and tracks history across snapshots. Alongside the CLI, a Qt6/QML desktop GUI is also available.
 
 ## Requisitos
 
@@ -129,5 +129,7 @@ esta sección.
 
 ## Estado
 
-Proyecto en fase de fundación. Descubre archivos fuente C/C++, detecta su lenguaje y los
-parsea con tree-sitter, pero todavía no los analiza.
+El analizador es funcional de extremo a extremo: descubre archivos fuente C/C++, detecta
+su lenguaje, los parsea con tree-sitter, calcula métricas, aplica reglas configurables,
+evalúa un quality gate, detecta código duplicado y mantiene histórico de snapshots.
+Además del CLI, existe una GUI de escritorio Qt6/QML.
