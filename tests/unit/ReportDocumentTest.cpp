@@ -200,6 +200,7 @@ TEST_CASE("makeReportDocument maps fresh analysis without a JSON round trip")
     codeqa::rules::Finding suppressed;
     suppressed.ruleId = "signature.parameter-count";
     suppressed.symbolName = "run";
+    suppressed.location.line = 4;
     findings.suppressedFindings.push_back(suppressed);
     analysis.findings.files.push_back(findings);
 
@@ -217,6 +218,7 @@ TEST_CASE("makeReportDocument maps fresh analysis without a JSON round trip")
     CHECK(document.files.front().metrics.front().complexity.cyclomaticComplexity == 12);
     CHECK(document.files.front().findings.front().ruleId == "complexity.cyclomatic");
     CHECK(document.files.front().suppressedFindings.front().ruleId == "signature.parameter-count");
+    CHECK(document.files.front().suppressedFindings.front().location.filePath.generic_string() == "src/sample.cpp");
     CHECK(document.comparison->newCount == 3);
     CHECK(document.qualityGateOutcome == codeqa::application::QualityGateOutcome::Passed);
 }

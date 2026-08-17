@@ -377,6 +377,10 @@ ReportDocument makeReportDocument(
         {
             finding.location.filePath = file.path;
         }
+        for (codeqa::rules::Finding& finding : file.suppressedFindings)
+        {
+            finding.location.filePath = file.path;
+        }
         document.files.push_back(std::move(file));
     }
 
