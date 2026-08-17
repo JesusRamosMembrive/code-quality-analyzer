@@ -164,6 +164,7 @@ TEST_CASE("ApplyRules suppresses a finding with a matching inline disable commen
 
     REQUIRE(findings.files.size() == 1);
     CHECK_FALSE(hasFinding(findings.files.front().findings, "signature.parameter-count"));
+    CHECK(hasFinding(findings.files.front().suppressedFindings, "signature.parameter-count"));
 }
 
 TEST_CASE("ApplyRules does not suppress a finding when the comment names a different rule")
@@ -181,6 +182,7 @@ TEST_CASE("ApplyRules does not suppress a finding when the comment names a diffe
 
     REQUIRE(findings.files.size() == 1);
     CHECK(hasFinding(findings.files.front().findings, "signature.parameter-count"));
+    CHECK(findings.files.front().suppressedFindings.empty());
 }
 
 TEST_CASE("ApplyRules omits findings for a rule disabled via config")

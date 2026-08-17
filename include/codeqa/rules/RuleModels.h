@@ -27,6 +27,7 @@ struct FileFindingsModel
 {
     std::filesystem::path path;
     std::vector<Finding> findings;
+    std::vector<Finding> suppressedFindings;
 };
 
 struct ProjectFindingsModel

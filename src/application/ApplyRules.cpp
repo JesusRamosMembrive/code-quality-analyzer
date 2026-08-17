@@ -256,7 +256,11 @@ codeqa::rules::ProjectFindingsModel ApplyRules::execute(
 
                 for (codeqa::rules::Finding& finding : rule->evaluate(context))
                 {
-                    if (!isSuppressed(finding, file.comments, sourceLines))
+                    if (isSuppressed(finding, file.comments, sourceLines))
+                    {
+                        fileFindings.suppressedFindings.push_back(std::move(finding));
+                    }
+                    else
                     {
                         fileFindings.findings.push_back(std::move(finding));
                     }
