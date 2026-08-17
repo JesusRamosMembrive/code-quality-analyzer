@@ -9,10 +9,10 @@ T.Button {
 
     property color pulseColor: "#2f6fed"
     property int pulseDuration: 1200
-    // Externally-driven "this is the active nav item" look. Deliberately
-    // separate from checkable/checked: AbstractButton writes checked
-    // directly on click, which would destroy a binding to external state.
-    property bool highlighted: false
+    // T.Button already provides `highlighted` (unlike `checked`, it's a pure
+    // styling flag the control never writes itself on click), so it's safe
+    // to bind it externally for "this is the active nav item" without the
+    // checkable/checked footgun.
 
     readonly property color fillColor: root.highlighted ? pulseColor : "#ffffff"
     readonly property color textColor: root.highlighted ? "#ffffff" : "#1c1f26"

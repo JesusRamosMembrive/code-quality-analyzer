@@ -258,6 +258,11 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/GlassPanel.qml
         COPYONLY
     )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/Section.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/Section.qml
+        COPYONLY
+    )
     file(GENERATE
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
         CONTENT "module CodeQA.Desktop\nMain 1.0 Main.qml\n"
@@ -272,6 +277,7 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsPage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/PulseButton.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/GlassPanel.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/Section.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
     )
 
