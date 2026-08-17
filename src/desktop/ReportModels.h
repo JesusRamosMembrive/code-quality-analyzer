@@ -161,6 +161,52 @@ private:
     int warningCount_{0};
 };
 
+class SuppressedFindingListModel final : public QAbstractListModel
+{
+    Q_OBJECT
+
+public:
+    enum Role
+    {
+        RuleIdRole = Qt::UserRole + 1,
+        SymbolNameRole,
+        PathRole,
+        LineRole,
+        ColumnRole,
+    };
+    Q_ENUM(Role)
+
+    explicit SuppressedFindingListModel(QObject* parent = nullptr);
+
+    [[nodiscard]] int rowCount(const QModelIndex& parent = {}) const override;
+    [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+
+    void setDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
+
+private:
+    friend class AppController;
+
+    // Row points directly into document_'s vectors -- same safety caveat as
+    // FindingListModel::Row: only safe because every reassignment of
+    // document_ (applyDocument()) is always immediately followed by
+    // rebuildRows() in the same call.
+    struct Row
+    {
+        const codeqa::application::ReportFile* file{nullptr};
+        const codeqa::rules::Finding* finding{nullptr};
+        QString path;
+    };
+
+    void rebuildRows();
+    void beginDocumentReset();
+    void applyDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
+    void endDocumentReset();
+
+    std::shared_ptr<const codeqa::application::ReportDocument> document_;
+    std::vector<Row> rows_;
+};
+
 class FileListModel final : public QAbstractListModel
 {
     Q_OBJECT

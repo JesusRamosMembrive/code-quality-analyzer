@@ -604,6 +604,106 @@ void FindingListModel::rebuildRows()
 
 }
 
+SuppressedFindingListModel::SuppressedFindingListModel(QObject* parent) : QAbstractListModel(parent) {}
+
+int SuppressedFindingListModel::rowCount(const QModelIndex& parent) const
+{
+    return parent.isValid() ? 0 : static_cast<int>(rows_.size());
+}
+
+QVariant SuppressedFindingListModel::data(const QModelIndex& index, const int role) const
+{
+    if (!index.isValid() || index.row() < 0 || index.row() >= rowCount())
+    {
+        return {};
+    }
+
+    const Row& row = rows_[static_cast<std::size_t>(index.row())];
+    const codeqa::rules::Finding& finding = *row.finding;
+    switch (role)
+    {
+    case RuleIdRole:
+        return QString::fromStdString(finding.ruleId);
+    case SymbolNameRole:
+        return QString::fromStdString(finding.symbolName);
+    case PathRole:
+        return row.path;
+    case LineRole:
+        return static_cast<qulonglong>(finding.location.line);
+    case ColumnRole:
+        return static_cast<qulonglong>(finding.location.column);
+    default:
+        return {};
+    }
+}
+
+QHash<int, QByteArray> SuppressedFindingListModel::roleNames() const
+{
+    static const QHash<int, QByteArray> roles = {
+        {RuleIdRole, "ruleId"},
+        {SymbolNameRole, "symbolName"},
+        {PathRole, "path"},
+        {LineRole, "line"},
+        {ColumnRole, "column"}};
+    return roles;
+}
+
+void SuppressedFindingListModel::setDocument(
+    std::shared_ptr<const codeqa::application::ReportDocument> document)
+{
+    beginDocumentReset();
+    applyDocument(std::move(document));
+    endDocumentReset();
+}
+
+void SuppressedFindingListModel::beginDocumentReset()
+{
+    beginResetModel();
+}
+
+void SuppressedFindingListModel::applyDocument(
+    std::shared_ptr<const codeqa::application::ReportDocument> document)
+{
+    document_ = std::move(document);
+    rebuildRows();
+}
+
+void SuppressedFindingListModel::endDocumentReset()
+{
+    endResetModel();
+}
+
+void SuppressedFindingListModel::rebuildRows()
+{
+    rows_.clear();
+
+    if (document_)
+    {
+        for (const codeqa::application::ReportFile& file : document_->files)
+        {
+            const QString path = fromPath(file.path);
+            for (const codeqa::rules::Finding& finding : file.suppressedFindings)
+            {
+                rows_.push_back(Row{&file, &finding, path});
+            }
+        }
+
+        std::stable_sort(rows_.begin(), rows_.end(), [](const Row& left, const Row& right)
+        {
+            const int pathOrder = QString::compare(left.path, right.path, Qt::CaseInsensitive);
+            if (pathOrder != 0)
+            {
+                return pathOrder < 0;
+            }
+            if (left.finding->location.line != right.finding->location.line)
+            {
+                return left.finding->location.line < right.finding->location.line;
+            }
+            return left.finding->location.column < right.finding->location.column;
+        });
+    }
+}
+
 FileListModel::FileListModel(QObject* parent) : QAbstractListModel(parent) {}
 
 int FileListModel::rowCount(const QModelIndex& parent) const

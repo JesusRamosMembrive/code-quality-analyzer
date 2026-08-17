@@ -32,6 +32,7 @@ class AppController final : public QObject
     Q_PROPERTY(RuleConfigModel* rules READ rules CONSTANT)
     Q_PROPERTY(HeaderOverrideModel* headerOverrides READ headerOverrides CONSTANT)
     Q_PROPERTY(FindingListModel* findings READ findings CONSTANT)
+    Q_PROPERTY(SuppressedFindingListModel* suppressedFindings READ suppressedFindings CONSTANT)
     Q_PROPERTY(FileListModel* files READ files CONSTANT)
     Q_PROPERTY(SnapshotListModel* snapshots READ snapshots CONSTANT)
     Q_PROPERTY(QString lastPage READ lastPage WRITE setLastPage NOTIFY lastPageChanged)
@@ -56,6 +57,7 @@ public:
     [[nodiscard]] RuleConfigModel* rules() const;
     [[nodiscard]] HeaderOverrideModel* headerOverrides() const;
     [[nodiscard]] FindingListModel* findings() const;
+    [[nodiscard]] SuppressedFindingListModel* suppressedFindings() const;
     [[nodiscard]] FileListModel* files() const;
     [[nodiscard]] SnapshotListModel* snapshots() const;
     [[nodiscard]] QString lastPage() const;
@@ -146,6 +148,7 @@ private:
     RuleConfigModel rules_;
     HeaderOverrideModel headerOverrides_;
     FindingListModel findings_;
+    SuppressedFindingListModel suppressedFindings_;
     FileListModel files_;
     SnapshotListModel snapshots_;
     QFutureWatcher<codeqa::application::AnalysisFacadeResult> analysisWatcher_;

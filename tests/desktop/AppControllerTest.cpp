@@ -126,6 +126,16 @@ std::vector<FindingSpec> oneFinding(const std::string& ruleId = "complexity.cycl
     return {{"src/sample.cpp", "warning", ruleId, "run", 7}};
 }
 
+QString sourceWithSuppressedFinding()
+{
+    return QStringLiteral(
+        "// codeqa-disable-next-line signature.parameter-count\n"
+        "int classify(int a, int b, int c, int d, int e)\n"
+        "{\n"
+        "    return a + b + c + d + e;\n"
+        "}\n");
+}
+
 QString settingsPath(const QTemporaryDir& directory)
 {
     return directory.filePath("settings.ini");
@@ -163,6 +173,7 @@ private slots:
     void replacementPreservesPersistedFindingFilters();
     void urlSnapshotActionDuringAnalysisCannotChangeProjectOrCompletionSnapshots();
     void analysisReportsRealPhasesAndFailedQualityGate();
+    void suppressedFindingsAreExposedSeparatelyFromRegularFindings();
     void analysisModelResetSeesOneConsistentCompletedState();
     void idleSignalCanStartTheNextAnalysisAfterCompletionIsPublished();
     void workerAnalysisFailureKeepsTheCurrentReport();
@@ -717,6 +728,30 @@ void AppControllerTest::analysisReportsRealPhasesAndFailedQualityGate()
     QCOMPARE(controller.findings()->rowCount(), 1);
     QCOMPARE(controller.snapshots()->rowCount(), 1);
     QCOMPARE(controller.errorMessage(), QString{});
+}
+
+void AppControllerTest::suppressedFindingsAreExposedSeparatelyFromRegularFindings()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    writeTextFile(
+        directory.filePath("sample.c"),
+        sourceWithSuppressedFinding().toUtf8());
+    AppController controller(settingsPath(directory));
+
+    controller.startAnalysis(QUrl::fromLocalFile(directory.path()));
+
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.analysisRunning(), 30000);
+    QCOMPARE(controller.findings()->rowCount(), 0);
+    QCOMPARE(controller.suppressedFindings()->rowCount(), 1);
+    QCOMPARE(
+        controller.suppressedFindings()->data(
+            controller.suppressedFindings()->index(0), SuppressedFindingListModel::RuleIdRole).toString(),
+        QString("signature.parameter-count"));
+    QCOMPARE(
+        controller.suppressedFindings()->data(
+            controller.suppressedFindings()->index(0), SuppressedFindingListModel::SymbolNameRole).toString(),
+        QString("classify"));
 }
 
 void AppControllerTest::analysisModelResetSeesOneConsistentCompletedState()

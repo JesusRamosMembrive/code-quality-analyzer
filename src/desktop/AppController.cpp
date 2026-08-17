@@ -152,6 +152,11 @@ FindingListModel* AppController::findings() const
     return const_cast<FindingListModel*>(&findings_);
 }
 
+SuppressedFindingListModel* AppController::suppressedFindings() const
+{
+    return const_cast<SuppressedFindingListModel*>(&suppressedFindings_);
+}
+
 FileListModel* AppController::files() const
 {
     return const_cast<FileListModel*>(&files_);
@@ -866,6 +871,7 @@ void AppController::replaceDocument(
     const bool errorChanged = errorMessage_ != message;
 
     findings_.beginDocumentReset();
+    suppressedFindings_.beginDocumentReset();
     files_.beginDocumentReset();
     if (snapshots.has_value())
     {
@@ -874,6 +880,7 @@ void AppController::replaceDocument(
 
     currentDocument_ = next;
     findings_.applyDocument(next);
+    suppressedFindings_.applyDocument(next);
     files_.applyDocument(next);
     if (snapshots.has_value())
     {
@@ -887,6 +894,7 @@ void AppController::replaceDocument(
         snapshots_.endSnapshotsReset();
     }
     files_.endDocumentReset();
+    suppressedFindings_.endDocumentReset();
     findings_.endDocumentReset();
 
     if (qualityGateChanged)
