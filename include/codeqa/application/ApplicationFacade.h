@@ -4,6 +4,7 @@
 #include "codeqa/application/DetectFileLanguage.h"
 #include "codeqa/application/ReportDocumentFactory.h"
 #include "codeqa/config/ConfigModels.h"
+#include "codeqa/history/SnapshotComparison.h"
 
 #include <nlohmann/json.hpp>
 
@@ -20,6 +21,12 @@ struct ApplicationError
     std::optional<std::string> message;
 
     [[nodiscard]] bool hasError() const { return message.has_value(); }
+};
+
+struct SnapshotComparisonResult
+{
+    std::optional<codeqa::history::SnapshotComparison> comparison;
+    ApplicationError error;
 };
 
 struct FacadeAnalysisRequest
@@ -73,6 +80,10 @@ public:
         const std::filesystem::path& projectRoot, const std::string& timestamp) const;
     [[nodiscard]] ApplicationError deleteSnapshot(
         const std::filesystem::path& projectRoot, const std::string& timestamp) const;
+    [[nodiscard]] SnapshotComparisonResult compareSnapshots(
+        const std::filesystem::path& projectRoot,
+        const std::string& fromTimestamp,
+        const std::string& toTimestamp) const;
 };
 
 } // namespace codeqa::application

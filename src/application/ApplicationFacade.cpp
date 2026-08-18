@@ -251,4 +251,39 @@ ApplicationError ApplicationFacade::deleteSnapshot(
     return ApplicationError{DeleteSnapshot{}.execute(projectRoot, timestamp)};
 }
 
+SnapshotComparisonResult ApplicationFacade::compareSnapshots(
+    const std::filesystem::path& projectRoot,
+    const std::string& fromTimestamp,
+    const std::string& toTimestamp) const
+{
+    SnapshotComparisonResult result;
+
+    const std::optional<nlohmann::json> fromReport = LoadSnapshot{}.execute(projectRoot, fromTimestamp);
+    if (!fromReport.has_value())
+    {
+        result.error.message = "Error [APPLICATION003]: could not load snapshot '" + fromTimestamp + "'.";
+        return result;
+    }
+
+    const std::optional<nlohmann::json> toReport = LoadSnapshot{}.execute(projectRoot, toTimestamp);
+    if (!toReport.has_value())
+    {
+        result.error.message = "Error [APPLICATION003]: could not load snapshot '" + toTimestamp + "'.";
+        return result;
+    }
+
+    try
+    {
+        const codeqa::history::FindingKeySet fromKeys = codeqa::history::extractFindingKeys(*fromReport);
+        const codeqa::history::FindingKeySet toKeys = codeqa::history::extractFindingKeys(*toReport);
+        result.comparison = codeqa::history::compareSnapshots(toKeys, fromKeys);
+    }
+    catch (const nlohmann::json::exception&)
+    {
+        result.error.message = "Error [APPLICATION004]: a snapshot has an unexpected shape.";
+    }
+
+    return result;
+}
+
 } // namespace codeqa::application

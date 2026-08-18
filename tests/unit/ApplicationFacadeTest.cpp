@@ -362,6 +362,60 @@ TEST_CASE("ApplicationFacade compares against the newest snapshot without changi
     CHECK_FALSE(second.reportJson->contains("comparison"));
 }
 
+TEST_CASE("ApplicationFacade compares two arbitrary snapshots by counting added, shared, and removed findings")
+{
+    const TempProject project;
+    project.writeSnapshot(
+        "20260101T000000Z",
+        R"({"files": [{"path": "sample.c", "findings": [)"
+        R"({"ruleId": "complexity.cyclomatic", "symbolName": "oldOnly"}, )"
+        R"({"ruleId": "complexity.cyclomatic", "symbolName": "shared"}]}]})");
+    project.writeSnapshot(
+        "20260102T000000Z",
+        R"({"files": [{"path": "sample.c", "findings": [)"
+        R"({"ruleId": "complexity.cyclomatic", "symbolName": "shared"}, )"
+        R"({"ruleId": "complexity.cyclomatic", "symbolName": "newOnly"}]}]})");
+
+    const codeqa::application::ApplicationFacade facade;
+    const codeqa::application::SnapshotComparisonResult result =
+        facade.compareSnapshots(project.root(), "20260101T000000Z", "20260102T000000Z");
+
+    REQUIRE(result.comparison.has_value());
+    CHECK_FALSE(result.error.hasError());
+    CHECK(result.comparison->newCount == 1);
+    CHECK(result.comparison->existingCount == 1);
+    CHECK(result.comparison->resolvedCount == 1);
+}
+
+TEST_CASE("ApplicationFacade reports APPLICATION003 when a compared snapshot does not exist")
+{
+    const TempProject project;
+    project.writeSnapshot("20260101T000000Z", R"({"files": []})");
+
+    const codeqa::application::ApplicationFacade facade;
+    const codeqa::application::SnapshotComparisonResult result =
+        facade.compareSnapshots(project.root(), "20260101T000000Z", "does-not-exist");
+
+    CHECK_FALSE(result.comparison.has_value());
+    REQUIRE(result.error.hasError());
+    CHECK(result.error.message->find("APPLICATION003") != std::string::npos);
+}
+
+TEST_CASE("ApplicationFacade reports APPLICATION004 when a compared snapshot has an unexpected shape")
+{
+    const TempProject project;
+    project.writeSnapshot("20260101T000000Z", R"({"files": []})");
+    project.writeSnapshot("20260102T000000Z", R"({"files": [{"path": "sample.c"}]})");
+
+    const codeqa::application::ApplicationFacade facade;
+    const codeqa::application::SnapshotComparisonResult result =
+        facade.compareSnapshots(project.root(), "20260101T000000Z", "20260102T000000Z");
+
+    CHECK_FALSE(result.comparison.has_value());
+    REQUIRE(result.error.hasError());
+    CHECK(result.error.message->find("APPLICATION004") != std::string::npos);
+}
+
 TEST_CASE("ApplicationFacade keeps an in-memory report when snapshot saving fails")
 {
     const TempProject project{sourceWithWarningFinding()};
