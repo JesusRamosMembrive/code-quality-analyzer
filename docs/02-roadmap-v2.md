@@ -18,9 +18,9 @@ Los tracks están ordenados por **coste ascendente**: se empieza por lo más bar
 
 | # | Track | Qué añade | Punto de partida | Coste |
 |---|-------|-----------|-------------------|-------|
-| 0 | README al día | Reescribir la apertura y la sección "Estado" para reflejar las Fases 6-12, duplicación y la GUI Qt6/QML, todas ya shippeadas | Todo el contenido real ya está documentado en el README; solo el framing inicial y el cierre siguen diciendo "fase de fundación... todavía no analiza" | XS |
-| 1 | GUI: gestión de supresiones | Superficie en la GUI de escritorio para ver/gestionar supresiones de reglas | El mecanismo `// codeqa-disable-next-line <rule-id>` ya existe en `ApplyRules.cpp`; cero superficie hoy en `src/desktop/` | S |
-| 2 | GUI: comparación de snapshots | Selección de dos snapshots arbitrarios en `HistoryPage` + vista de diff | `compareSnapshots(current, previous)` ya diffea dos snapshots cualquiera; solo falta UI para elegirlos (hoy solo se usa internamente, current vs. anterior, para el quality gate) | S |
+| 0 | ✅ README al día | Reescribir la apertura y la sección "Estado" para reflejar las Fases 6-12, duplicación y la GUI Qt6/QML, todas ya shippeadas | Todo el contenido real ya está documentado en el README; solo el framing inicial y el cierre siguen diciendo "fase de fundación... todavía no analiza" | XS |
+| 1 | ✅ GUI: gestión de supresiones | Superficie de solo lectura en la GUI de escritorio para ver supresiones de reglas (crear/borrar sigue siendo manual, en el código fuente) | El mecanismo `// codeqa-disable-next-line <rule-id>` ya existe en `ApplyRules.cpp`; cero superficie hoy en `src/desktop/` | S |
+| 2 | ✅ GUI: comparación de snapshots | Selección de dos snapshots arbitrarios en `HistoryPage` + contadores agregados (nuevos/existentes/resueltos) — deliberadamente sin vista de diff por finding, ver nota abajo | `compareSnapshots(current, previous)` ya diffea dos snapshots cualquiera; solo falta UI para elegirlos (hoy solo se usa internamente, current vs. anterior, para el quality gate) | S |
 | 3 | Reglas avanzadas de C | Memoria, punteros, arrays, macros, API insegura (`strcpy`, `gets`, etc.) | Mismo motor de reglas (`Rule::evaluate(RuleContext)`, ya soporta patrones no solo umbrales); sin precedente de regla no-umbral todavía | M |
 | 4 | Arquitectura (grafo de includes) | Ciclos, dependencias prohibidas, capas, fan-in/fan-out | `DependencyModel` ya fluye a `codeqa::model` y al JSON del reporte (`FileModel::dependencies`), cubierto por tests; falta construir la capa de grafo y las reglas sobre él | M |
 | 5 | Reglas avanzadas de C++ | Ownership/RAII, Rule of Five, destructores virtuales, `override`, `std::move`, smart pointers | `CallableModel` no tiene hoy ningún campo relacionado con RAII (destructor, punteros crudos, special members) — requiere extender el modelo antes de poder escribir las reglas | M/L |
@@ -33,6 +33,7 @@ Los tracks están ordenados por **coste ascendente**: se empieza por lo más bar
 ## 4. Notas de alcance
 
 - Los tracks 1 y 2 (GUI) están separados aunque comparten página/capa porque su coste real es independiente entre sí: ambos dependen de lógica de motor que ya existe, así que cada uno es solo trabajo de UI.
+- El track 2, tal como se shippeó, muestra solo contadores agregados (`newCount`/`existingCount`/`resolvedCount`), no qué findings concretos cambiaron — decisión explícita durante su brainstorm para mantenerlo GUI-only sin tocar `codeqa::history`. Ver qué findings exactos son nuevos/resueltos requeriría extender `SnapshotComparison` con identidad por finding; queda como posible iteración futura, no prometida aquí.
 - El track 4 (arquitectura) no incluye visualización en la GUI por defecto — eso, si se quiere, es una extensión del track o un track propio posterior.
 - El track 5 (reglas C++) tiene una dependencia explícita: no se puede escribir la primera regla sin antes decidir qué campos añadir a `CallableModel`. Ese es el primer punto a resolver en su brainstorm.
 - El track 6 (histórico avanzado) es deliberadamente más estrecho que en la lista original: la parte de "comparar dos snapshots arbitrarios" se movió al track 2 porque la lógica de backend ya existe; a este track le queda solo la parte que sí es trabajo nuevo (series/tendencias).
@@ -42,4 +43,4 @@ Los tracks están ordenados por **coste ascendente**: se empieza por lo más bar
 
 ## 5. Siguientes pasos
 
-Al retomar este roadmap, el siguiente track a brainstormear es el **#0 (README al día)**, seguido de los tracks **#1/#2 (GUI)**. Cada uno sigue su propio ciclo `superpowers:brainstorming` → spec/plan → implementación, igual que duplicación.
+Tracks #0, #1 y #2 ya están shippeados (ver [[project-fase-sequencing]] en memoria para las fechas/commits exactos). El siguiente track a brainstormear es el **#3 (Reglas avanzadas de C)**. Cada track sigue su propio ciclo `superpowers:brainstorming` → spec/plan → implementación, igual que duplicación.
