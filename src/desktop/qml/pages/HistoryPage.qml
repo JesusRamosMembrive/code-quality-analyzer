@@ -177,5 +177,57 @@ Item {
 
             ScrollBar.vertical: ScrollBar {}
         }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+
+            Label {
+                text: "Compare:"
+            }
+
+            ComboBox {
+                id: fromSnapshotCombo
+                objectName: "fromSnapshotCombo"
+                Layout.preferredWidth: 200
+                model: historyPage.controller ? historyPage.controller.snapshots : null
+                textRole: "timestamp"
+            }
+
+            Label {
+                text: "→"
+            }
+
+            ComboBox {
+                id: toSnapshotCombo
+                objectName: "toSnapshotCombo"
+                Layout.preferredWidth: 200
+                model: historyPage.controller ? historyPage.controller.snapshots : null
+                textRole: "timestamp"
+            }
+
+            PulseButton {
+                id: compareSnapshotsButton
+                objectName: "compareSnapshotsButton"
+                text: "Compare"
+                enabled: historyPage.controller
+                    && fromSnapshotCombo.currentText !== ""
+                    && toSnapshotCombo.currentText !== ""
+                    && fromSnapshotCombo.currentText !== toSnapshotCombo.currentText
+                onClicked: historyPage.controller.compareSnapshots(
+                    fromSnapshotCombo.currentText, toSnapshotCombo.currentText)
+            }
+
+            Label {
+                id: snapshotComparisonResult
+                objectName: "snapshotComparisonResult"
+                visible: historyPage.controller && historyPage.controller.snapshotComparisonAvailable
+                text: historyPage.controller
+                    ? historyPage.controller.snapshotComparisonNewCount + " new, "
+                        + historyPage.controller.snapshotComparisonExistingCount + " existing, "
+                        + historyPage.controller.snapshotComparisonResolvedCount + " resolved"
+                    : ""
+            }
+        }
     }
 }

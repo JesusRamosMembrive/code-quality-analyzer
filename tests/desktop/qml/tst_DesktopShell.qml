@@ -96,6 +96,12 @@ TestCase {
         id: fixtureController
         property var findings: fixtureFindings
         property var suppressedFindings: fixtureSuppressedFindings
+        property int snapshotComparisonNewCount: 0
+        property int snapshotComparisonExistingCount: 0
+        property int snapshotComparisonResolvedCount: 0
+        property bool snapshotComparisonAvailable: false
+        property string lastCompareFrom: ""
+        property string lastCompareTo: ""
         property var files: fixtureFiles
         property var snapshots: fixtureSnapshots
         property var rules: fixtureRules
@@ -154,6 +160,14 @@ TestCase {
         function deleteSnapshot(timestamp) {
             ++deleteSnapshotCalls
             deletedTimestamp = timestamp
+        }
+        function compareSnapshots(fromTimestamp, toTimestamp) {
+            lastCompareFrom = fromTimestamp
+            lastCompareTo = toTimestamp
+            snapshotComparisonNewCount = 1
+            snapshotComparisonExistingCount = 1
+            snapshotComparisonResolvedCount = 1
+            snapshotComparisonAvailable = true
         }
         function clearRecentPaths() {
             ++clearRecentPathsCalls
@@ -419,6 +433,32 @@ TestCase {
         history.deleteConfirmation.accept()
         compare(fixtureController.deleteSnapshotCalls, 1)
         compare(fixtureController.deletedTimestamp, "20260301T000000Z")
+    }
+
+    function test_history_compare_snapshots_shows_counts() {
+        fixtureController.snapshotComparisonAvailable = false
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+
+        const fromCombo = shell.findChild("fromSnapshotCombo")
+        const toCombo = shell.findChild("toSnapshotCombo")
+        verify(fromCombo !== null)
+        verify(toCombo !== null)
+        fromCombo.currentIndex = 1
+        toCombo.currentIndex = 0
+
+        const compareButton = shell.findChild("compareSnapshotsButton")
+        verify(compareButton !== null)
+        verify(compareButton.enabled)
+        mouseClick(compareButton, compareButton.width / 2, compareButton.height / 2)
+
+        compare(fixtureController.lastCompareFrom, "20260101T000000Z")
+        compare(fixtureController.lastCompareTo, "20260301T000000Z")
+        const resultLabel = shell.findChild("snapshotComparisonResult")
+        verify(resultLabel !== null)
+        tryVerify(function() { return resultLabel.visible === true })
+        verify(resultLabel.text.indexOf("1") !== -1)
     }
 
     function test_running_analysis_disables_history_actions() {
