@@ -197,35 +197,32 @@ std::optional<codeqa::core::Language> parseLanguageName(const std::string& langu
     return std::nullopt;
 }
 
-enum class FlagParseResult
+struct FlagParseOutcome
 {
-    NotAFlag,
-    Consumed,
-    Failed
+    bool consumed{false};
+    std::optional<int> failureExitCode;
 };
 
 /// --exclude / --lang-override, shared by discover, parse, and analyze.
-FlagParseResult tryParseDiscoveryFlag(
+FlagParseOutcome tryParseDiscoveryFlag(
     const std::string& token,
     std::size_t& index,
     const std::vector<std::string>& arguments,
     std::ostream& errorOutput,
     std::vector<std::string>& excludePatterns,
-    std::vector<codeqa::application::LanguageOverride>& languageOverrides,
-    int& exitCode)
+    std::vector<codeqa::application::LanguageOverride>& languageOverrides)
 {
     if (token == "--exclude")
     {
         if (index + 1 >= arguments.size())
         {
             errorOutput << "Error [CLI004]: Missing value for '--exclude'.\n";
-            exitCode = static_cast<int>(ExitCode::InvalidArguments);
-            return FlagParseResult::Failed;
+            return FlagParseOutcome{true, static_cast<int>(ExitCode::InvalidArguments)};
         }
 
         excludePatterns.push_back(arguments[index + 1]);
         ++index;
-        return FlagParseResult::Consumed;
+        return FlagParseOutcome{true, std::nullopt};
     }
 
     if (token == "--lang-override")
@@ -233,8 +230,7 @@ FlagParseResult tryParseDiscoveryFlag(
         if (index + 1 >= arguments.size())
         {
             errorOutput << "Error [CLI006]: Missing value for '--lang-override'.\n";
-            exitCode = static_cast<int>(ExitCode::InvalidArguments);
-            return FlagParseResult::Failed;
+            return FlagParseOutcome{true, static_cast<int>(ExitCode::InvalidArguments)};
         }
 
         const std::string& value = arguments[index + 1];
@@ -245,8 +241,7 @@ FlagParseResult tryParseDiscoveryFlag(
         {
             errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
                            << "'. Expected <pattern>=c|cpp.\n";
-            exitCode = static_cast<int>(ExitCode::InvalidArguments);
-            return FlagParseResult::Failed;
+            return FlagParseOutcome{true, static_cast<int>(ExitCode::InvalidArguments)};
         }
 
         const std::string pattern = value.substr(0, equalsPosition);
@@ -257,16 +252,15 @@ FlagParseResult tryParseDiscoveryFlag(
         {
             errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
                            << "'. Expected <pattern>=c|cpp.\n";
-            exitCode = static_cast<int>(ExitCode::InvalidArguments);
-            return FlagParseResult::Failed;
+            return FlagParseOutcome{true, static_cast<int>(ExitCode::InvalidArguments)};
         }
 
         languageOverrides.push_back(codeqa::application::LanguageOverride{pattern, *language});
         ++index;
-        return FlagParseResult::Consumed;
+        return FlagParseOutcome{true, std::nullopt};
     }
 
-    return FlagParseResult::NotAFlag;
+    return FlagParseOutcome{false, std::nullopt};
 }
 
 /// Required <path>, shared by discover, parse, analyze, and snapshot.
@@ -290,6 +284,13 @@ std::optional<int> requirePathIsDirectory(
     }
 
     return std::nullopt;
+}
+
+/// CLI005, shared by discover, parse, analyze, and snapshot.
+int reportUnexpectedArgument(const std::string& token, std::ostream& errorOutput)
+{
+    errorOutput << "Error [CLI005]: Unexpected argument '" << token << "'.\n";
+    return static_cast<int>(ExitCode::InvalidArguments);
 }
 
 /// The arguments shared by `discover` and `parse`: a required <path>, plus repeatable
@@ -327,16 +328,15 @@ DiscoverArgumentsOutcome parseDiscoverArguments(
     {
         const std::string& token = arguments[index];
 
-        int flagExitCode = static_cast<int>(ExitCode::Success);
-        const FlagParseResult flagResult = tryParseDiscoveryFlag(
-            token, index, arguments, errorOutput, excludePatterns, languageOverrides, flagExitCode);
+        const FlagParseOutcome flag = tryParseDiscoveryFlag(
+            token, index, arguments, errorOutput, excludePatterns, languageOverrides);
 
-        if (flagResult == FlagParseResult::Failed)
+        if (flag.failureExitCode)
         {
-            return DiscoverArgumentsOutcome{std::nullopt, flagExitCode};
+            return DiscoverArgumentsOutcome{std::nullopt, *flag.failureExitCode};
         }
 
-        if (flagResult == FlagParseResult::Consumed)
+        if (flag.consumed)
         {
             continue;
         }
@@ -347,8 +347,7 @@ DiscoverArgumentsOutcome parseDiscoverArguments(
             continue;
         }
 
-        errorOutput << "Error [CLI005]: Unexpected argument '" << token << "'.\n";
-        return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+        return DiscoverArgumentsOutcome{std::nullopt, reportUnexpectedArgument(token, errorOutput)};
     }
 
     if (const std::optional<int> pathError = requirePathIsDirectory(path, subcommandName, errorOutput))
@@ -502,16 +501,15 @@ AnalyzeArgumentsOutcome parseAnalyzeArguments(const std::vector<std::string>& ar
     {
         const std::string& token = arguments[index];
 
-        int flagExitCode = static_cast<int>(ExitCode::Success);
-        const FlagParseResult flagResult = tryParseDiscoveryFlag(
-            token, index, arguments, errorOutput, excludePatterns, languageOverrides, flagExitCode);
+        const FlagParseOutcome flag = tryParseDiscoveryFlag(
+            token, index, arguments, errorOutput, excludePatterns, languageOverrides);
 
-        if (flagResult == FlagParseResult::Failed)
+        if (flag.failureExitCode)
         {
-            return AnalyzeArgumentsOutcome{std::nullopt, flagExitCode};
+            return AnalyzeArgumentsOutcome{std::nullopt, *flag.failureExitCode};
         }
 
-        if (flagResult == FlagParseResult::Consumed)
+        if (flag.consumed)
         {
             continue;
         }
@@ -570,8 +568,7 @@ AnalyzeArgumentsOutcome parseAnalyzeArguments(const std::vector<std::string>& ar
             continue;
         }
 
-        errorOutput << "Error [CLI005]: Unexpected argument '" << token << "'.\n";
-        return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+        return AnalyzeArgumentsOutcome{std::nullopt, reportUnexpectedArgument(token, errorOutput)};
     }
 
     if (const std::optional<int> pathError = requirePathIsDirectory(path, "analyze", errorOutput))
@@ -833,8 +830,8 @@ SnapshotArgumentsOutcome parseSnapshotArguments(
 
     if (arguments.size() > expectedArgumentCount)
     {
-        errorOutput << "Error [CLI005]: Unexpected argument '" << arguments[expectedArgumentCount] << "'.\n";
-        return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+        return SnapshotArgumentsOutcome{
+            std::nullopt, reportUnexpectedArgument(arguments[expectedArgumentCount], errorOutput)};
     }
 
     return SnapshotArgumentsOutcome{
