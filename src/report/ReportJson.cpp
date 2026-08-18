@@ -16,11 +16,6 @@ namespace
 
 using Json = nlohmann::json;
 
-Json locationJson(const codeqa::core::SourceLocation& location)
-{
-    return Json{{"line", location.line}, {"column", location.column}};
-}
-
 Json functionMetricsJson(const codeqa::metrics::FunctionMetricsModel& function)
 {
     return Json{

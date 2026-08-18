@@ -68,7 +68,6 @@ public:
         const std::filesystem::path& projectRoot, const codeqa::config::ProjectConfig& config) const;
     [[nodiscard]] AnalysisFacadeResult analyzeProject(
         const FacadeAnalysisRequest& request, AnalysisProgressCallback progress = {}) const;
-    [[nodiscard]] ReportDocumentResult openReport(const std::filesystem::path& path) const;
     [[nodiscard]] SnapshotListResult listSnapshots(const std::filesystem::path& projectRoot) const;
     [[nodiscard]] ReportDocumentResult openSnapshot(
         const std::filesystem::path& projectRoot, const std::string& timestamp) const;

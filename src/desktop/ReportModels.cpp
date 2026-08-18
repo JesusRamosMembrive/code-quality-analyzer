@@ -457,14 +457,6 @@ QHash<int, QByteArray> FindingListModel::roleNames() const
     return roles;
 }
 
-void FindingListModel::setDocument(
-    std::shared_ptr<const codeqa::application::ReportDocument> document)
-{
-    beginDocumentReset();
-    applyDocument(std::move(document));
-    endDocumentReset();
-}
-
 void FindingListModel::beginDocumentReset()
 {
     beginResetModel();
@@ -648,14 +640,6 @@ QHash<int, QByteArray> SuppressedFindingListModel::roleNames() const
     return roles;
 }
 
-void SuppressedFindingListModel::setDocument(
-    std::shared_ptr<const codeqa::application::ReportDocument> document)
-{
-    beginDocumentReset();
-    applyDocument(std::move(document));
-    endDocumentReset();
-}
-
 void SuppressedFindingListModel::beginDocumentReset()
 {
     beginResetModel();
@@ -761,14 +745,6 @@ QHash<int, QByteArray> FileListModel::roleNames() const
         {FunctionCountRole, "functionCount"},
         {FunctionMetricsRole, "functionMetrics"}};
     return roles;
-}
-
-void FileListModel::setDocument(
-    std::shared_ptr<const codeqa::application::ReportDocument> document)
-{
-    beginDocumentReset();
-    applyDocument(std::move(document));
-    endDocumentReset();
 }
 
 void FileListModel::beginDocumentReset()

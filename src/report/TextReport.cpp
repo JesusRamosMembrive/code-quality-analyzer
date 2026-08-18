@@ -1,5 +1,6 @@
 #include "codeqa/report/TextReport.h"
 
+#include "ReportTextUtilities.h"
 #include "codeqa/core/EnumJson.h"
 
 #include <cstddef>
@@ -13,54 +14,11 @@ namespace codeqa::report
 namespace
 {
 
-const char* severityTag(codeqa::core::DiagnosticSeverity severity)
-{
-    switch (severity)
-    {
-    case codeqa::core::DiagnosticSeverity::Error:
-        return "ERROR";
-    case codeqa::core::DiagnosticSeverity::Warning:
-        return "WARNING";
-    case codeqa::core::DiagnosticSeverity::Information:
-        return "INFORMATION";
-    }
-
-    return "ERROR";
-}
-
-struct SeverityCounts
-{
-    std::size_t errors{0};
-    std::size_t warnings{0};
-    std::size_t information{0};
-};
-
-void countSeverity(SeverityCounts& counts, codeqa::core::DiagnosticSeverity severity)
-{
-    switch (severity)
-    {
-    case codeqa::core::DiagnosticSeverity::Error:
-        ++counts.errors;
-        break;
-    case codeqa::core::DiagnosticSeverity::Warning:
-        ++counts.warnings;
-        break;
-    case codeqa::core::DiagnosticSeverity::Information:
-        ++counts.information;
-        break;
-    }
-}
-
 struct LocatedFinding
 {
     std::filesystem::path filePath;
     const codeqa::rules::Finding* finding{nullptr};
 };
-
-std::string relativeDisplayPath(const std::filesystem::path& path, const std::filesystem::path& root)
-{
-    return std::filesystem::relative(path, root).generic_string();
-}
 
 void writeSummary(
     std::ostream& output,
@@ -68,68 +26,28 @@ void writeSummary(
     const codeqa::metrics::ProjectMetricsModel& metrics,
     const codeqa::rules::ProjectFindingsModel& findings)
 {
-    std::size_t cCount = 0;
-    std::size_t cppCount = 0;
-    std::size_t unavailableCount = 0;
-
-    for (const codeqa::model::FileModel& file : model.files)
-    {
-        if (file.language == codeqa::core::Language::C)
-        {
-            ++cCount;
-        }
-        else if (file.language == codeqa::core::Language::Cpp)
-        {
-            ++cppCount;
-        }
-
-        if (file.state == codeqa::model::AnalysisState::Unavailable)
-        {
-            ++unavailableCount;
-        }
-    }
-
-    std::size_t functionCount = 0;
-    for (const codeqa::metrics::FileMetricsModel& file : metrics.files)
-    {
-        functionCount += file.functions.size();
-    }
-
-    SeverityCounts diagnosticCounts;
-    for (const codeqa::model::FileModel& file : model.files)
-    {
-        for (const codeqa::core::Diagnostic& diagnostic : file.diagnostics)
-        {
-            countSeverity(diagnosticCounts, diagnostic.severity);
-        }
-    }
-
-    SeverityCounts findingCounts;
-    for (const codeqa::rules::FileFindingsModel& file : findings.files)
-    {
-        for (const codeqa::rules::Finding& finding : file.findings)
-        {
-            countSeverity(findingCounts, finding.severity);
-        }
-    }
+    const ReportSummary summary = computeReportSummary(model, metrics, findings);
 
     output << "Summary\n"
               "-------\n"
               "Root: "
            << model.rootPath.generic_string() << "\n"
                                                   "Files analyzed: "
-           << model.files.size() << " (C: " << cCount << ", C++: " << cppCount << ", unavailable: " << unavailableCount
+           << model.files.size() << " (C: " << summary.cCount << ", C++: " << summary.cppCount
+           << ", unavailable: " << summary.unavailableCount
            << ")\n"
               "Functions measured: "
-           << functionCount << "\n"
+           << summary.functionCount << "\n"
                                 "Diagnostics: "
-           << (diagnosticCounts.errors + diagnosticCounts.warnings + diagnosticCounts.information)
-           << " (errors: " << diagnosticCounts.errors << ", warnings: " << diagnosticCounts.warnings
-           << ", information: " << diagnosticCounts.information
+           << (summary.diagnosticCounts.errors + summary.diagnosticCounts.warnings
+               + summary.diagnosticCounts.information)
+           << " (errors: " << summary.diagnosticCounts.errors << ", warnings: " << summary.diagnosticCounts.warnings
+           << ", information: " << summary.diagnosticCounts.information
            << ")\n"
               "Findings: "
-           << (findingCounts.errors + findingCounts.warnings) << " (errors: " << findingCounts.errors
-           << ", warnings: " << findingCounts.warnings << ")\n";
+           << (summary.findingCounts.errors + summary.findingCounts.warnings)
+           << " (errors: " << summary.findingCounts.errors << ", warnings: " << summary.findingCounts.warnings
+           << ")\n";
 }
 
 std::vector<LocatedFinding> collectFindingsBySeverity(

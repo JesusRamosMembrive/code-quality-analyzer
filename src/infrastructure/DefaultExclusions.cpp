@@ -1,24 +1,9 @@
 #include "codeqa/infrastructure/DefaultExclusions.h"
 
-#include <algorithm>
-#include <cctype>
+#include "codeqa/infrastructure/StringUtilities.h"
 
 namespace codeqa::infrastructure
 {
-
-namespace
-{
-
-std::string toLower(std::string text)
-{
-    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char character) {
-        return static_cast<char>(std::tolower(character));
-    });
-
-    return text;
-}
-
-} // namespace
 
 bool isDefaultExcludedDirectoryName(const std::string& directoryName)
 {

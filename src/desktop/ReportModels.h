@@ -118,7 +118,6 @@ public:
     [[nodiscard]] int errorCount() const;
     [[nodiscard]] int warningCount() const;
 
-    void setDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
     void setSeverityFilter(const QString& severity);
     void setRuleFilter(const QString& ruleId);
     void setSearchText(const QString& searchText);
@@ -182,8 +181,6 @@ public:
     [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
-    void setDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
-
 private:
     friend class AppController;
 
@@ -233,8 +230,6 @@ public:
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] int fileCount() const;
     [[nodiscard]] int diagnosticCount() const;
-
-    void setDocument(std::shared_ptr<const codeqa::application::ReportDocument> document);
 
 signals:
     void summaryChanged();

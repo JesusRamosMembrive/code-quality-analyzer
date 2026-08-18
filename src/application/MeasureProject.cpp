@@ -2,6 +2,7 @@
 
 #include "codeqa/core/DiagnosticSeverity.h"
 #include "codeqa/infrastructure/ReadFileContents.h"
+#include "codeqa/infrastructure/StringUtilities.h"
 #include "codeqa/metrics/CalculateFunctionMetrics.h"
 
 #include <filesystem>
@@ -15,35 +16,6 @@ namespace codeqa::application
 
 namespace
 {
-
-std::vector<std::string> splitLines(const std::string& content)
-{
-    std::vector<std::string> lines;
-    std::size_t start = 0;
-
-    while (start <= content.size())
-    {
-        const std::size_t newline = content.find('\n', start);
-        const std::size_t end = (newline == std::string::npos) ? content.size() : newline;
-        std::size_t lineEnd = end;
-
-        if (lineEnd > start && content[lineEnd - 1] == '\r')
-        {
-            --lineEnd;
-        }
-
-        lines.push_back(content.substr(start, lineEnd - start));
-
-        if (newline == std::string::npos)
-        {
-            break;
-        }
-
-        start = newline + 1;
-    }
-
-    return lines;
-}
 
 codeqa::core::Diagnostic makeUnreadableDiagnostic(const std::filesystem::path& path)
 {
@@ -78,7 +50,7 @@ codeqa::metrics::ProjectMetricsModel MeasureProject::execute(const codeqa::model
             continue;
         }
 
-        const std::vector<std::string> sourceLines = splitLines(*content);
+        const std::vector<std::string> sourceLines = codeqa::infrastructure::splitLines(*content);
 
         for (const codeqa::model::CallableModel& callable : file.callables)
         {

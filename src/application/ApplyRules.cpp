@@ -2,7 +2,9 @@
 
 #include "codeqa/core/Diagnostic.h"
 #include "codeqa/core/SourceRange.h"
+#include "codeqa/core/SourceRangeText.h"
 #include "codeqa/infrastructure/ReadFileContents.h"
+#include "codeqa/infrastructure/StringUtilities.h"
 #include "codeqa/rules/Rule.h"
 #include "codeqa/rules/Rules.h"
 
@@ -21,63 +23,6 @@ namespace codeqa::application
 namespace
 {
 
-// Duplicated from MeasureProject.cpp deliberately -- this is its second
-// occurrence, still under the "rule of three" this project already uses to
-// decide when small helpers get shared vs. copied (see the Fase 6b final
-// review and this phase's design doc, section 7).
-std::vector<std::string> splitLines(const std::string& content)
-{
-    std::vector<std::string> lines;
-    std::size_t start = 0;
-
-    while (start <= content.size())
-    {
-        const std::size_t newline = content.find('\n', start);
-        const std::size_t end = (newline == std::string::npos) ? content.size() : newline;
-        std::size_t lineEnd = end;
-
-        if (lineEnd > start && content[lineEnd - 1] == '\r')
-        {
-            --lineEnd;
-        }
-
-        lines.push_back(content.substr(start, lineEnd - start));
-
-        if (newline == std::string::npos)
-        {
-            break;
-        }
-
-        start = newline + 1;
-    }
-
-    return lines;
-}
-
-// Duplicated from CalculateFunctionMetrics.cpp deliberately -- this is its
-// second occurrence, still under the "rule of three" this project already
-// uses to decide when small predicates get shared vs. copied (see the Fase
-// 6b final review and this phase's design doc, section 7).
-bool positionInRange(std::size_t line, std::size_t column, const codeqa::core::SourceRange& range)
-{
-    if (line < range.begin.line || line > range.end.line)
-    {
-        return false;
-    }
-
-    if (line == range.begin.line && column < range.begin.column)
-    {
-        return false;
-    }
-
-    if (line == range.end.line && column >= range.end.column)
-    {
-        return false;
-    }
-
-    return true;
-}
-
 bool overlapsParseError(
     const codeqa::core::SourceRange& range, const std::vector<codeqa::core::Diagnostic>& diagnostics)
 {
@@ -88,7 +33,7 @@ bool overlapsParseError(
             continue;
         }
 
-        if (positionInRange(diagnostic.location.line, diagnostic.location.column, range))
+        if (codeqa::core::positionInRange(diagnostic.location.line, diagnostic.location.column, range))
         {
             return true;
         }
@@ -126,36 +71,6 @@ const codeqa::metrics::FunctionMetricsModel* functionMetricsFor(
     return nullptr;
 }
 
-// Duplicated from CalculateFunctionMetrics.cpp deliberately -- this is its
-// second occurrence, still under the "rule of three" this project already
-// uses to decide when small helpers get shared vs. copied (see the Fase 6b
-// final review and this phase's design doc, section 7).
-std::string extractRangeText(const codeqa::core::SourceRange& range, const std::vector<std::string>& sourceLines)
-{
-    static const std::string emptyLine;
-    std::string result;
-
-    for (std::size_t line = range.begin.line; line <= range.end.line; ++line)
-    {
-        const std::string& text = (line - 1) < sourceLines.size() ? sourceLines[line - 1] : emptyLine;
-        const std::size_t begin = (line == range.begin.line) ? range.begin.column - 1 : 0;
-        const std::size_t end =
-            (line == range.end.line) ? std::min(text.size(), range.end.column - 1) : text.size();
-
-        if (begin < end)
-        {
-            result += text.substr(begin, end - begin);
-        }
-
-        if (line != range.end.line)
-        {
-            result += '\n';
-        }
-    }
-
-    return result;
-}
-
 std::optional<std::string> suppressedRuleIdOnLine(
     std::size_t line,
     const std::vector<codeqa::core::SourceRange>& fileComments,
@@ -170,7 +85,7 @@ std::optional<std::string> suppressedRuleIdOnLine(
             continue;
         }
 
-        const std::string text = extractRangeText(comment, sourceLines);
+        const std::string text = codeqa::core::extractRangeText(comment, sourceLines);
         std::smatch match;
 
         if (std::regex_search(text, match, directive))
@@ -223,7 +138,7 @@ codeqa::rules::ProjectFindingsModel ApplyRules::execute(
 
         const std::optional<std::string> content = codeqa::infrastructure::readFileContents(file.path);
         const std::vector<std::string> sourceLines =
-            content.has_value() ? splitLines(*content) : std::vector<std::string>{};
+            content.has_value() ? codeqa::infrastructure::splitLines(*content) : std::vector<std::string>{};
 
         for (const codeqa::model::CallableModel& callable : file.callables)
         {

@@ -1,6 +1,7 @@
 #include "AppController.h"
 
 #include "codeqa/application/ReportDocumentAnalysis.h"
+#include "codeqa/application/ReportDocumentFactory.h"
 #include "codeqa/config/DefaultConfig.h"
 #include "codeqa/core/EnumJson.h"
 #include "codeqa/report/MarkdownReport.h"
@@ -437,7 +438,7 @@ void AppController::openReport(const QUrl& reportUrl)
         return;
     }
 
-    codeqa::application::ReportDocumentResult result = facade_.openReport(path);
+    codeqa::application::ReportDocumentResult result = codeqa::application::loadReportDocument(path);
     if (!result.document.has_value())
     {
         setErrorMessage(QString::fromStdString(result.error.value_or("Error [REPORT001]: unable to read report.")));
@@ -618,37 +619,28 @@ void AppController::startAnalysis(
     launchAnalysis(std::move(config));
 }
 
+void AppController::withProject(const QUrl& projectRoot, const std::function<void()>& action)
+{
+    if (!analysisRunning_)
+    {
+        setCurrentProject(projectRoot);
+    }
+    action();
+}
+
 void AppController::openSnapshot(const QUrl& projectRoot, const QString& timestamp)
 {
-    if (analysisRunning_)
-    {
-        openSnapshot(timestamp);
-        return;
-    }
-    setCurrentProject(projectRoot);
-    openSnapshot(timestamp);
+    withProject(projectRoot, [this, timestamp]() { openSnapshot(timestamp); });
 }
 
 void AppController::refreshSnapshots(const QUrl& projectRoot)
 {
-    if (analysisRunning_)
-    {
-        refreshSnapshots();
-        return;
-    }
-    setCurrentProject(projectRoot);
-    refreshSnapshots();
+    withProject(projectRoot, [this]() { refreshSnapshots(); });
 }
 
 void AppController::deleteSnapshot(const QUrl& projectRoot, const QString& timestamp)
 {
-    if (analysisRunning_)
-    {
-        deleteSnapshot(timestamp);
-        return;
-    }
-    setCurrentProject(projectRoot);
-    deleteSnapshot(timestamp);
+    withProject(projectRoot, [this, timestamp]() { deleteSnapshot(timestamp); });
 }
 
 void AppController::initializeSettingsState()

@@ -5,15 +5,15 @@
 namespace codeqa::report
 {
 
-namespace
-{
-
 using Json = nlohmann::json;
 
-Json locationJson(const codeqa::core::SourceLocation& location)
+nlohmann::json locationJson(const codeqa::core::SourceLocation& location)
 {
     return Json{{"line", location.line}, {"column", location.column}};
 }
+
+namespace
+{
 
 Json rangeJson(const codeqa::core::SourceRange& range)
 {

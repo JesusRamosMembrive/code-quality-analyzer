@@ -1202,49 +1202,15 @@ void extractBodyStructure(
     visit(visit, body, 0, 0);
 
     std::stable_sort(
-        function.localVariables.begin(),
-        function.localVariables.end(),
-        [](const LocalVariableModel& left, const LocalVariableModel& right) {
-            if (left.range.begin.offset != right.range.begin.offset)
-            {
-                return left.range.begin.offset < right.range.begin.offset;
-            }
-
-            return left.range.end.offset < right.range.end.offset;
-        });
+        function.localVariables.begin(), function.localVariables.end(),
+        [](const LocalVariableModel& left, const LocalVariableModel& right) { return left.range < right.range; });
     std::stable_sort(
-        function.controlFlow.begin(),
-        function.controlFlow.end(),
-        [](const ControlFlowModel& left, const ControlFlowModel& right) {
-            if (left.range.begin.offset != right.range.begin.offset)
-            {
-                return left.range.begin.offset < right.range.begin.offset;
-            }
-
-            return left.range.end.offset < right.range.end.offset;
-        });
+        function.controlFlow.begin(), function.controlFlow.end(),
+        [](const ControlFlowModel& left, const ControlFlowModel& right) { return left.range < right.range; });
     std::stable_sort(
-        function.calls.begin(),
-        function.calls.end(),
-        [](const CallModel& left, const CallModel& right) {
-            if (left.range.begin.offset != right.range.begin.offset)
-            {
-                return left.range.begin.offset < right.range.begin.offset;
-            }
-
-            return left.range.end.offset < right.range.end.offset;
-        });
-    std::stable_sort(
-        function.statements.begin(),
-        function.statements.end(),
-        [](const core::SourceRange& left, const core::SourceRange& right) {
-            if (left.begin.offset != right.begin.offset)
-            {
-                return left.begin.offset < right.begin.offset;
-            }
-
-            return left.end.offset < right.end.offset;
-        });
+        function.calls.begin(), function.calls.end(),
+        [](const CallModel& left, const CallModel& right) { return left.range < right.range; });
+    std::stable_sort(function.statements.begin(), function.statements.end());
 }
 
 void adaptDeclaration(
@@ -1315,32 +1281,27 @@ void collectNodesOfType(TSNode node, const char* type, std::vector<TSNode>& node
 
 bool hasSameFunctionRangeAndKind(const FunctionModel& left, const FunctionModel& right)
 {
-    return left.kind == right.kind && left.range.begin.offset == right.range.begin.offset
-        && left.range.end.offset == right.range.end.offset;
+    return left.kind == right.kind && left.range == right.range;
 }
 
 bool hasSameClassRangeAndKind(const ClassModel& left, const ClassModel& right)
 {
-    return left.kind == right.kind && left.range.begin.offset == right.range.begin.offset
-        && left.range.end.offset == right.range.end.offset;
+    return left.kind == right.kind && left.range == right.range;
 }
 
 bool hasSameIncludeRange(const IncludeDependency& left, const IncludeDependency& right)
 {
-    return left.range.begin.offset == right.range.begin.offset
-        && left.range.end.offset == right.range.end.offset;
+    return left.range == right.range;
 }
 
 bool hasSameGlobalVariableRange(const GlobalVariableModel& left, const GlobalVariableModel& right)
 {
-    return left.range.begin.offset == right.range.begin.offset
-        && left.range.end.offset == right.range.end.offset;
+    return left.range == right.range;
 }
 
 bool hasSameTypeAliasRange(const TypeAliasModel& left, const TypeAliasModel& right)
 {
-    return left.range.begin.offset == right.range.begin.offset
-        && left.range.end.offset == right.range.end.offset;
+    return left.range == right.range;
 }
 
 } // namespace
@@ -1421,17 +1382,7 @@ void StructuralExtractor::extract(
         result.comments.push_back(sourceRange(comment, path));
     }
 
-    std::stable_sort(
-        result.comments.begin(),
-        result.comments.end(),
-        [](const core::SourceRange& left, const core::SourceRange& right) {
-            if (left.begin.offset != right.begin.offset)
-            {
-                return left.begin.offset < right.begin.offset;
-            }
-
-            return left.end.offset < right.end.offset;
-        });
+    std::stable_sort(result.comments.begin(), result.comments.end());
 
     QueryCursorPointer cursor(ts_query_cursor_new());
     ts_query_cursor_exec(cursor.get(), impl_->functionsFor(grammar), root);
@@ -1482,16 +1433,8 @@ void StructuralExtractor::extract(
     }
 
     std::sort(
-        result.functions.begin(),
-        result.functions.end(),
-        [](const FunctionModel& left, const FunctionModel& right) {
-            if (left.range.begin.offset != right.range.begin.offset)
-            {
-                return left.range.begin.offset < right.range.begin.offset;
-            }
-
-            return left.range.end.offset < right.range.end.offset;
-        });
+        result.functions.begin(), result.functions.end(),
+        [](const FunctionModel& left, const FunctionModel& right) { return left.range < right.range; });
     result.functions.erase(
         std::unique(
             result.functions.begin(), result.functions.end(), hasSameFunctionRangeAndKind),
@@ -1515,16 +1458,8 @@ void StructuralExtractor::extract(
     }
 
     std::sort(
-        result.classes.begin(),
-        result.classes.end(),
-        [](const ClassModel& left, const ClassModel& right) {
-            if (left.range.begin.offset != right.range.begin.offset)
-            {
-                return left.range.begin.offset < right.range.begin.offset;
-            }
-
-            return left.range.end.offset < right.range.end.offset;
-        });
+        result.classes.begin(), result.classes.end(),
+        [](const ClassModel& left, const ClassModel& right) { return left.range < right.range; });
     result.classes.erase(
         std::unique(result.classes.begin(), result.classes.end(), hasSameClassRangeAndKind),
         result.classes.end());
@@ -1546,16 +1481,8 @@ void StructuralExtractor::extract(
     }
 
     std::sort(
-        result.includes.begin(),
-        result.includes.end(),
-        [](const IncludeDependency& left, const IncludeDependency& right) {
-            if (left.range.begin.offset != right.range.begin.offset)
-            {
-                return left.range.begin.offset < right.range.begin.offset;
-            }
-
-            return left.range.end.offset < right.range.end.offset;
-        });
+        result.includes.begin(), result.includes.end(),
+        [](const IncludeDependency& left, const IncludeDependency& right) { return left.range < right.range; });
     result.includes.erase(
         std::unique(result.includes.begin(), result.includes.end(), hasSameIncludeRange),
         result.includes.end());
@@ -1571,32 +1498,16 @@ void StructuralExtractor::extract(
     }
 
     std::sort(
-        result.globalVariables.begin(),
-        result.globalVariables.end(),
-        [](const GlobalVariableModel& left, const GlobalVariableModel& right) {
-            if (left.range.begin.offset != right.range.begin.offset)
-            {
-                return left.range.begin.offset < right.range.begin.offset;
-            }
-
-            return left.range.end.offset < right.range.end.offset;
-        });
+        result.globalVariables.begin(), result.globalVariables.end(),
+        [](const GlobalVariableModel& left, const GlobalVariableModel& right) { return left.range < right.range; });
     result.globalVariables.erase(
         std::unique(
             result.globalVariables.begin(), result.globalVariables.end(), hasSameGlobalVariableRange),
         result.globalVariables.end());
 
     std::sort(
-        result.typeAliases.begin(),
-        result.typeAliases.end(),
-        [](const TypeAliasModel& left, const TypeAliasModel& right) {
-            if (left.range.begin.offset != right.range.begin.offset)
-            {
-                return left.range.begin.offset < right.range.begin.offset;
-            }
-
-            return left.range.end.offset < right.range.end.offset;
-        });
+        result.typeAliases.begin(), result.typeAliases.end(),
+        [](const TypeAliasModel& left, const TypeAliasModel& right) { return left.range < right.range; });
     result.typeAliases.erase(
         std::unique(result.typeAliases.begin(), result.typeAliases.end(), hasSameTypeAliasRange),
         result.typeAliases.end());

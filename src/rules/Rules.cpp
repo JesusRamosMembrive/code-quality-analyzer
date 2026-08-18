@@ -1,9 +1,10 @@
 #include "codeqa/rules/Rules.h"
 
+#include "codeqa/model/ParameterUtilities.h"
+
 #include <algorithm>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -41,32 +42,6 @@ std::optional<Finding> evaluateThreshold(
     finding.location = std::move(location);
     finding.symbolName = std::move(symbolName);
     return finding;
-}
-
-// Duplicated from CalculateFunctionMetrics.cpp deliberately -- this is its
-// second occurrence, still under the "rule of three" this project already
-// uses to decide when small predicates get shared vs. copied (see the Fase
-// 6b final review and this phase's design doc, section 7).
-bool isBooleanValueParameter(const codeqa::model::ParameterModel& parameter)
-{
-    if (parameter.passing != codeqa::model::ParameterPassing::Value)
-    {
-        return false;
-    }
-
-    std::istringstream stream(parameter.declaredType);
-    std::vector<std::string> tokens;
-    std::string token;
-
-    while (stream >> token)
-    {
-        if (token != "const" && token != "volatile")
-        {
-            tokens.push_back(token);
-        }
-    }
-
-    return tokens.size() == 1 && (tokens[0] == "bool" || tokens[0] == "_Bool");
 }
 
 std::vector<Finding> singleOrEmpty(const std::optional<Finding>& finding)
@@ -186,7 +161,7 @@ public:
 
         for (const codeqa::model::ParameterModel& parameter : context.callable.parameters)
         {
-            if (isBooleanValueParameter(parameter))
+            if (codeqa::model::isBooleanValueParameter(parameter))
             {
                 ++currentRun;
                 longestRun = std::max(longestRun, currentRun);

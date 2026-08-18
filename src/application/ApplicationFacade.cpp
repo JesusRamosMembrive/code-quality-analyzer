@@ -210,11 +210,6 @@ AnalysisFacadeResult ApplicationFacade::analyzeProject(
     return result;
 }
 
-ReportDocumentResult ApplicationFacade::openReport(const std::filesystem::path& path) const
-{
-    return loadReportDocument(path);
-}
-
 SnapshotListResult ApplicationFacade::listSnapshots(const std::filesystem::path& projectRoot) const
 {
     SnapshotListResult result;

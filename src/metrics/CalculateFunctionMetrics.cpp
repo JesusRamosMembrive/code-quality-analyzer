@@ -1,9 +1,11 @@
 #include "codeqa/metrics/CalculateFunctionMetrics.h"
 
+#include "codeqa/core/SourceRangeText.h"
+#include "codeqa/model/ParameterUtilities.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
-#include <sstream>
 #include <string>
 
 namespace codeqa::metrics
@@ -22,26 +24,6 @@ enum class LineClassification
 bool isHorizontalWhitespace(char character)
 {
     return character == ' ' || character == '\t' || character == '\f' || character == '\v';
-}
-
-bool positionInRange(std::size_t line, std::size_t column, const codeqa::core::SourceRange& range)
-{
-    if (line < range.begin.line || line > range.end.line)
-    {
-        return false;
-    }
-
-    if (line == range.begin.line && column < range.begin.column)
-    {
-        return false;
-    }
-
-    if (line == range.end.line && column >= range.end.column)
-    {
-        return false;
-    }
-
-    return true;
 }
 
 LineClassification classifyLine(
@@ -63,7 +45,7 @@ LineClassification classifyLine(
         const std::size_t column = index + 1;
         const bool covered = std::any_of(
             fileComments.begin(), fileComments.end(), [line, column](const codeqa::core::SourceRange& comment) {
-                return positionInRange(line, column, comment);
+                return codeqa::core::positionInRange(line, column, comment);
             });
 
         if (!covered)
@@ -156,54 +138,6 @@ std::size_t collapsedLength(const std::string& text)
     return length;
 }
 
-std::string extractRangeText(const codeqa::core::SourceRange& range, const std::vector<std::string>& sourceLines)
-{
-    static const std::string emptyLine;
-    std::string result;
-
-    for (std::size_t line = range.begin.line; line <= range.end.line; ++line)
-    {
-        const std::string& text = (line - 1) < sourceLines.size() ? sourceLines[line - 1] : emptyLine;
-        const std::size_t begin = (line == range.begin.line) ? range.begin.column - 1 : 0;
-        const std::size_t end =
-            (line == range.end.line) ? std::min(text.size(), range.end.column - 1) : text.size();
-
-        if (begin < end)
-        {
-            result += text.substr(begin, end - begin);
-        }
-
-        if (line != range.end.line)
-        {
-            result += '\n';
-        }
-    }
-
-    return result;
-}
-
-bool isBooleanValueParameter(const codeqa::model::ParameterModel& parameter)
-{
-    if (parameter.passing != codeqa::model::ParameterPassing::Value)
-    {
-        return false;
-    }
-
-    std::istringstream stream(parameter.declaredType);
-    std::vector<std::string> tokens;
-    std::string token;
-
-    while (stream >> token)
-    {
-        if (token != "const" && token != "volatile")
-        {
-            tokens.push_back(token);
-        }
-    }
-
-    return tokens.size() == 1 && (tokens[0] == "bool" || tokens[0] == "_Bool");
-}
-
 FunctionSignatureMetrics calculateSignatureMetrics(
     const codeqa::model::CallableModel& callable, const std::vector<std::string>& sourceLines)
 {
@@ -212,14 +146,14 @@ FunctionSignatureMetrics calculateSignatureMetrics(
 
     if (callable.parameterListRange.has_value())
     {
-        const std::string text = extractRangeText(*callable.parameterListRange, sourceLines);
+        const std::string text = codeqa::core::extractRangeText(*callable.parameterListRange, sourceLines);
         const std::string inner = text.size() >= 2 ? text.substr(1, text.size() - 2) : std::string{};
         metrics.signatureLength = collapsedLength(trim(inner));
     }
 
     for (const codeqa::model::ParameterModel& parameter : callable.parameters)
     {
-        if (isBooleanValueParameter(parameter))
+        if (codeqa::model::isBooleanValueParameter(parameter))
         {
             ++metrics.booleanParameterCount;
         }

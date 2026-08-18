@@ -86,7 +86,6 @@ target_include_directories(nlohmann_json SYSTEM INTERFACE
 
 add_library(codeqa_core STATIC
     src/application/GetApplicationInfo.cpp
-    src/application/DiscoverProjectSources.cpp
     src/application/DetectFileLanguage.cpp
     src/application/AnalyzeProject.cpp
     src/application/MeasureProject.cpp
@@ -107,6 +106,8 @@ add_library(codeqa_core STATIC
     src/infrastructure/DiscoverSourceFiles.cpp
     src/infrastructure/GlobMatcher.cpp
     src/infrastructure/ReadFileContents.cpp
+    src/infrastructure/StringUtilities.cpp
+    src/model/ParameterUtilities.cpp
     src/model/ProjectModelBuilder.cpp
     src/metrics/CalculateFunctionMetrics.cpp
     src/rules/Rules.cpp
@@ -115,10 +116,12 @@ add_library(codeqa_core STATIC
     src/config/MergeConfig.cpp
     src/config/ConfigJson.cpp
     src/core/EnumJson.cpp
+    src/core/SourceRangeText.cpp
     src/application/RunAnalysis.cpp
     src/application/ReportDocumentAnalysis.cpp
     src/report/TextReport.cpp
     src/report/MarkdownReport.cpp
+    src/report/ReportTextUtilities.cpp
     src/report/FileJson.cpp
     src/report/ReportJson.cpp
     src/history/CompareSnapshots.cpp

@@ -7,7 +7,6 @@ add_executable(codeqa_tests
     unit/InfrastructureModelsTest.cpp
     unit/GlobMatcherTest.cpp
     unit/DiscoverSourceFilesTest.cpp
-    unit/DiscoverProjectSourcesTest.cpp
     unit/DetectFileLanguageTest.cpp
     unit/TreeSitterSmokeTest.cpp
     unit/SelectGrammarTest.cpp

@@ -3,7 +3,6 @@
 #include "codeqa/application/ApplicationFacade.h"
 #include "codeqa/application/ApplicationInfo.h"
 #include "codeqa/application/DetectFileLanguage.h"
-#include "codeqa/application/DiscoverProjectSources.h"
 #include "codeqa/application/GetApplicationInfo.h"
 #include "codeqa/application/LoadProjectConfig.h"
 #include "codeqa/application/ListSnapshots.h"
@@ -25,6 +24,7 @@
 #include "codeqa/frontend/StructuralExtractor.h"
 #include "codeqa/frontend/TreeSitterParser.h"
 #include "codeqa/infrastructure/ClassifyExtension.h"
+#include "codeqa/infrastructure/DiscoverSourceFiles.h"
 #include "codeqa/infrastructure/DiscoveredFile.h"
 #include "codeqa/infrastructure/DiscoveryOptions.h"
 #include "codeqa/infrastructure/DiscoveryResult.h"
@@ -197,14 +197,17 @@ std::optional<codeqa::core::Language> parseLanguageName(const std::string& langu
     return std::nullopt;
 }
 
-struct FlagParseOutcome
+enum class FlagParseResult
 {
-    bool consumed{false};
-    std::optional<int> failureExitCode;
+    NotAFlag,
+    Consumed,
+    Failed
 };
 
-/// --exclude / --lang-override, shared by discover, parse, and analyze.
-FlagParseOutcome tryParseDiscoveryFlag(
+/// --exclude / --lang-override, shared by discover, parse, and analyze. On Failed, the
+/// caller always uses ExitCode::InvalidArguments -- there is only ever one exit code for
+/// a parse failure in this file, so the result carries no error payload to thread back.
+FlagParseResult tryParseDiscoveryFlag(
     const std::string& token,
     std::size_t& index,
     const std::vector<std::string>& arguments,
@@ -217,12 +220,12 @@ FlagParseOutcome tryParseDiscoveryFlag(
         if (index + 1 >= arguments.size())
         {
             errorOutput << "Error [CLI004]: Missing value for '--exclude'.\n";
-            return FlagParseOutcome{true, static_cast<int>(ExitCode::InvalidArguments)};
+            return FlagParseResult::Failed;
         }
 
         excludePatterns.push_back(arguments[index + 1]);
         ++index;
-        return FlagParseOutcome{true, std::nullopt};
+        return FlagParseResult::Consumed;
     }
 
     if (token == "--lang-override")
@@ -230,7 +233,7 @@ FlagParseOutcome tryParseDiscoveryFlag(
         if (index + 1 >= arguments.size())
         {
             errorOutput << "Error [CLI006]: Missing value for '--lang-override'.\n";
-            return FlagParseOutcome{true, static_cast<int>(ExitCode::InvalidArguments)};
+            return FlagParseResult::Failed;
         }
 
         const std::string& value = arguments[index + 1];
@@ -241,7 +244,7 @@ FlagParseOutcome tryParseDiscoveryFlag(
         {
             errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
                            << "'. Expected <pattern>=c|cpp.\n";
-            return FlagParseOutcome{true, static_cast<int>(ExitCode::InvalidArguments)};
+            return FlagParseResult::Failed;
         }
 
         const std::string pattern = value.substr(0, equalsPosition);
@@ -252,15 +255,15 @@ FlagParseOutcome tryParseDiscoveryFlag(
         {
             errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
                            << "'. Expected <pattern>=c|cpp.\n";
-            return FlagParseOutcome{true, static_cast<int>(ExitCode::InvalidArguments)};
+            return FlagParseResult::Failed;
         }
 
         languageOverrides.push_back(codeqa::application::LanguageOverride{pattern, *language});
         ++index;
-        return FlagParseOutcome{true, std::nullopt};
+        return FlagParseResult::Consumed;
     }
 
-    return FlagParseOutcome{false, std::nullopt};
+    return FlagParseResult::NotAFlag;
 }
 
 /// Required <path>, shared by discover, parse, analyze, and snapshot.
@@ -328,15 +331,15 @@ DiscoverArgumentsOutcome parseDiscoverArguments(
     {
         const std::string& token = arguments[index];
 
-        const FlagParseOutcome flag = tryParseDiscoveryFlag(
+        const FlagParseResult flag = tryParseDiscoveryFlag(
             token, index, arguments, errorOutput, excludePatterns, languageOverrides);
 
-        if (flag.failureExitCode)
+        if (flag == FlagParseResult::Failed)
         {
-            return DiscoverArgumentsOutcome{std::nullopt, *flag.failureExitCode};
+            return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
         }
 
-        if (flag.consumed)
+        if (flag == FlagParseResult::Consumed)
         {
             continue;
         }
@@ -375,8 +378,7 @@ int runDiscover(const std::vector<std::string>& arguments, std::ostream& output,
     options.rootPath = parsedArguments.path;
     options.excludePatterns = parsedArguments.excludePatterns;
 
-    const codeqa::application::DiscoverProjectSources discoverProjectSources;
-    const codeqa::infrastructure::DiscoveryResult result = discoverProjectSources.execute(options);
+    const codeqa::infrastructure::DiscoveryResult result = codeqa::infrastructure::discoverSourceFiles(options);
 
     printDiscoveryResult(output, result);
     printLanguageListing(output, result, parsedArguments.languageOverrides);
@@ -398,8 +400,8 @@ int runParse(const std::vector<std::string>& arguments, std::ostream& output, st
     options.rootPath = parsedArguments.path;
     options.excludePatterns = parsedArguments.excludePatterns;
 
-    const codeqa::application::DiscoverProjectSources discoverProjectSources;
-    const codeqa::infrastructure::DiscoveryResult discoveryResult = discoverProjectSources.execute(options);
+    const codeqa::infrastructure::DiscoveryResult discoveryResult =
+        codeqa::infrastructure::discoverSourceFiles(options);
 
     const codeqa::application::DetectFileLanguage detectFileLanguage;
     codeqa::frontend::TreeSitterParser parser;
@@ -501,15 +503,15 @@ AnalyzeArgumentsOutcome parseAnalyzeArguments(const std::vector<std::string>& ar
     {
         const std::string& token = arguments[index];
 
-        const FlagParseOutcome flag = tryParseDiscoveryFlag(
+        const FlagParseResult flag = tryParseDiscoveryFlag(
             token, index, arguments, errorOutput, excludePatterns, languageOverrides);
 
-        if (flag.failureExitCode)
+        if (flag == FlagParseResult::Failed)
         {
-            return AnalyzeArgumentsOutcome{std::nullopt, *flag.failureExitCode};
+            return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
         }
 
-        if (flag.consumed)
+        if (flag == FlagParseResult::Consumed)
         {
             continue;
         }
@@ -643,7 +645,7 @@ bool outputConflictsWithAnalysis(
     discoveryOptions.rootPath = arguments.path;
     discoveryOptions.excludePatterns = arguments.excludePatterns;
     const codeqa::infrastructure::DiscoveryResult discovery =
-        codeqa::application::DiscoverProjectSources{}.execute(discoveryOptions);
+        codeqa::infrastructure::discoverSourceFiles(discoveryOptions);
     for (const codeqa::infrastructure::DiscoveredFile& file : discovery.files)
     {
         if (samePath(outputPath, arguments.path / file.path))

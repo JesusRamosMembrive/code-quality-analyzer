@@ -1,11 +1,11 @@
 #include "codeqa/application/AnalyzeProject.h"
 
 #include "codeqa/application/DetectFileLanguage.h"
-#include "codeqa/application/DiscoverProjectSources.h"
 #include "codeqa/frontend/ParseSourceFile.h"
 #include "codeqa/frontend/SelectGrammar.h"
 #include "codeqa/frontend/StructuralExtractor.h"
 #include "codeqa/frontend/TreeSitterParser.h"
+#include "codeqa/infrastructure/DiscoverSourceFiles.h"
 #include "codeqa/model/ProjectModelBuilder.h"
 
 #include <utility>
@@ -22,9 +22,8 @@ codeqa::model::ProjectModel AnalyzeProject::execute(
         progress(AnalysisPhase::DiscoveringFiles);
     }
 
-    const DiscoverProjectSources discoverProjectSources;
     const codeqa::infrastructure::DiscoveryResult discovery =
-        discoverProjectSources.execute(request.discovery);
+        codeqa::infrastructure::discoverSourceFiles(request.discovery);
     const DetectFileLanguage detectFileLanguage;
     codeqa::frontend::TreeSitterParser parser;
     codeqa::frontend::StructuralExtractor extractor;

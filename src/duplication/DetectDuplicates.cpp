@@ -1,7 +1,6 @@
 #include "codeqa/duplication/DetectDuplicates.h"
 
 #include <algorithm>
-#include <functional>
 #include <unordered_map>
 #include <utility>
 
@@ -11,13 +10,6 @@ namespace codeqa::duplication
 namespace
 {
 
-struct Candidate
-{
-    std::string qualifiedName;
-    codeqa::core::SourceRange range;
-    const std::string* normalizedTokenSequence{nullptr};
-};
-
 bool byLocation(const DuplicateMember& left, const DuplicateMember& right)
 {
     if (left.range.begin.filePath != right.range.begin.filePath)
@@ -26,44 +18,6 @@ bool byLocation(const DuplicateMember& left, const DuplicateMember& right)
     }
 
     return left.range.begin.offset < right.range.begin.offset;
-}
-
-std::vector<DuplicateGroup> clusterBucket(
-    const std::vector<Candidate>& candidates, const std::vector<std::size_t>& bucket)
-{
-    std::vector<DuplicateGroup> groups;
-    std::vector<bool> grouped(bucket.size(), false);
-
-    for (std::size_t i = 0; i < bucket.size(); ++i)
-    {
-        if (grouped[i])
-        {
-            continue;
-        }
-
-        const Candidate& base = candidates[bucket[i]];
-        DuplicateGroup group;
-        group.members.push_back(DuplicateMember{base.qualifiedName, base.range});
-        grouped[i] = true;
-
-        for (std::size_t j = i + 1; j < bucket.size(); ++j)
-        {
-            const Candidate& other = candidates[bucket[j]];
-            if (!grouped[j] && *other.normalizedTokenSequence == *base.normalizedTokenSequence)
-            {
-                group.members.push_back(DuplicateMember{other.qualifiedName, other.range});
-                grouped[j] = true;
-            }
-        }
-
-        if (group.members.size() >= 2)
-        {
-            std::sort(group.members.begin(), group.members.end(), byLocation);
-            groups.push_back(std::move(group));
-        }
-    }
-
-    return groups;
 }
 
 } // namespace
@@ -78,13 +32,10 @@ ProjectDuplicationModel detectDuplicates(
         return result;
     }
 
-    std::vector<Candidate> candidates;
-
-    // Bucket by an in-process hash purely as a fast pre-filter -- std::hash has no
-    // cross-implementation stability guarantee, so it is never serialized or compared
-    // across runs. Membership within a bucket is always re-verified below by full
-    // string equality, so a hash collision cannot fabricate a false duplicate group.
-    std::unordered_map<std::size_t, std::vector<std::size_t>> buckets;
+    // Grouping key is the normalized sequence itself -- std::unordered_map's own hash
+    // and equality (both over the real std::string) do the exact-match grouping, so
+    // there is no separate collision-safety pass to write by hand.
+    std::unordered_map<std::string, std::vector<DuplicateMember>> byNormalizedSequence;
 
     for (const codeqa::model::FileModel& file : project.files)
     {
@@ -92,19 +43,21 @@ ProjectDuplicationModel detectDuplicates(
         {
             if (callable.normalizedTokenCount >= config.minNormalizedTokens)
             {
-                buckets[std::hash<std::string>{}(callable.normalizedTokenSequence)].push_back(candidates.size());
-                candidates.push_back(Candidate{
-                    callable.symbol.qualifiedName, callable.symbol.range, &callable.normalizedTokenSequence});
+                byNormalizedSequence[callable.normalizedTokenSequence].push_back(
+                    DuplicateMember{callable.symbol.qualifiedName, callable.symbol.range});
             }
         }
     }
 
-    for (const auto& [hash, bucket] : buckets)
+    for (auto& [sequence, members] : byNormalizedSequence)
     {
-        for (DuplicateGroup& group : clusterBucket(candidates, bucket))
+        if (members.size() < 2)
         {
-            result.groups.push_back(std::move(group));
+            continue;
         }
+
+        std::sort(members.begin(), members.end(), byLocation);
+        result.groups.push_back(DuplicateGroup{std::move(members)});
     }
 
     std::stable_sort(

@@ -12,6 +12,7 @@
 #include <QUrl>
 
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -118,6 +119,10 @@ private:
     void initializeSettingsState();
     void initializeConfigurationState();
     void setCurrentProject(const QUrl& projectRoot);
+    // Sets projectRoot as the current project (unless an analysis is already running,
+    // in which case the project must not change out from under it) and then runs
+    // action -- shared by the three QUrl-taking snapshot actions below.
+    void withProject(const QUrl& projectRoot, const std::function<void()>& action);
     [[nodiscard]] bool requireIdle(const QString& action);
     [[nodiscard]] bool requireCurrentProject(const QString& action);
     [[nodiscard]] bool requireEditableConfiguration(const QString& action);
