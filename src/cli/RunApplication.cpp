@@ -197,6 +197,101 @@ std::optional<codeqa::core::Language> parseLanguageName(const std::string& langu
     return std::nullopt;
 }
 
+enum class FlagParseResult
+{
+    NotAFlag,
+    Consumed,
+    Failed
+};
+
+/// --exclude / --lang-override, shared by discover, parse, and analyze.
+FlagParseResult tryParseDiscoveryFlag(
+    const std::string& token,
+    std::size_t& index,
+    const std::vector<std::string>& arguments,
+    std::ostream& errorOutput,
+    std::vector<std::string>& excludePatterns,
+    std::vector<codeqa::application::LanguageOverride>& languageOverrides,
+    int& exitCode)
+{
+    if (token == "--exclude")
+    {
+        if (index + 1 >= arguments.size())
+        {
+            errorOutput << "Error [CLI004]: Missing value for '--exclude'.\n";
+            exitCode = static_cast<int>(ExitCode::InvalidArguments);
+            return FlagParseResult::Failed;
+        }
+
+        excludePatterns.push_back(arguments[index + 1]);
+        ++index;
+        return FlagParseResult::Consumed;
+    }
+
+    if (token == "--lang-override")
+    {
+        if (index + 1 >= arguments.size())
+        {
+            errorOutput << "Error [CLI006]: Missing value for '--lang-override'.\n";
+            exitCode = static_cast<int>(ExitCode::InvalidArguments);
+            return FlagParseResult::Failed;
+        }
+
+        const std::string& value = arguments[index + 1];
+        const std::size_t equalsPosition = value.find('=');
+
+        if (equalsPosition == std::string::npos || equalsPosition == 0
+            || equalsPosition == value.size() - 1)
+        {
+            errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
+                           << "'. Expected <pattern>=c|cpp.\n";
+            exitCode = static_cast<int>(ExitCode::InvalidArguments);
+            return FlagParseResult::Failed;
+        }
+
+        const std::string pattern = value.substr(0, equalsPosition);
+        const std::string languageText = value.substr(equalsPosition + 1);
+        const std::optional<codeqa::core::Language> language = parseLanguageName(languageText);
+
+        if (!language.has_value())
+        {
+            errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
+                           << "'. Expected <pattern>=c|cpp.\n";
+            exitCode = static_cast<int>(ExitCode::InvalidArguments);
+            return FlagParseResult::Failed;
+        }
+
+        languageOverrides.push_back(codeqa::application::LanguageOverride{pattern, *language});
+        ++index;
+        return FlagParseResult::Consumed;
+    }
+
+    return FlagParseResult::NotAFlag;
+}
+
+/// Required <path>, shared by discover, parse, analyze, and snapshot.
+std::optional<int> requirePathIsDirectory(
+    const std::optional<std::filesystem::path>& path,
+    const std::string& subcommandLabel,
+    std::ostream& errorOutput)
+{
+    if (!path.has_value())
+    {
+        errorOutput << "Error [CLI002]: Missing required argument <path> for '" << subcommandLabel << "'.\n"
+                       "Use 'codeqa --help' for usage.\n";
+        return static_cast<int>(ExitCode::InvalidArguments);
+    }
+
+    std::error_code existsError;
+    if (!std::filesystem::is_directory(*path, existsError))
+    {
+        errorOutput << "Error [CLI003]: Path '" << path->string() << "' does not exist or is not a directory.\n";
+        return static_cast<int>(ExitCode::InvalidArguments);
+    }
+
+    return std::nullopt;
+}
+
 /// The arguments shared by `discover` and `parse`: a required <path>, plus repeatable
 /// --exclude and --lang-override flags.
 struct DiscoverArguments
@@ -232,51 +327,17 @@ DiscoverArgumentsOutcome parseDiscoverArguments(
     {
         const std::string& token = arguments[index];
 
-        if (token == "--exclude")
-        {
-            if (index + 1 >= arguments.size())
-            {
-                errorOutput << "Error [CLI004]: Missing value for '--exclude'.\n";
-                return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-            }
+        int flagExitCode = static_cast<int>(ExitCode::Success);
+        const FlagParseResult flagResult = tryParseDiscoveryFlag(
+            token, index, arguments, errorOutput, excludePatterns, languageOverrides, flagExitCode);
 
-            excludePatterns.push_back(arguments[index + 1]);
-            ++index;
-            continue;
+        if (flagResult == FlagParseResult::Failed)
+        {
+            return DiscoverArgumentsOutcome{std::nullopt, flagExitCode};
         }
 
-        if (token == "--lang-override")
+        if (flagResult == FlagParseResult::Consumed)
         {
-            if (index + 1 >= arguments.size())
-            {
-                errorOutput << "Error [CLI006]: Missing value for '--lang-override'.\n";
-                return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-            }
-
-            const std::string& value = arguments[index + 1];
-            const std::size_t equalsPosition = value.find('=');
-
-            if (equalsPosition == std::string::npos || equalsPosition == 0
-                || equalsPosition == value.size() - 1)
-            {
-                errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
-                               << "'. Expected <pattern>=c|cpp.\n";
-                return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-            }
-
-            const std::string pattern = value.substr(0, equalsPosition);
-            const std::string languageText = value.substr(equalsPosition + 1);
-            const std::optional<codeqa::core::Language> language = parseLanguageName(languageText);
-
-            if (!language.has_value())
-            {
-                errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
-                               << "'. Expected <pattern>=c|cpp.\n";
-                return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-            }
-
-            languageOverrides.push_back(codeqa::application::LanguageOverride{pattern, *language});
-            ++index;
             continue;
         }
 
@@ -290,20 +351,9 @@ DiscoverArgumentsOutcome parseDiscoverArguments(
         return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
     }
 
-    if (!path.has_value())
+    if (const std::optional<int> pathError = requirePathIsDirectory(path, subcommandName, errorOutput))
     {
-        errorOutput << "Error [CLI002]: Missing required argument <path> for '" << subcommandName << "'.\n"
-                       "Use 'codeqa --help' for usage.\n";
-        return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-    }
-
-    std::error_code existsError;
-    const bool isDirectory = std::filesystem::is_directory(*path, existsError);
-
-    if (!isDirectory)
-    {
-        errorOutput << "Error [CLI003]: Path '" << path->string() << "' does not exist or is not a directory.\n";
-        return DiscoverArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+        return DiscoverArgumentsOutcome{std::nullopt, *pathError};
     }
 
     return DiscoverArgumentsOutcome{
@@ -452,51 +502,17 @@ AnalyzeArgumentsOutcome parseAnalyzeArguments(const std::vector<std::string>& ar
     {
         const std::string& token = arguments[index];
 
-        if (token == "--exclude")
-        {
-            if (index + 1 >= arguments.size())
-            {
-                errorOutput << "Error [CLI004]: Missing value for '--exclude'.\n";
-                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-            }
+        int flagExitCode = static_cast<int>(ExitCode::Success);
+        const FlagParseResult flagResult = tryParseDiscoveryFlag(
+            token, index, arguments, errorOutput, excludePatterns, languageOverrides, flagExitCode);
 
-            excludePatterns.push_back(arguments[index + 1]);
-            ++index;
-            continue;
+        if (flagResult == FlagParseResult::Failed)
+        {
+            return AnalyzeArgumentsOutcome{std::nullopt, flagExitCode};
         }
 
-        if (token == "--lang-override")
+        if (flagResult == FlagParseResult::Consumed)
         {
-            if (index + 1 >= arguments.size())
-            {
-                errorOutput << "Error [CLI006]: Missing value for '--lang-override'.\n";
-                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-            }
-
-            const std::string& value = arguments[index + 1];
-            const std::size_t equalsPosition = value.find('=');
-
-            if (equalsPosition == std::string::npos || equalsPosition == 0
-                || equalsPosition == value.size() - 1)
-            {
-                errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
-                               << "'. Expected <pattern>=c|cpp.\n";
-                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-            }
-
-            const std::string pattern = value.substr(0, equalsPosition);
-            const std::string languageText = value.substr(equalsPosition + 1);
-            const std::optional<codeqa::core::Language> language = parseLanguageName(languageText);
-
-            if (!language.has_value())
-            {
-                errorOutput << "Error [CLI007]: Invalid --lang-override value '" << value
-                               << "'. Expected <pattern>=c|cpp.\n";
-                return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-            }
-
-            languageOverrides.push_back(codeqa::application::LanguageOverride{pattern, *language});
-            ++index;
             continue;
         }
 
@@ -558,20 +574,9 @@ AnalyzeArgumentsOutcome parseAnalyzeArguments(const std::vector<std::string>& ar
         return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
     }
 
-    if (!path.has_value())
+    if (const std::optional<int> pathError = requirePathIsDirectory(path, "analyze", errorOutput))
     {
-        errorOutput << "Error [CLI002]: Missing required argument <path> for 'analyze'.\n"
-                       "Use 'codeqa --help' for usage.\n";
-        return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-    }
-
-    std::error_code existsError;
-    const bool isDirectory = std::filesystem::is_directory(*path, existsError);
-
-    if (!isDirectory)
-    {
-        errorOutput << "Error [CLI003]: Path '" << path->string() << "' does not exist or is not a directory.\n";
-        return AnalyzeArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+        return AnalyzeArgumentsOutcome{std::nullopt, *pathError};
     }
 
     return AnalyzeArgumentsOutcome{
@@ -803,20 +808,12 @@ SnapshotArgumentsOutcome parseSnapshotArguments(
         return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
     }
 
-    if (arguments.size() < 3)
-    {
-        errorOutput << "Error [CLI002]: Missing required argument <path> for 'snapshot " << verb << "'.\n"
-                       "Use 'codeqa --help' for usage.\n";
-        return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
-    }
+    const std::optional<std::filesystem::path> path =
+        arguments.size() >= 3 ? std::optional<std::filesystem::path>{arguments[2]} : std::nullopt;
 
-    const std::filesystem::path path{arguments[2]};
-
-    std::error_code existsError;
-    if (!std::filesystem::is_directory(path, existsError))
+    if (const std::optional<int> pathError = requirePathIsDirectory(path, "snapshot " + verb, errorOutput))
     {
-        errorOutput << "Error [CLI003]: Path '" << path.string() << "' does not exist or is not a directory.\n";
-        return SnapshotArgumentsOutcome{std::nullopt, static_cast<int>(ExitCode::InvalidArguments)};
+        return SnapshotArgumentsOutcome{std::nullopt, *pathError};
     }
 
     std::optional<std::string> timestamp;
@@ -841,7 +838,7 @@ SnapshotArgumentsOutcome parseSnapshotArguments(
     }
 
     return SnapshotArgumentsOutcome{
-        SnapshotArguments{verb, path, timestamp}, static_cast<int>(ExitCode::Success)};
+        SnapshotArguments{verb, *path, timestamp}, static_cast<int>(ExitCode::Success)};
 }
 
 int runSnapshot(const std::vector<std::string>& arguments, std::ostream& output, std::ostream& errorOutput)
