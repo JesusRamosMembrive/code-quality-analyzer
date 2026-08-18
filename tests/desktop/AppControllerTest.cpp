@@ -184,6 +184,8 @@ private slots:
     void snapshotOpenFailureKeepsTheCurrentReport();
     void snapshotDeleteFailureKeepsTheCurrentReport();
     void snapshotsAreNewestFirstAndDeleteRefreshesTheModel();
+    void compareSnapshotsExposesCountsAndResetsOnProjectChange();
+    void compareSnapshotsFailureSetsErrorMessage();
     void clearRecentPathsRetainsTheCurrentReport();
     void exportMarkdownWritesTheCurrentReportAsAChecklist();
     void exportMarkdownWithoutAReportReportsAnError();
@@ -1004,6 +1006,66 @@ void AppControllerTest::snapshotsAreNewestFirstAndDeleteRefreshesTheModel()
     controller.deleteSnapshot(QUrl::fromLocalFile(directory.path()), "20260301T000000Z");
     QCOMPARE(controller.snapshots()->rowCount(), 1);
     QVERIFY(!QFile::exists(QDir(snapshots).filePath("20260301T000000Z.json")));
+}
+
+void AppControllerTest::compareSnapshotsExposesCountsAndResetsOnProjectChange()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString snapshots = directory.filePath(".codeqa/snapshots");
+    QVERIFY(QDir{}.mkpath(snapshots));
+    writeTextFile(
+        QDir(snapshots).filePath("20260101T000000Z.json"),
+        QByteArray::fromStdString(reportJson(
+            std::filesystem::path(directory.path().toStdWString()),
+            {{"src/sample.cpp", "warning", "old.rule", "oldOnly", 2},
+             {"src/sample.cpp", "warning", "shared.rule", "shared", 4}}).dump(2)));
+    writeTextFile(
+        QDir(snapshots).filePath("20260102T000000Z.json"),
+        QByteArray::fromStdString(reportJson(
+            std::filesystem::path(directory.path().toStdWString()),
+            {{"src/sample.cpp", "warning", "shared.rule", "shared", 4},
+             {"src/sample.cpp", "warning", "new.rule", "newOnly", 6}}).dump(2)));
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    controller.refreshSnapshots();
+    QCOMPARE(controller.snapshots()->rowCount(), 2);
+
+    QVERIFY(!controller.snapshotComparisonAvailable());
+
+    controller.compareSnapshots(QStringLiteral("20260101T000000Z"), QStringLiteral("20260102T000000Z"));
+
+    QVERIFY(controller.snapshotComparisonAvailable());
+    QCOMPARE(controller.snapshotComparisonNewCount(), 1);
+    QCOMPARE(controller.snapshotComparisonExistingCount(), 1);
+    QCOMPARE(controller.snapshotComparisonResolvedCount(), 1);
+    QCOMPARE(controller.errorMessage(), QString{});
+
+    QTemporaryDir otherDirectory;
+    QVERIFY(otherDirectory.isValid());
+    controller.selectProject(QUrl::fromLocalFile(otherDirectory.path()));
+
+    QVERIFY(!controller.snapshotComparisonAvailable());
+}
+
+void AppControllerTest::compareSnapshotsFailureSetsErrorMessage()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString snapshots = directory.filePath(".codeqa/snapshots");
+    QVERIFY(QDir{}.mkpath(snapshots));
+    writeTextFile(
+        QDir(snapshots).filePath("20260101T000000Z.json"),
+        QByteArray::fromStdString(reportJson(
+            std::filesystem::path(directory.path().toStdWString()), oneFinding()).dump(2)));
+    AppController controller(settingsPath(directory));
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    controller.refreshSnapshots();
+
+    controller.compareSnapshots(QStringLiteral("20260101T000000Z"), QStringLiteral("does-not-exist"));
+
+    QVERIFY(!controller.snapshotComparisonAvailable());
+    QVERIFY(controller.errorMessage().contains("APPLICATION003"));
 }
 
 void AppControllerTest::clearRecentPathsRetainsTheCurrentReport()

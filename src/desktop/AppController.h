@@ -41,6 +41,13 @@ class AppController final : public QObject
     Q_PROPERTY(QString findingRuleFilter READ findingRuleFilter NOTIFY findingRuleFilterChanged)
     Q_PROPERTY(QString findingSearchText READ findingSearchText NOTIFY findingSearchTextChanged)
     Q_PROPERTY(QString excludePatterns READ excludePatterns WRITE setExcludePatterns NOTIFY excludePatternsChanged)
+    Q_PROPERTY(int snapshotComparisonNewCount READ snapshotComparisonNewCount NOTIFY snapshotComparisonChanged)
+    Q_PROPERTY(
+        int snapshotComparisonExistingCount READ snapshotComparisonExistingCount
+            NOTIFY snapshotComparisonChanged)
+    Q_PROPERTY(
+        int snapshotComparisonResolvedCount READ snapshotComparisonResolvedCount NOTIFY snapshotComparisonChanged)
+    Q_PROPERTY(bool snapshotComparisonAvailable READ snapshotComparisonAvailable NOTIFY snapshotComparisonChanged)
 
 public:
     explicit AppController(QObject* parent = nullptr);
@@ -66,6 +73,10 @@ public:
     [[nodiscard]] QString findingRuleFilter() const;
     [[nodiscard]] QString findingSearchText() const;
     [[nodiscard]] QString excludePatterns() const;
+    [[nodiscard]] int snapshotComparisonNewCount() const;
+    [[nodiscard]] int snapshotComparisonExistingCount() const;
+    [[nodiscard]] int snapshotComparisonResolvedCount() const;
+    [[nodiscard]] bool snapshotComparisonAvailable() const;
     [[nodiscard]] QStringList recentProjects() const;
     [[nodiscard]] QStringList recentReports() const;
 
@@ -87,6 +98,7 @@ public:
     Q_INVOKABLE void openSnapshot(const QString& timestamp);
     Q_INVOKABLE void refreshSnapshots();
     Q_INVOKABLE void deleteSnapshot(const QString& timestamp);
+    Q_INVOKABLE void compareSnapshots(const QString& fromTimestamp, const QString& toTimestamp);
     Q_INVOKABLE void clearRecentPaths();
     Q_INVOKABLE void setFindingSeverityFilter(const QString& severity);
     Q_INVOKABLE void setFindingRuleFilter(const QString& ruleId);
@@ -114,6 +126,7 @@ signals:
     void findingSearchTextChanged(const QString& searchText);
     void excludePatternsChanged(const QString& patterns);
     void recentPathsChanged();
+    void snapshotComparisonChanged();
 
 private:
     void initializeSettingsState();
@@ -171,4 +184,8 @@ private:
     bool analysisRunning_{false};
     bool configurationAvailable_{false};
     bool configurationDirty_{false};
+    int snapshotComparisonNewCount_{0};
+    int snapshotComparisonExistingCount_{0};
+    int snapshotComparisonResolvedCount_{0};
+    bool snapshotComparisonAvailable_{false};
 };

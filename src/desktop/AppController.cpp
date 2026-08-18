@@ -4,6 +4,7 @@
 #include "codeqa/application/ReportDocumentFactory.h"
 #include "codeqa/config/DefaultConfig.h"
 #include "codeqa/core/EnumJson.h"
+#include "codeqa/history/SnapshotComparison.h"
 #include "codeqa/report/MarkdownReport.h"
 
 #include <QDir>
@@ -191,6 +192,26 @@ QString AppController::findingSearchText() const
 QString AppController::excludePatterns() const
 {
     return excludePatterns_;
+}
+
+int AppController::snapshotComparisonNewCount() const
+{
+    return snapshotComparisonNewCount_;
+}
+
+int AppController::snapshotComparisonExistingCount() const
+{
+    return snapshotComparisonExistingCount_;
+}
+
+int AppController::snapshotComparisonResolvedCount() const
+{
+    return snapshotComparisonResolvedCount_;
+}
+
+bool AppController::snapshotComparisonAvailable() const
+{
+    return snapshotComparisonAvailable_;
 }
 
 QStringList AppController::recentProjects() const
@@ -542,6 +563,28 @@ void AppController::deleteSnapshot(const QString& timestamp)
     refreshSnapshots();
 }
 
+void AppController::compareSnapshots(const QString& fromTimestamp, const QString& toTimestamp)
+{
+    const codeqa::application::SnapshotComparisonResult result =
+        facade_.compareSnapshots(currentProjectPath_, fromTimestamp.toStdString(), toTimestamp.toStdString());
+
+    if (!result.comparison.has_value())
+    {
+        snapshotComparisonAvailable_ = false;
+        setErrorMessage(QString::fromStdString(
+            result.error.message.value_or("Error [APPLICATION003]: could not compare snapshots.")));
+        emit snapshotComparisonChanged();
+        return;
+    }
+
+    snapshotComparisonNewCount_ = static_cast<int>(result.comparison->newCount);
+    snapshotComparisonExistingCount_ = static_cast<int>(result.comparison->existingCount);
+    snapshotComparisonResolvedCount_ = static_cast<int>(result.comparison->resolvedCount);
+    snapshotComparisonAvailable_ = true;
+    setErrorMessage({});
+    emit snapshotComparisonChanged();
+}
+
 void AppController::clearRecentPaths()
 {
     recentProjects_.clear();
@@ -682,6 +725,8 @@ void AppController::setCurrentProject(const QUrl& projectRoot)
         if (currentProject() != previous)
         {
             snapshots_.setSnapshots({});
+            snapshotComparisonAvailable_ = false;
+            emit snapshotComparisonChanged();
             setExcludePatterns({});
             emit currentProjectChanged(currentProject());
         }
@@ -692,6 +737,8 @@ void AppController::setCurrentProject(const QUrl& projectRoot)
     if (currentProject() != previous)
     {
         snapshots_.setSnapshots({});
+        snapshotComparisonAvailable_ = false;
+        emit snapshotComparisonChanged();
         setExcludePatterns({});
         emit currentProjectChanged(currentProject());
     }
