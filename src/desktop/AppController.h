@@ -139,6 +139,7 @@ private:
     [[nodiscard]] bool requireIdle(const QString& action);
     [[nodiscard]] bool requireCurrentProject(const QString& action);
     [[nodiscard]] bool requireEditableConfiguration(const QString& action);
+    void resetSnapshotComparison();
     [[nodiscard]] std::optional<codeqa::core::Language> supportedLanguage(const QString& language) const;
     [[nodiscard]] codeqa::config::ProjectConfig currentFormConfiguration() const;
     void applyConfiguration(codeqa::config::ProjectConfig config, bool dirty);

@@ -539,6 +539,7 @@ void AppController::refreshSnapshots()
         return;
     }
     snapshots_.setSnapshots(std::move(result.snapshots));
+    resetSnapshotComparison();
     setErrorMessage(configurationLoadError_);
 }
 
@@ -563,8 +564,31 @@ void AppController::deleteSnapshot(const QString& timestamp)
     refreshSnapshots();
 }
 
+void AppController::resetSnapshotComparison()
+{
+    if (!snapshotComparisonAvailable_ && snapshotComparisonNewCount_ == 0
+        && snapshotComparisonExistingCount_ == 0 && snapshotComparisonResolvedCount_ == 0)
+    {
+        return;
+    }
+    snapshotComparisonAvailable_ = false;
+    snapshotComparisonNewCount_ = 0;
+    snapshotComparisonExistingCount_ = 0;
+    snapshotComparisonResolvedCount_ = 0;
+    emit snapshotComparisonChanged();
+}
+
 void AppController::compareSnapshots(const QString& fromTimestamp, const QString& toTimestamp)
 {
+    if (!requireIdle(QStringLiteral("comparing snapshots")))
+    {
+        return;
+    }
+    if (!requireCurrentProject(QStringLiteral("comparing snapshots")))
+    {
+        return;
+    }
+
     const codeqa::application::SnapshotComparisonResult result =
         facade_.compareSnapshots(currentProjectPath_, fromTimestamp.toStdString(), toTimestamp.toStdString());
 
@@ -581,7 +605,7 @@ void AppController::compareSnapshots(const QString& fromTimestamp, const QString
     snapshotComparisonExistingCount_ = static_cast<int>(result.comparison->existingCount);
     snapshotComparisonResolvedCount_ = static_cast<int>(result.comparison->resolvedCount);
     snapshotComparisonAvailable_ = true;
-    setErrorMessage({});
+    setErrorMessage(configurationLoadError_);
     emit snapshotComparisonChanged();
 }
 
@@ -725,8 +749,7 @@ void AppController::setCurrentProject(const QUrl& projectRoot)
         if (currentProject() != previous)
         {
             snapshots_.setSnapshots({});
-            snapshotComparisonAvailable_ = false;
-            emit snapshotComparisonChanged();
+            resetSnapshotComparison();
             setExcludePatterns({});
             emit currentProjectChanged(currentProject());
         }
@@ -737,8 +760,7 @@ void AppController::setCurrentProject(const QUrl& projectRoot)
     if (currentProject() != previous)
     {
         snapshots_.setSnapshots({});
-        snapshotComparisonAvailable_ = false;
-        emit snapshotComparisonChanged();
+        resetSnapshotComparison();
         setExcludePatterns({});
         emit currentProjectChanged(currentProject());
     }
@@ -924,6 +946,7 @@ void AppController::replaceDocument(
     if (snapshots.has_value())
     {
         snapshots_.applySnapshots(std::move(*snapshots));
+        resetSnapshotComparison();
     }
     qualityGateStatus_ = nextQualityGateStatus;
     errorMessage_ = std::move(message);

@@ -211,6 +211,7 @@ Item {
                 objectName: "compareSnapshotsButton"
                 text: "Compare"
                 enabled: historyPage.controller
+                    && !historyPage.controller.analysisRunning
                     && fromSnapshotCombo.currentText !== ""
                     && toSnapshotCombo.currentText !== ""
                     && fromSnapshotCombo.currentText !== toSnapshotCombo.currentText
@@ -221,6 +222,8 @@ Item {
             Label {
                 id: snapshotComparisonResult
                 objectName: "snapshotComparisonResult"
+                Layout.fillWidth: true
+                elide: Text.ElideRight
                 visible: historyPage.controller && historyPage.controller.snapshotComparisonAvailable
                 text: historyPage.controller
                     ? historyPage.controller.snapshotComparisonNewCount + " new, "

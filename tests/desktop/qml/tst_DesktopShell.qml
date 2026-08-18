@@ -479,6 +479,30 @@ TestCase {
         fixtureController.analysisRunning = false
     }
 
+    function test_history_compare_button_disabled_when_equal_or_analysis_running() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+
+        const fromCombo = shell.findChild("fromSnapshotCombo")
+        const toCombo = shell.findChild("toSnapshotCombo")
+        const compareButton = shell.findChild("compareSnapshotsButton")
+
+        fromCombo.currentIndex = 1
+        toCombo.currentIndex = 0
+        verify(compareButton.enabled)
+
+        toCombo.currentIndex = 1
+        compare(compareButton.enabled, false)
+
+        toCombo.currentIndex = 0
+        verify(compareButton.enabled)
+
+        fixtureController.analysisRunning = true
+        compare(compareButton.enabled, false)
+        fixtureController.analysisRunning = false
+    }
+
     function test_running_analysis_disables_conflicting_controls_and_shows_phase() {
         fixtureController.analysisRunning = true
         fixtureController.analysisPhase = "Measuring functions"
