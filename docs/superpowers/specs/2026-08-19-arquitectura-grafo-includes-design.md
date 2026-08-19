@@ -99,9 +99,11 @@ RunAnalysis::execute (existing) — one new line, mirrors the existing
         result.duplicates = detectDuplicates(...) call exactly
         |
         v
-toReportJson / renderText / toMarkdown (existing) — one new parameter
-        each, mirrors duplicates' own parameter exactly; new "architecture"
-        section, rendered only when non-empty (mirrors writeDuplicates)
+toReportJson / renderText (existing) — one new parameter each, mirrors
+        duplicates' own parameter exactly; new "architecture" section,
+        rendered only when non-empty (mirrors writeDuplicates).
+        renderMarkdown is untouched — verified duplication never extended
+        it either (see §9)
 ```
 
 `IncludeGraph` (the resolved graph) is an internal type, not part of the
@@ -289,13 +291,25 @@ pattern as the existing `duplicates` field, added the same way.
 }
 ```
 
-**Text and Markdown reports** (`TextReport.cpp`/`MarkdownReport.cpp`): a
-new `writeArchitecture`-style section, rendered only when there is
-something to show (at least one cycle or fan-out finding) — mirrors
-`writeDuplicates`'s existing "empty groups → skip the section entirely"
-behavior. The full per-file fan-in/fan-out table is JSON-only (would be
-excessive noise in a human-read text/Markdown report for a large project);
-text/Markdown surface only the cycles and the flagged fan-out findings.
+**Text report** (`TextReport.cpp`): a new `writeArchitecture`-style
+section, rendered only when there is something to show (at least one cycle
+or fan-out finding) — mirrors `writeDuplicates`'s existing "empty groups →
+skip the section entirely" behavior. The full per-file fan-in/fan-out
+table is JSON-only (would be excessive noise in a human-read text report
+for a large project); the text section surfaces only the cycles and the
+flagged fan-out findings.
+
+**Markdown report: out of scope, corrected during planning.** Verified by
+reading `MarkdownReport.cpp` directly: `renderMarkdown` doesn't even take
+a `duplicates` parameter — duplication was never added to it either. It's
+a per-finding checklist renderer for the desktop GUI's "export as
+checklist" feature (`AppController::exportMarkdown`), one checkbox item
+per `Finding`/`Diagnostic` inside a per-file section. Cycles and fan-out
+findings don't have that shape (a cycle spans multiple files; a fan-out
+finding's natural unit is a whole file, not a checklist line), and
+extending `renderMarkdown` isn't required to match the existing
+duplication precedent, which also skipped it. No change to
+`MarkdownReport.cpp`/`renderMarkdown`'s signature in this slice.
 
 **Desktop GUI / `ReportDocumentFactory`:** confirmed by reading
 `ReportDocumentFactory.cpp` directly — its JSON parsing is field-by-field
@@ -327,7 +341,7 @@ scope decision, not an oversight.
 - `analyzeArchitecture`: integration test wiring the three pieces together
   with `config.architecture.enabled = false` producing an empty
   `ProjectArchitectureModel` (mirrors `duplication.enabled` gating).
-- `RunAnalysis`/`toReportJson`/text/Markdown: at least one test proving the
+- `RunAnalysis`/`toReportJson`/text report: at least one test proving the
   new report section appears with real data and is absent when
   `ProjectArchitectureModel` is empty. Whether this needs a new
   `tests/corpus/` fixture with a genuine include cycle (none exists today,
