@@ -44,7 +44,7 @@ TEST_CASE("toReportJson wraps each file's symbols with its metrics and findings,
     findings.files.push_back(fileFindings);
 
     const codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
-    const nlohmann::json document = codeqa::report::toReportJson(model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, config, "9.9.9");
+    const nlohmann::json document = codeqa::report::toReportJson(model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::architecture::ProjectArchitectureModel{}, config, "9.9.9");
 
     CHECK(document.at("schemaVersion").get<int>() == 1);
     CHECK(document.at("metadata").at("rootPath").get<std::string>() == model.rootPath.generic_string());
@@ -85,7 +85,7 @@ TEST_CASE("toReportJson serializes an absent observedValue/limitValue as null")
     findings.files.push_back(fileFindings);
 
     const nlohmann::json document =
-        codeqa::report::toReportJson(model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::config::defaultConfig(), "0.0.0");
+        codeqa::report::toReportJson(model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::architecture::ProjectArchitectureModel{}, codeqa::config::defaultConfig(), "0.0.0");
 
     CHECK(document.at("files")[0].at("findings")[0].at("observedValue").is_null());
     CHECK(document.at("files")[0].at("findings")[0].at("limitValue").is_null());
@@ -108,7 +108,7 @@ TEST_CASE("toReportJson throws when metrics or findings are not index-aligned wi
     findings.files.push_back(fileFindings);
 
     auto callToReportJson = [&]() {
-        (void)codeqa::report::toReportJson(model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::config::defaultConfig(), "0.0.0");
+        (void)codeqa::report::toReportJson(model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::architecture::ProjectArchitectureModel{}, codeqa::config::defaultConfig(), "0.0.0");
     };
     CHECK_THROWS_AS(callToReportJson(), std::invalid_argument);
 }
@@ -136,7 +136,7 @@ TEST_CASE("toReportJson includes a duplicates section with relativized paths")
 
     const codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
     const nlohmann::json document =
-        codeqa::report::toReportJson(model, metrics, findings, duplicates, config, "9.9.9");
+        codeqa::report::toReportJson(model, metrics, findings, duplicates, codeqa::architecture::ProjectArchitectureModel{}, config, "9.9.9");
 
     REQUIRE(document.at("duplicates").size() == 1);
     const nlohmann::json& groupDocument = document.at("duplicates")[0];
@@ -155,7 +155,56 @@ TEST_CASE("toReportJson emits an empty duplicates array when there are no groups
     const codeqa::duplication::ProjectDuplicationModel duplicates;
 
     const nlohmann::json document = codeqa::report::toReportJson(
-        model, metrics, findings, duplicates, codeqa::config::defaultConfig(), "9.9.9");
+        model, metrics, findings, duplicates, codeqa::architecture::ProjectArchitectureModel{}, codeqa::config::defaultConfig(), "9.9.9");
 
     CHECK(document.at("duplicates").empty());
+}
+
+TEST_CASE("toReportJson includes an architecture section with relativized paths")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = std::filesystem::path{"project"};
+    codeqa::metrics::ProjectMetricsModel metrics;
+    codeqa::rules::ProjectFindingsModel findings;
+    const codeqa::duplication::ProjectDuplicationModel duplicates;
+
+    codeqa::architecture::ProjectArchitectureModel architecture;
+    architecture.files.push_back(codeqa::architecture::FileDependencyMetrics{
+        model.rootPath / "src" / "a.h", 2, 1});
+    architecture.cycles.push_back(codeqa::architecture::DependencyCycle{
+        {model.rootPath / "src" / "a.h", model.rootPath / "src" / "b.h"}});
+    architecture.fanOutFindings.push_back(codeqa::architecture::FanOutFinding{
+        model.rootPath / "src" / "a.h", 12, codeqa::core::DiagnosticSeverity::Warning});
+    architecture.externalOrUnresolvedIncludes = 3;
+    architecture.ambiguousIncludes = 1;
+
+    const nlohmann::json document = codeqa::report::toReportJson(
+        model, metrics, findings, duplicates, architecture, codeqa::config::defaultConfig(), "9.9.9");
+
+    REQUIRE(document.at("architecture").at("files").size() == 1);
+    CHECK(document.at("architecture").at("files")[0].at("path").get<std::string>() == "src/a.h");
+    CHECK(document.at("architecture").at("files")[0].at("fanIn").get<int>() == 2);
+    REQUIRE(document.at("architecture").at("cycles").size() == 1);
+    CHECK(document.at("architecture").at("cycles")[0].at("files")[0].get<std::string>() == "src/a.h");
+    REQUIRE(document.at("architecture").at("fanOutFindings").size() == 1);
+    CHECK(document.at("architecture").at("fanOutFindings")[0].at("severity").get<std::string>() == "warning");
+    CHECK(document.at("architecture").at("externalOrUnresolvedIncludes").get<int>() == 3);
+    CHECK(document.at("architecture").at("ambiguousIncludes").get<int>() == 1);
+}
+
+TEST_CASE("toReportJson emits empty architecture arrays when there is nothing to report")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = std::filesystem::path{"project"};
+    codeqa::metrics::ProjectMetricsModel metrics;
+    codeqa::rules::ProjectFindingsModel findings;
+    const codeqa::duplication::ProjectDuplicationModel duplicates;
+    const codeqa::architecture::ProjectArchitectureModel architecture;
+
+    const nlohmann::json document = codeqa::report::toReportJson(
+        model, metrics, findings, duplicates, architecture, codeqa::config::defaultConfig(), "9.9.9");
+
+    CHECK(document.at("architecture").at("files").empty());
+    CHECK(document.at("architecture").at("cycles").empty());
+    CHECK(document.at("architecture").at("fanOutFindings").empty());
 }

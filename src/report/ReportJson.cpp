@@ -74,6 +74,46 @@ Json duplicateGroupJson(const codeqa::duplication::DuplicateGroup& group, const 
     return Json{{"members", members}};
 }
 
+Json architectureJson(
+    const codeqa::architecture::ProjectArchitectureModel& architecture, const std::filesystem::path& rootPath)
+{
+    Json files = Json::array();
+    for (const codeqa::architecture::FileDependencyMetrics& file : architecture.files)
+    {
+        files.push_back(Json{
+            {"path", std::filesystem::relative(file.path, rootPath).generic_string()},
+            {"fanIn", file.fanIn},
+            {"fanOut", file.fanOut}});
+    }
+
+    Json cycles = Json::array();
+    for (const codeqa::architecture::DependencyCycle& cycle : architecture.cycles)
+    {
+        Json cycleFiles = Json::array();
+        for (const std::filesystem::path& path : cycle.files)
+        {
+            cycleFiles.push_back(std::filesystem::relative(path, rootPath).generic_string());
+        }
+        cycles.push_back(Json{{"files", cycleFiles}});
+    }
+
+    Json fanOutFindings = Json::array();
+    for (const codeqa::architecture::FanOutFinding& finding : architecture.fanOutFindings)
+    {
+        fanOutFindings.push_back(Json{
+            {"path", std::filesystem::relative(finding.path, rootPath).generic_string()},
+            {"fanOut", finding.fanOut},
+            {"severity", codeqa::core::diagnosticSeverityToJsonString(finding.severity)}});
+    }
+
+    return Json{
+        {"files", files},
+        {"cycles", cycles},
+        {"fanOutFindings", fanOutFindings},
+        {"externalOrUnresolvedIncludes", architecture.externalOrUnresolvedIncludes},
+        {"ambiguousIncludes", architecture.ambiguousIncludes}};
+}
+
 } // namespace
 
 nlohmann::json toReportJson(
@@ -81,6 +121,7 @@ nlohmann::json toReportJson(
     const codeqa::metrics::ProjectMetricsModel& metrics,
     const codeqa::rules::ProjectFindingsModel& findings,
     const codeqa::duplication::ProjectDuplicationModel& duplicates,
+    const codeqa::architecture::ProjectArchitectureModel& architecture,
     const codeqa::config::ProjectConfig& config,
     const std::string& toolVersion)
 {
@@ -128,6 +169,8 @@ nlohmann::json toReportJson(
     {
         document["duplicates"].push_back(duplicateGroupJson(group, model.rootPath));
     }
+
+    document["architecture"] = architectureJson(architecture, model.rootPath);
 
     return document;
 }

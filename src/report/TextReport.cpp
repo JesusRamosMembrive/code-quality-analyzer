@@ -160,6 +160,34 @@ void writeDuplicates(
     }
 }
 
+void writeArchitecture(
+    std::ostream& output, const codeqa::architecture::ProjectArchitectureModel& architecture,
+    const std::filesystem::path& rootPath)
+{
+    if (architecture.cycles.empty() && architecture.fanOutFindings.empty())
+    {
+        return;
+    }
+
+    output << "\nArchitecture\n------------\n";
+
+    for (const codeqa::architecture::DependencyCycle& cycle : architecture.cycles)
+    {
+        output << "Cycle:";
+        for (const std::filesystem::path& path : cycle.files)
+        {
+            output << ' ' << relativeDisplayPath(path, rootPath);
+        }
+        output << '\n';
+    }
+
+    for (const codeqa::architecture::FanOutFinding& finding : architecture.fanOutFindings)
+    {
+        output << "  [" << severityTag(finding.severity) << "] " << relativeDisplayPath(finding.path, rootPath)
+               << "  fan-out=" << finding.fanOut << '\n';
+    }
+}
+
 void writeDiagnostics(
     std::ostream& output, const codeqa::model::ProjectModel& model, const std::filesystem::path& rootPath)
 {
@@ -239,13 +267,15 @@ void renderText(
     const codeqa::model::ProjectModel& model,
     const codeqa::metrics::ProjectMetricsModel& metrics,
     const codeqa::rules::ProjectFindingsModel& findings,
-    const codeqa::duplication::ProjectDuplicationModel& duplicates)
+    const codeqa::duplication::ProjectDuplicationModel& duplicates,
+    const codeqa::architecture::ProjectArchitectureModel& architecture)
 {
     output << "Code Quality Analysis Report\n=============================\n\n";
     writeSummary(output, model, metrics, findings);
     writeFindingsBySeverity(output, findings, model.rootPath);
     writeFindingsByFile(output, findings, model.rootPath);
     writeDuplicates(output, duplicates, model.rootPath);
+    writeArchitecture(output, architecture, model.rootPath);
     writeDiagnostics(output, model, model.rootPath);
     writeResult(output, findings);
 }

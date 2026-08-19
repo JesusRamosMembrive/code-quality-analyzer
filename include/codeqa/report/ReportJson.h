@@ -1,5 +1,6 @@
 #pragma once
 
+#include "codeqa/architecture/ArchitectureModels.h"
 #include "codeqa/config/ConfigModels.h"
 #include "codeqa/duplication/DuplicationModels.h"
 #include "codeqa/metrics/MetricsModels.h"
@@ -22,6 +23,7 @@ namespace codeqa::report
     const codeqa::metrics::ProjectMetricsModel& metrics,
     const codeqa::rules::ProjectFindingsModel& findings,
     const codeqa::duplication::ProjectDuplicationModel& duplicates,
+    const codeqa::architecture::ProjectArchitectureModel& architecture,
     const codeqa::config::ProjectConfig& config,
     const std::string& toolVersion);
 

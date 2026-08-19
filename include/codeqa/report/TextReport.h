@@ -1,5 +1,6 @@
 #pragma once
 
+#include "codeqa/architecture/ArchitectureModels.h"
 #include "codeqa/metrics/MetricsModels.h"
 #include "codeqa/model/Models.h"
 #include "codeqa/rules/RuleModels.h"
@@ -15,6 +16,7 @@ void renderText(
     const codeqa::model::ProjectModel& model,
     const codeqa::metrics::ProjectMetricsModel& metrics,
     const codeqa::rules::ProjectFindingsModel& findings,
-    const codeqa::duplication::ProjectDuplicationModel& duplicates);
+    const codeqa::duplication::ProjectDuplicationModel& duplicates,
+    const codeqa::architecture::ProjectArchitectureModel& architecture);
 
 } // namespace codeqa::report

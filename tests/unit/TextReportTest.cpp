@@ -47,7 +47,7 @@ TEST_CASE("renderText with no diagnostics or findings reports zero and omits tho
     findings.files.push_back(fileFindings);
 
     std::ostringstream output;
-    codeqa::report::renderText(output, model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{});
+    codeqa::report::renderText(output, model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::architecture::ProjectArchitectureModel{});
     const std::string text = output.str();
 
     CHECK(text.find("Code Quality Analysis Report") != std::string::npos);
@@ -92,7 +92,7 @@ TEST_CASE("renderText lists findings by severity with errors before warnings, th
     findings.files.push_back(findingsB);
 
     std::ostringstream output;
-    codeqa::report::renderText(output, model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{});
+    codeqa::report::renderText(output, model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::architecture::ProjectArchitectureModel{});
     const std::string text = output.str();
 
     const std::size_t severitySection = text.find("Findings by severity");
@@ -133,7 +133,7 @@ TEST_CASE("renderText lists diagnostics grouped by file")
     codeqa::rules::ProjectFindingsModel findings;
 
     std::ostringstream output;
-    codeqa::report::renderText(output, model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{});
+    codeqa::report::renderText(output, model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::architecture::ProjectArchitectureModel{});
     const std::string text = output.str();
 
     CHECK(text.find("Diagnostics\n-----------") != std::string::npos);
@@ -150,7 +150,7 @@ TEST_CASE("renderText omits the duplicated code section when there are no groups
     const codeqa::duplication::ProjectDuplicationModel duplicates;
 
     std::ostringstream output;
-    codeqa::report::renderText(output, model, metrics, findings, duplicates);
+    codeqa::report::renderText(output, model, metrics, findings, duplicates, codeqa::architecture::ProjectArchitectureModel{});
 
     CHECK(output.str().find("Duplicated code") == std::string::npos);
 }
@@ -177,7 +177,7 @@ TEST_CASE("renderText lists each duplicate group with its members")
     duplicates.groups.push_back(group);
 
     std::ostringstream output;
-    codeqa::report::renderText(output, model, metrics, findings, duplicates);
+    codeqa::report::renderText(output, model, metrics, findings, duplicates, codeqa::architecture::ProjectArchitectureModel{});
     const std::string text = output.str();
 
     CHECK(text.find("Duplicated code") != std::string::npos);
@@ -185,4 +185,42 @@ TEST_CASE("renderText lists each duplicate group with its members")
     CHECK(text.find("second") != std::string::npos);
     CHECK(text.find("src/a.cpp:3") != std::string::npos);
     CHECK(text.find("src/b.cpp:8") != std::string::npos);
+}
+
+TEST_CASE("renderText omits the architecture section when there is nothing to report")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = "project";
+    codeqa::metrics::ProjectMetricsModel metrics;
+    codeqa::rules::ProjectFindingsModel findings;
+    const codeqa::duplication::ProjectDuplicationModel duplicates;
+    const codeqa::architecture::ProjectArchitectureModel architecture;
+
+    std::ostringstream output;
+    codeqa::report::renderText(output, model, metrics, findings, duplicates, architecture);
+
+    CHECK(output.str().find("Architecture") == std::string::npos);
+}
+
+TEST_CASE("renderText lists a cycle and a fan-out finding")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = "project";
+    codeqa::metrics::ProjectMetricsModel metrics;
+    codeqa::rules::ProjectFindingsModel findings;
+    const codeqa::duplication::ProjectDuplicationModel duplicates;
+
+    codeqa::architecture::ProjectArchitectureModel architecture;
+    architecture.cycles.push_back(codeqa::architecture::DependencyCycle{
+        {model.rootPath / "src" / "a.h", model.rootPath / "src" / "b.h"}});
+    architecture.fanOutFindings.push_back(codeqa::architecture::FanOutFinding{
+        model.rootPath / "src" / "hub.h", 15, codeqa::core::DiagnosticSeverity::Warning});
+
+    std::ostringstream output;
+    codeqa::report::renderText(output, model, metrics, findings, duplicates, architecture);
+    const std::string text = output.str();
+
+    CHECK(text.find("Architecture") != std::string::npos);
+    CHECK(text.find("hub.h") != std::string::npos);
+    CHECK(text.find("fan-out=15") != std::string::npos);
 }

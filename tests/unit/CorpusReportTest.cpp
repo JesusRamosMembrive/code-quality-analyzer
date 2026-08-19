@@ -35,7 +35,7 @@ TEST_CASE("toReportJson over the real corpus reproduces the deep-nesting fixture
 
     const codeqa::application::RunAnalysisResult result = codeqa::application::RunAnalysis{}.execute(request);
     const nlohmann::json document = codeqa::report::toReportJson(
-        result.model, result.metrics, result.findings, codeqa::duplication::ProjectDuplicationModel{},
+        result.model, result.metrics, result.findings, codeqa::duplication::ProjectDuplicationModel{}, result.architecture,
         request.config, "test");
 
     CHECK(document.at("schemaVersion").get<int>() == 1);

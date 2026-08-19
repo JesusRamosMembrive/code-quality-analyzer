@@ -67,7 +67,7 @@ nlohmann::json makeCompleteReportJson()
     findings.files.push_back(fileFindings);
 
     return codeqa::report::toReportJson(
-        model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::config::defaultConfig(),
+        model, metrics, findings, codeqa::duplication::ProjectDuplicationModel{}, codeqa::architecture::ProjectArchitectureModel{}, codeqa::config::defaultConfig(),
         "9.9.9");
 }
 
