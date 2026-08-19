@@ -36,6 +36,13 @@ IncludeGraph resolveIncludeGraph(const codeqa::model::ProjectModel& project)
     }
     graph.outgoingEdges.resize(project.files.size());
 
+    std::vector<std::string> genericPaths;
+    genericPaths.reserve(project.files.size());
+    for (const codeqa::model::FileModel& file : project.files)
+    {
+        genericPaths.push_back(file.path.generic_string());
+    }
+
     for (std::size_t fromIndex = 0; fromIndex < project.files.size(); ++fromIndex)
     {
         std::vector<std::size_t> resolved;
@@ -52,7 +59,7 @@ IncludeGraph resolveIncludeGraph(const codeqa::model::ProjectModel& project)
 
             for (std::size_t toIndex = 0; toIndex < project.files.size(); ++toIndex)
             {
-                if (endsWithPathSegment(project.files[toIndex].path.generic_string(), target))
+                if (endsWithPathSegment(genericPaths[toIndex], target))
                 {
                     matches.push_back(toIndex);
                 }
