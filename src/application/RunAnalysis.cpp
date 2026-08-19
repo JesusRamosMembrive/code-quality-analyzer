@@ -2,6 +2,7 @@
 
 #include "codeqa/application/ApplyRules.h"
 #include "codeqa/application/MeasureProject.h"
+#include "codeqa/architecture/AnalyzeArchitecture.h"
 #include "codeqa/duplication/DetectDuplicates.h"
 
 namespace codeqa::application
@@ -25,6 +26,7 @@ RunAnalysisResult RunAnalysis::execute(
     }
     result.findings = ApplyRules{}.execute(result.model, result.metrics, request.config);
     result.duplicates = codeqa::duplication::detectDuplicates(result.model, request.config.duplication);
+    result.architecture = codeqa::architecture::analyzeArchitecture(result.model, request.config.architecture);
     return result;
 }
 

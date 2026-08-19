@@ -115,6 +115,7 @@ add_library(codeqa_core STATIC
     src/architecture/ResolveIncludeGraph.cpp
     src/architecture/FindCycles.cpp
     src/architecture/ComputeFanInOut.cpp
+    src/architecture/AnalyzeArchitecture.cpp
     src/config/DefaultConfig.cpp
     src/config/MergeConfig.cpp
     src/config/ConfigJson.cpp

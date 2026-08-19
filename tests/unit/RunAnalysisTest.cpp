@@ -136,3 +136,19 @@ TEST_CASE("RunAnalysis detects a duplicated function pair across two files")
     REQUIRE(result.duplicates.groups.size() == 1);
     CHECK(result.duplicates.groups.front().members.size() == 2);
 }
+
+TEST_CASE("RunAnalysis detects a real 2-file include cycle end-to-end")
+{
+    const TempProject fixture;
+    fixture.addFile("a.h", "#include \"b.h\"\n");
+    fixture.addFile("b.h", "#include \"a.h\"\n");
+
+    codeqa::application::RunAnalysisRequest request;
+    request.analysis.discovery.rootPath = fixture.root();
+    request.config = codeqa::config::defaultConfig();
+
+    const codeqa::application::RunAnalysisResult result = codeqa::application::RunAnalysis{}.execute(request);
+
+    REQUIRE(result.architecture.cycles.size() == 1);
+    CHECK(result.architecture.cycles.front().files.size() == 2);
+}

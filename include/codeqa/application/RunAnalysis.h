@@ -2,6 +2,7 @@
 
 #include "codeqa/application/AnalysisProgress.h"
 #include "codeqa/application/AnalyzeProject.h"
+#include "codeqa/architecture/ArchitectureModels.h"
 #include "codeqa/config/ConfigModels.h"
 #include "codeqa/duplication/DuplicationModels.h"
 #include "codeqa/metrics/MetricsModels.h"
@@ -23,6 +24,7 @@ struct RunAnalysisResult
     codeqa::metrics::ProjectMetricsModel metrics;
     codeqa::rules::ProjectFindingsModel findings;
     codeqa::duplication::ProjectDuplicationModel duplicates;
+    codeqa::architecture::ProjectArchitectureModel architecture;
 };
 
 class RunAnalysis
