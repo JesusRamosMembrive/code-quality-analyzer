@@ -496,11 +496,11 @@ ReportDocumentResult parseReportDocument(const nlohmann::json& document)
         {
             const Json& architecture = requireObject(document, "architecture", "report");
 
-            const Json& files = requireArray(architecture, "files", "report.architecture");
-            for (std::size_t index = 0; index < files.size(); ++index)
+            const Json& architectureFiles = requireArray(architecture, "files", "report.architecture");
+            for (std::size_t index = 0; index < architectureFiles.size(); ++index)
             {
                 result.architecture.files.push_back(parseArchitectureFile(
-                    files.at(index), "report.architecture.files[" + std::to_string(index) + "]"));
+                    architectureFiles.at(index), "report.architecture.files[" + std::to_string(index) + "]"));
             }
 
             const Json& cycles = requireArray(architecture, "cycles", "report.architecture");
