@@ -79,7 +79,7 @@ codeqa::model::ProjectModel (DependencyModel.target = raw #include text,
 already flows through the existing frontend/model layers, untouched here)
         |
         v
-resolveIncludeGraph(project) -> IncludeGraph        (new, src/architecture/)
+resolveIncludeGraph(project) -> IncludeGraph        (new, include/codeqa/architecture/IncludeGraph.h + src/architecture/)
         |  Local (`"..."`) includes matched by path suffix against
         |  project.files; System (`<...>`) includes always excluded;
         |  self-includes dropped; 0 matches = external/unresolved
@@ -106,19 +106,29 @@ toReportJson / renderText (existing) — one new parameter each, mirrors
         it either (see §9)
 ```
 
-`IncludeGraph` (the resolved graph) is an internal type, not part of the
-public `codeqa::architecture` model — mirrors how duplication's own
-internal hashing/matching machinery isn't part of `ProjectDuplicationModel`
-either. It lives in a source-local header, `src/architecture/IncludeGraph.h`
-(same convention as `src/report/ReportTextUtilities.h`: not under
-`include/`, but still directly unit-testable, since the resolution
-heuristic is exactly the kind of logic that deserves its own tests
-independent of the cycle/fan-out algorithms built on top of it).
+`IncludeGraph` (the resolved graph) is an implementation-detail type, not
+part of `ProjectArchitectureModel` (the report-shaped output) — mirrors how
+duplication's own internal hashing/matching machinery isn't part of
+`ProjectDuplicationModel` either. **Corrected during planning:** the spec's
+first draft assumed it could live in a source-local header like
+`src/report/ReportTextUtilities.h` and still be directly unit-testable —
+checked against the actual build and that assumption was wrong.
+`ReportTextUtilities.h` itself has no direct test today (confirmed: no
+test file includes it), and `tests/CMakeLists.txt`'s `codeqa_tests` target
+has no include path pointing at `src/` at all — only
+`${PROJECT_SOURCE_DIR}/third_party`. Since the resolution heuristic
+genuinely needs its own direct tests (unlike `ReportTextUtilities.h`'s
+helpers, which are only exercised indirectly through `TextReport`/
+`MarkdownReport`'s own tests), `IncludeGraph.h` lives under
+`include/codeqa/architecture/` instead — a normal public header, same as
+`codeqa::rules::RuleContext` (also "public" in the sense of living under
+`include/`, despite being used only internally by this same codebase, not
+by any external consumer).
 
 ## 4. Data model
 
 ```cpp
-// src/architecture/IncludeGraph.h (source-local, directly testable)
+// include/codeqa/architecture/IncludeGraph.h (public header, internal-use type)
 namespace codeqa::architecture
 {
 
@@ -311,14 +321,44 @@ extending `renderMarkdown` isn't required to match the existing
 duplication precedent, which also skipped it. No change to
 `MarkdownReport.cpp`/`renderMarkdown`'s signature in this slice.
 
-**Desktop GUI / `ReportDocumentFactory`:** confirmed by reading
-`ReportDocumentFactory.cpp` directly — its JSON parsing is field-by-field
-pull-based (`requireField`/`document.contains(...)`), not a
-reject-unknown-keys schema validator like `ConfigJson.cpp`'s
-`requireKeysSubset`. An unrecognized top-level `"architecture"` key is
-silently ignored by the existing parser. No change needed there for this
-slice to ship safely — consistent with "no GUI surface" being an explicit
-scope decision, not an oversight.
+**`ReportDocument` round-trip: in scope, a second correction found while
+tracing the actual call sites.** The spec's earlier draft assumed
+`ReportDocumentFactory.cpp`'s tolerant, field-by-field JSON parsing
+(`requireField`/`document.contains(...)`, not a reject-unknown-keys
+validator) meant no change was needed there. That's true for *safety*
+(nothing crashes), but wrong for *correctness*: traced
+`RunApplication.cpp`'s `--format text`/`--format markdown` branches
+directly, and both reconstruct their `RunAnalysisResult` via
+`codeqa::application::toAnalysisResult(*result.document)` — **not** from
+the freshly-computed `analysis` object — where `result.document` was
+itself built earlier by `ApplicationFacade::analyzeProject` via
+`makeReportDocument(analysis, ...)`. So even `codeqa analyze --format
+text` in the *same process, same run* that found a real cycle would print
+an empty architecture section unless `ReportDocument` actually carries
+`architecture` data through both directions of that round-trip. (`--format
+json` is unaffected — `ApplicationFacade.cpp`'s `result.reportJson =
+toReportJson(analysis.model, ..., analysis.duplicates, ...)` uses the
+fresh `analysis` object directly, no `ReportDocument` involved.)
+
+Three files, mirroring `duplicates`' own exact pattern in each:
+- `include/codeqa/application/ReportDocument.h`: `ReportDocument` gains
+  `codeqa::architecture::ProjectArchitectureModel architecture;` (same
+  line shape as the existing `duplicates` field).
+- `src/application/ReportDocumentFactory.cpp`: `makeReportDocument` gains
+  `document.architecture = analysis.architecture;` (a plain copy — no
+  relativization needed here, mirrors `document.duplicates = analysis.duplicates;`
+  exactly). `toReportJson`-style JSON *reading* (`parseFile`, used when
+  loading a saved snapshot/report from disk) gains parsing for the new
+  `"architecture"` key, mirroring `parseDuplicateGroup`/`parseDuplicateMember`:
+  relative path strings read as-is into `ReportDocument.architecture`,
+  not absolutized here.
+- `src/application/ReportDocumentAnalysis.cpp`: `toAnalysisResult` gains
+  `analysis.architecture = document.architecture;` plus an
+  `absolutizeArchitecturePaths` helper mirroring `absolutizeDuplicateMembers`
+  exactly (`rootPath / relativeOrAbsolutePath` — safe either way, since
+  `std::filesystem::path::operator/` with an already-absolute right-hand
+  side simply discards the left side per the standard, so this is
+  idempotent regardless of whether the path was already absolute).
 
 ## 10. Testing and verification strategy
 
