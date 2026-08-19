@@ -26,3 +26,4 @@ ninguno de los dos proyectos muestreados hasta ahora.
 | `complexity.returns` | `experimental` | — | — |
 | `complexity.condition` | `experimental` | — | — |
 | `complexity.nesting` | `experimental` | — | — |
+| `security.unsafe-string-api` | `experimental` | — | — |

@@ -19,12 +19,12 @@ void checkRule(
 
 } // namespace
 
-TEST_CASE("defaultConfig ships the eight Fase 7 thresholds, all enabled, no header overrides")
+TEST_CASE("defaultConfig ships the eight Fase 7 thresholds plus the unsafe-string-api rule, all enabled, no header overrides")
 {
     const codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
 
     CHECK(config.headerOverrides.empty());
-    REQUIRE(config.rules.size() == 8);
+    REQUIRE(config.rules.size() == 9);
 
     checkRule(config, "size.function-length", 50, 90);
     checkRule(config, "size.local-variables", 8, 12);
@@ -34,4 +34,5 @@ TEST_CASE("defaultConfig ships the eight Fase 7 thresholds, all enabled, no head
     checkRule(config, "complexity.returns", 4, 6);
     checkRule(config, "complexity.condition", 3, 5);
     checkRule(config, "complexity.nesting", 3, 5);
+    checkRule(config, "security.unsafe-string-api", 0, 0);
 }

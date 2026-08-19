@@ -30,7 +30,8 @@ const std::vector<std::string>& knownRuleIds()
         "complexity.cyclomatic",
         "complexity.returns",
         "complexity.condition",
-        "complexity.nesting"};
+        "complexity.nesting",
+        "security.unsafe-string-api"};
     return ids;
 }
 

@@ -28,6 +28,7 @@ ProjectConfig defaultConfig()
     config.rules["complexity.returns"] = thresholds(4, 6);
     config.rules["complexity.condition"] = thresholds(3, 5);
     config.rules["complexity.nesting"] = thresholds(3, 5);
+    config.rules["security.unsafe-string-api"] = thresholds(0, 0);
     return config;
 }
 

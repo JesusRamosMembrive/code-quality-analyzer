@@ -35,6 +35,14 @@ codeqa::model::CallableModel makeCallable()
     return callable;
 }
 
+codeqa::model::CallModel makeCall(std::string calleeText, codeqa::model::CallKind kind)
+{
+    codeqa::model::CallModel call;
+    call.calleeText = std::move(calleeText);
+    call.kind = kind;
+    return call;
+}
+
 } // namespace
 
 TEST_CASE("size.function-length fires only at or above its warning threshold")
@@ -283,10 +291,10 @@ TEST_CASE("complexity.nesting resolves a tie in favor of the first matching entr
     CHECK(findings[0].location.column == 5);
 }
 
-TEST_CASE("all eight rules are registered and apply to both C and C++")
+TEST_CASE("all nine rules are registered and apply to both C and C++")
 {
     const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
-    REQUIRE(rules.size() == 8);
+    REQUIRE(rules.size() == 9);
 
     for (const auto& rule : rules)
     {
@@ -302,7 +310,7 @@ TEST_CASE("allRules omits a rule disabled via config")
 
     const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
 
-    REQUIRE(rules.size() == 7);
+    REQUIRE(rules.size() == 8);
     for (const auto& rule : rules)
     {
         CHECK(rule->id() != "complexity.cyclomatic");
@@ -489,4 +497,45 @@ TEST_CASE("allRules applies a threshold overridden via config for complexity.nes
     CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
     REQUIRE(findings[0].limitValue.has_value());
     CHECK(*findings[0].limitValue == 1);
+}
+
+TEST_CASE("security.unsafe-string-api flags named calls to banned functions, including std:: qualified ones")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "security.unsafe-string-api");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    callable.calls.push_back(makeCall("strcpy", codeqa::model::CallKind::Named));
+    callable.calls.push_back(makeCall("std::strcpy", codeqa::model::CallKind::Named));
+    callable.calls.push_back(makeCall("strcpy", codeqa::model::CallKind::Member));
+    callable.calls.push_back(makeCall("strncpy", codeqa::model::CallKind::Named));
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+
+    REQUIRE(findings.size() == 2);
+    CHECK(findings[0].ruleId == "security.unsafe-string-api");
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    CHECK(findings[0].description == "Call to unsafe function 'strcpy'.");
+    CHECK(findings[0].recommendation == "Use strncpy or strlcpy (bounds-checked) instead.");
+    CHECK_FALSE(findings[0].observedValue.has_value());
+    CHECK_FALSE(findings[0].limitValue.has_value());
+    CHECK(findings[0].symbolName == "Sample::sample");
+    CHECK(findings[1].description == "Call to unsafe function 'strcpy'.");
+}
+
+TEST_CASE("security.unsafe-string-api produces no findings for calls outside its blocklist")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "security.unsafe-string-api");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    callable.calls.push_back(makeCall("strncpy", codeqa::model::CallKind::Named));
+    callable.calls.push_back(makeCall("my_strcpy", codeqa::model::CallKind::Named));
+
+    CHECK(rule.evaluate(codeqa::rules::RuleContext{metrics, callable}).empty());
 }

@@ -3,9 +3,11 @@
 #include "codeqa/model/ParameterUtilities.h"
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -328,6 +330,68 @@ private:
     long long highLimit_;
 };
 
+struct UnsafeApiEntry
+{
+    std::string_view name;
+    std::string_view recommendation;
+};
+
+constexpr std::array<UnsafeApiEntry, 5> kUnsafeStringApis{{
+    {"gets", "gets was removed from C11; use fgets(buf, size, stream) instead."},
+    {"strcpy", "Use strncpy or strlcpy (bounds-checked) instead."},
+    {"strcat", "Use strncat or strlcat (bounds-checked) instead."},
+    {"sprintf", "Use snprintf instead, which takes a buffer size."},
+    {"vsprintf", "Use vsnprintf instead, which takes a buffer size."},
+}};
+
+std::string_view lastQualifiedSegment(std::string_view calleeText)
+{
+    const std::size_t separator = calleeText.rfind("::");
+    return separator == std::string_view::npos ? calleeText : calleeText.substr(separator + 2);
+}
+
+class UnsafeStringApiRule : public Rule
+{
+public:
+    [[nodiscard]] std::string id() const override { return "security.unsafe-string-api"; }
+
+    [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
+
+    [[nodiscard]] std::vector<Finding> evaluate(const RuleContext& context) const override
+    {
+        std::vector<Finding> findings;
+
+        for (const codeqa::model::CallModel& call : context.callable.calls)
+        {
+            if (call.kind != codeqa::model::CallKind::Named)
+            {
+                continue;
+            }
+
+            const std::string_view calleeName = lastQualifiedSegment(call.calleeText);
+            const auto match = std::find_if(
+                kUnsafeStringApis.begin(), kUnsafeStringApis.end(),
+                [calleeName](const UnsafeApiEntry& entry) { return entry.name == calleeName; });
+
+            if (match == kUnsafeStringApis.end())
+            {
+                continue;
+            }
+
+            Finding finding;
+            finding.ruleId = id();
+            finding.severity = codeqa::core::DiagnosticSeverity::Warning;
+            finding.description = "Call to unsafe function '" + std::string(calleeName) + "'.";
+            finding.recommendation = std::string(match->recommendation);
+            finding.location = call.range.begin;
+            finding.symbolName = context.callable.symbol.qualifiedName;
+            findings.push_back(std::move(finding));
+        }
+
+        return findings;
+    }
+};
+
 } // namespace
 
 std::vector<std::unique_ptr<Rule>> allRules(const codeqa::config::ProjectConfig& config)
@@ -372,6 +436,11 @@ std::vector<std::unique_ptr<Rule>> allRules(const codeqa::config::ProjectConfig&
     if (const codeqa::config::RuleConfig& c = config.rules.at("complexity.nesting"); c.enabled)
     {
         rules.push_back(std::make_unique<NestingDepthRule>(c.warningLimit, c.highLimit));
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("security.unsafe-string-api"); c.enabled)
+    {
+        rules.push_back(std::make_unique<UnsafeStringApiRule>());
     }
 
     return rules;

@@ -9,7 +9,7 @@
 namespace codeqa::rules
 {
 
-/// Requires config.rules to contain an entry for each of the 8 known rule ids --
+/// Requires config.rules to contain an entry for each of the 9 known rule ids --
 /// guaranteed by codeqa::config::defaultConfig() and by codeqa::config::mergeConfig()
 /// (which always starts from a full copy of the defaults). A default-constructed
 /// codeqa::config::ProjectConfig{} does NOT satisfy this and will throw
