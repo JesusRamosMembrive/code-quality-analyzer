@@ -68,3 +68,24 @@ TEST_CASE("toAnalysisResult carries the duplicates model through unchanged")
     REQUIRE(result.duplicates.groups.size() == 1);
     CHECK(result.duplicates.groups.front().members.size() == 2);
 }
+
+TEST_CASE("toAnalysisResult absolutizes architecture paths read from a document")
+{
+    codeqa::application::ReportDocument document;
+    document.metadata.rootPath = "C:/project";
+    document.architecture.files.push_back(
+        codeqa::architecture::FileDependencyMetrics{std::filesystem::path{"src"} / "a.h", 1, 0});
+    document.architecture.cycles.push_back(codeqa::architecture::DependencyCycle{
+        {std::filesystem::path{"src"} / "a.h", std::filesystem::path{"src"} / "b.h"}});
+    document.architecture.fanOutFindings.push_back(codeqa::architecture::FanOutFinding{
+        std::filesystem::path{"src"} / "a.h", 5, codeqa::core::DiagnosticSeverity::Warning});
+
+    const codeqa::application::RunAnalysisResult analysis = codeqa::application::toAnalysisResult(document);
+
+    REQUIRE(analysis.architecture.files.size() == 1);
+    CHECK(analysis.architecture.files[0].path == std::filesystem::path{"C:/project"} / "src" / "a.h");
+    REQUIRE(analysis.architecture.cycles.size() == 1);
+    CHECK(analysis.architecture.cycles[0].files[0] == std::filesystem::path{"C:/project"} / "src" / "a.h");
+    REQUIRE(analysis.architecture.fanOutFindings.size() == 1);
+    CHECK(analysis.architecture.fanOutFindings[0].path == std::filesystem::path{"C:/project"} / "src" / "a.h");
+}

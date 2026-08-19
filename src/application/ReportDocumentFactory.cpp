@@ -334,6 +334,55 @@ codeqa::duplication::DuplicateGroup parseDuplicateGroup(const Json& document, co
     return group;
 }
 
+codeqa::architecture::FileDependencyMetrics parseArchitectureFile(const Json& document, const std::string& path)
+{
+    if (!document.is_object())
+    {
+        failRequired("'" + path + "' must be an object.");
+    }
+
+    codeqa::architecture::FileDependencyMetrics file;
+    file.path = requireString(document, "path", path);
+    file.fanIn = requireSize(document, "fanIn", path);
+    file.fanOut = requireSize(document, "fanOut", path);
+    return file;
+}
+
+codeqa::architecture::DependencyCycle parseDependencyCycle(const Json& document, const std::string& path)
+{
+    if (!document.is_object())
+    {
+        failRequired("'" + path + "' must be an object.");
+    }
+
+    codeqa::architecture::DependencyCycle cycle;
+    const Json& files = requireArray(document, "files", path);
+    for (std::size_t index = 0; index < files.size(); ++index)
+    {
+        const Json& fileEntry = files.at(index);
+        if (!fileEntry.is_string())
+        {
+            failRequired("'" + path + ".files[" + std::to_string(index) + "]' must be a string.");
+        }
+        cycle.files.push_back(fileEntry.get<std::string>());
+    }
+    return cycle;
+}
+
+codeqa::architecture::FanOutFinding parseFanOutFinding(const Json& document, const std::string& path)
+{
+    if (!document.is_object())
+    {
+        failRequired("'" + path + "' must be an object.");
+    }
+
+    codeqa::architecture::FanOutFinding finding;
+    finding.path = requireString(document, "path", path);
+    finding.fanOut = requireSize(document, "fanOut", path);
+    finding.severity = parseSeverity(requireString(document, "severity", path), path);
+    return finding;
+}
+
 } // namespace
 
 ReportDocument makeReportDocument(
@@ -357,6 +406,7 @@ ReportDocument makeReportDocument(
     document.comparison = comparison;
     document.qualityGateOutcome = qualityGateOutcome;
     document.duplicates = analysis.duplicates;
+    document.architecture = analysis.architecture;
 
     for (std::size_t index = 0; index < analysis.model.files.size(); ++index)
     {
@@ -440,6 +490,38 @@ ReportDocumentResult parseReportDocument(const nlohmann::json& document)
                 result.duplicates.groups.push_back(parseDuplicateGroup(
                     duplicates.at(index), "report.duplicates[" + std::to_string(index) + "]"));
             }
+        }
+
+        if (document.contains("architecture"))
+        {
+            const Json& architecture = requireObject(document, "architecture", "report");
+
+            const Json& files = requireArray(architecture, "files", "report.architecture");
+            for (std::size_t index = 0; index < files.size(); ++index)
+            {
+                result.architecture.files.push_back(parseArchitectureFile(
+                    files.at(index), "report.architecture.files[" + std::to_string(index) + "]"));
+            }
+
+            const Json& cycles = requireArray(architecture, "cycles", "report.architecture");
+            for (std::size_t index = 0; index < cycles.size(); ++index)
+            {
+                result.architecture.cycles.push_back(parseDependencyCycle(
+                    cycles.at(index), "report.architecture.cycles[" + std::to_string(index) + "]"));
+            }
+
+            const Json& fanOutFindings = requireArray(architecture, "fanOutFindings", "report.architecture");
+            for (std::size_t index = 0; index < fanOutFindings.size(); ++index)
+            {
+                result.architecture.fanOutFindings.push_back(parseFanOutFinding(
+                    fanOutFindings.at(index),
+                    "report.architecture.fanOutFindings[" + std::to_string(index) + "]"));
+            }
+
+            result.architecture.externalOrUnresolvedIncludes =
+                requireSize(architecture, "externalOrUnresolvedIncludes", "report.architecture");
+            result.architecture.ambiguousIncludes =
+                requireSize(architecture, "ambiguousIncludes", "report.architecture");
         }
 
         return ReportDocumentResult{std::move(result), std::nullopt};

@@ -2,6 +2,7 @@
 
 #include "codeqa/application/ReportDocumentAnalysis.h"
 #include "codeqa/application/ReportDocumentFactory.h"
+#include "codeqa/architecture/ArchitectureModels.h"
 #include "codeqa/config/DefaultConfig.h"
 #include "codeqa/duplication/DuplicationModels.h"
 #include "codeqa/report/ReportJson.h"
@@ -271,4 +272,45 @@ TEST_CASE("parseReportDocument defaults to no duplicate groups when the field is
 
     REQUIRE(result.document.has_value());
     CHECK(result.document->duplicates.groups.empty());
+}
+
+TEST_CASE("makeReportDocument and parseReportDocument round-trip architecture data")
+{
+    codeqa::application::RunAnalysisResult analysis;
+    analysis.model.rootPath = std::filesystem::path{"project"};
+
+    analysis.architecture.files.push_back(codeqa::architecture::FileDependencyMetrics{
+        analysis.model.rootPath / "src" / "a.h", 2, 1});
+    analysis.architecture.cycles.push_back(codeqa::architecture::DependencyCycle{
+        {analysis.model.rootPath / "src" / "a.h", analysis.model.rootPath / "src" / "b.h"}});
+    analysis.architecture.fanOutFindings.push_back(codeqa::architecture::FanOutFinding{
+        analysis.model.rootPath / "src" / "a.h", 12, codeqa::core::DiagnosticSeverity::Warning});
+    analysis.architecture.externalOrUnresolvedIncludes = 2;
+    analysis.architecture.ambiguousIncludes = 1;
+
+    const codeqa::application::ReportDocument document = codeqa::application::makeReportDocument(
+        analysis, codeqa::config::defaultConfig(), "9.9.9", codeqa::application::QualityGateOutcome::Passed,
+        std::nullopt);
+
+    REQUIRE(document.architecture.files.size() == 1);
+    CHECK(document.architecture.files[0].path == analysis.model.rootPath / "src" / "a.h");
+    REQUIRE(document.architecture.cycles.size() == 1);
+    CHECK(document.architecture.fanOutFindings.size() == 1);
+    CHECK(document.architecture.externalOrUnresolvedIncludes == 2);
+    CHECK(document.architecture.ambiguousIncludes == 1);
+
+    const nlohmann::json json = codeqa::report::toReportJson(
+        analysis.model, analysis.metrics, analysis.findings, analysis.duplicates, analysis.architecture,
+        codeqa::config::defaultConfig(), "9.9.9");
+
+    const codeqa::application::ReportDocumentResult parsed = codeqa::application::parseReportDocument(json);
+
+    REQUIRE(parsed.document.has_value());
+    REQUIRE(parsed.document->architecture.files.size() == 1);
+    CHECK(parsed.document->architecture.files[0].path == std::filesystem::path{"src"} / "a.h");
+    REQUIRE(parsed.document->architecture.cycles.size() == 1);
+    REQUIRE(parsed.document->architecture.fanOutFindings.size() == 1);
+    CHECK(parsed.document->architecture.fanOutFindings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    CHECK(parsed.document->architecture.externalOrUnresolvedIncludes == 2);
+    CHECK(parsed.document->architecture.ambiguousIncludes == 1);
 }

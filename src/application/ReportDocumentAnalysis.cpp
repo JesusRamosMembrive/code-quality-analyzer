@@ -24,6 +24,32 @@ void absolutizeDuplicateMembers(
     }
 }
 
+/// Mirrors absolutizeDuplicateMembers above: rewrites every architecture path from its
+/// stored (relative) form to the rootPath-prefixed absolute form. Safe to call even if a
+/// path were already absolute -- std::filesystem::path::operator/ with an absolute
+/// right-hand side discards the left side per the standard, making this idempotent.
+void absolutizeArchitecturePaths(
+    codeqa::architecture::ProjectArchitectureModel& architecture, const std::filesystem::path& rootPath)
+{
+    for (codeqa::architecture::FileDependencyMetrics& file : architecture.files)
+    {
+        file.path = rootPath / file.path;
+    }
+
+    for (codeqa::architecture::DependencyCycle& cycle : architecture.cycles)
+    {
+        for (std::filesystem::path& path : cycle.files)
+        {
+            path = rootPath / path;
+        }
+    }
+
+    for (codeqa::architecture::FanOutFinding& finding : architecture.fanOutFindings)
+    {
+        finding.path = rootPath / finding.path;
+    }
+}
+
 } // namespace
 
 RunAnalysisResult toAnalysisResult(const ReportDocument& document)
@@ -34,6 +60,8 @@ RunAnalysisResult toAnalysisResult(const ReportDocument& document)
     analysis.findings.rootPath = analysis.model.rootPath;
     analysis.duplicates = document.duplicates;
     absolutizeDuplicateMembers(analysis.duplicates, analysis.model.rootPath);
+    analysis.architecture = document.architecture;
+    absolutizeArchitecturePaths(analysis.architecture, analysis.model.rootPath);
 
     for (const ReportFile& reportFile : document.files)
     {

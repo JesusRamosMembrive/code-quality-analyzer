@@ -1,5 +1,6 @@
 #pragma once
 
+#include "codeqa/architecture/ArchitectureModels.h"
 #include "codeqa/config/ConfigModels.h"
 #include "codeqa/core/Diagnostic.h"
 #include "codeqa/duplication/DuplicationModels.h"
@@ -57,6 +58,7 @@ struct ReportDocument
     std::optional<ReportComparison> comparison;
     QualityGateOutcome qualityGateOutcome{QualityGateOutcome::NotEvaluated};
     codeqa::duplication::ProjectDuplicationModel duplicates;
+    codeqa::architecture::ProjectArchitectureModel architecture;
 };
 
 } // namespace codeqa::application
