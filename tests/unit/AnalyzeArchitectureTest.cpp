@@ -43,12 +43,12 @@ TEST_CASE("analyzeArchitecture reports a cycle end-to-end from raw includes")
 TEST_CASE("analyzeArchitecture flags a file whose fan-out is at or above the warning threshold")
 {
     codeqa::model::ProjectModel project;
-    for (int i = 0; i < 11; ++i)
+    for (int i = 0; i < 10; ++i)
     {
         project.files.push_back(makeFile("dep" + std::to_string(i) + ".h"));
     }
     project.files.push_back(makeFile("hub.h"));
-    for (int i = 0; i < 11; ++i)
+    for (int i = 0; i < 10; ++i)
     {
         project.files.back().dependencies.push_back(makeDependency("dep" + std::to_string(i) + ".h"));
     }
@@ -62,7 +62,7 @@ TEST_CASE("analyzeArchitecture flags a file whose fan-out is at or above the war
 
     REQUIRE(result.fanOutFindings.size() == 1);
     CHECK(result.fanOutFindings[0].path == "hub.h");
-    CHECK(result.fanOutFindings[0].fanOut == 11);
+    CHECK(result.fanOutFindings[0].fanOut == 10);
     CHECK(result.fanOutFindings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
 }
 
