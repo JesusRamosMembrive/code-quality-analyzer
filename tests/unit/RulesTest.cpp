@@ -539,3 +539,30 @@ TEST_CASE("security.unsafe-string-api produces no findings for calls outside its
 
     CHECK(rule.evaluate(codeqa::rules::RuleContext{metrics, callable}).empty());
 }
+
+TEST_CASE("security.unsafe-string-api recommends a specific safe alternative for each blocklisted function")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "security.unsafe-string-api");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    callable.calls.push_back(makeCall("gets", codeqa::model::CallKind::Named));
+    callable.calls.push_back(makeCall("strcat", codeqa::model::CallKind::Named));
+    callable.calls.push_back(makeCall("sprintf", codeqa::model::CallKind::Named));
+    callable.calls.push_back(makeCall("vsprintf", codeqa::model::CallKind::Named));
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+
+    REQUIRE(findings.size() == 4);
+    CHECK(findings[0].description == "Call to unsafe function 'gets'.");
+    CHECK(findings[0].recommendation == "gets was removed from C11; use fgets(buf, size, stream) instead.");
+    CHECK(findings[1].description == "Call to unsafe function 'strcat'.");
+    CHECK(findings[1].recommendation == "Use strncat or strlcat (bounds-checked) instead.");
+    CHECK(findings[2].description == "Call to unsafe function 'sprintf'.");
+    CHECK(findings[2].recommendation == "Use snprintf instead, which takes a buffer size.");
+    CHECK(findings[3].description == "Call to unsafe function 'vsprintf'.");
+    CHECK(findings[3].recommendation == "Use vsnprintf instead, which takes a buffer size.");
+}
