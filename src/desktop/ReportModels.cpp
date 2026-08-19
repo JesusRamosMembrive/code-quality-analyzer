@@ -24,7 +24,8 @@ const QStringList& orderedRuleIds()
         QStringLiteral("complexity.cyclomatic"),
         QStringLiteral("complexity.returns"),
         QStringLiteral("complexity.condition"),
-        QStringLiteral("complexity.nesting")};
+        QStringLiteral("complexity.nesting"),
+        QStringLiteral("security.unsafe-string-api")};
     return ids;
 }
 
