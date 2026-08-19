@@ -821,6 +821,7 @@ codeqa::config::ProjectConfig AppController::currentFormConfiguration() const
     config.qualityGate.minSeverity = codeqa::core::diagnosticSeverityFromJsonString(
         qualityGateSeverity_.toStdString()).value_or(codeqa::core::DiagnosticSeverity::Warning);
     config.duplication = duplication_;
+    config.architecture = architecture_;
     return config;
 }
 
@@ -837,6 +838,7 @@ void AppController::applyConfiguration(codeqa::config::ProjectConfig config, con
         emit qualityGateSeverityChanged(qualityGateSeverity_);
     }
     duplication_ = config.duplication;
+    architecture_ = config.architecture;
     setConfigurationDirty(dirty);
 }
 
