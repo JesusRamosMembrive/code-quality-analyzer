@@ -113,6 +113,8 @@ add_library(codeqa_core STATIC
     src/rules/Rules.cpp
     src/duplication/DetectDuplicates.cpp
     src/architecture/ResolveIncludeGraph.cpp
+    src/architecture/FindCycles.cpp
+    src/architecture/ComputeFanInOut.cpp
     src/config/DefaultConfig.cpp
     src/config/MergeConfig.cpp
     src/config/ConfigJson.cpp

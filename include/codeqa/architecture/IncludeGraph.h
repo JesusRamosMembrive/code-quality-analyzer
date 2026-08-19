@@ -20,4 +20,7 @@ struct IncludeGraph
 
 [[nodiscard]] IncludeGraph resolveIncludeGraph(const codeqa::model::ProjectModel& project);
 
+[[nodiscard]] std::vector<DependencyCycle> findCycles(const IncludeGraph& graph);
+[[nodiscard]] std::vector<FileDependencyMetrics> computeFanInOut(const IncludeGraph& graph);
+
 } // namespace codeqa::architecture

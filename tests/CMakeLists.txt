@@ -32,6 +32,8 @@ add_executable(codeqa_tests
     unit/RulesTest.cpp
     unit/DetectDuplicatesTest.cpp
     unit/ResolveIncludeGraphTest.cpp
+    unit/FindCyclesTest.cpp
+    unit/ComputeFanInOutTest.cpp
     unit/ApplyRulesTest.cpp
     unit/CorpusFindingsTest.cpp
     unit/CorpusReportTest.cpp
