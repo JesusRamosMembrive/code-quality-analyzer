@@ -248,6 +248,37 @@ DuplicationConfig parseDuplication(const Json& duplication)
     return config;
 }
 
+ArchitectureConfig parseArchitecture(const Json& architecture)
+{
+    requireKeysSubset(architecture, {"enabled", "fanOutWarning", "fanOutHigh"}, "architecture");
+
+    ArchitectureConfig config;
+
+    if (architecture.contains("enabled"))
+    {
+        config.enabled = requireBool(architecture, "enabled", "architecture");
+    }
+
+    if (architecture.contains("fanOutWarning"))
+    {
+        config.fanOutWarning = requireInteger(architecture, "fanOutWarning", "architecture");
+    }
+
+    if (architecture.contains("fanOutHigh"))
+    {
+        config.fanOutHigh = requireInteger(architecture, "fanOutHigh", "architecture");
+    }
+
+    if (config.fanOutWarning > config.fanOutHigh)
+    {
+        throw ParseFailure(
+            "Error [CONFIG013]: 'architecture' has fanOutWarning (" + std::to_string(config.fanOutWarning)
+            + ") greater than fanOutHigh (" + std::to_string(config.fanOutHigh) + ").");
+    }
+
+    return config;
+}
+
 } // namespace
 
 ParseConfigResult parseConfig(const std::string& jsonText)
@@ -266,7 +297,7 @@ ParseConfigResult parseConfig(const std::string& jsonText)
     try
     {
         requireObject(document, "config");
-        requireKeysSubset(document, {"languages", "rules", "qualityGate", "duplication"}, "config");
+        requireKeysSubset(document, {"languages", "rules", "qualityGate", "duplication", "architecture"}, "config");
 
         ProjectConfig config;
 
@@ -296,6 +327,13 @@ ParseConfigResult parseConfig(const std::string& jsonText)
             const Json& duplication = document.at("duplication");
             requireObject(duplication, "duplication");
             config.duplication = parseDuplication(duplication);
+        }
+
+        if (document.contains("architecture"))
+        {
+            const Json& architecture = document.at("architecture");
+            requireObject(architecture, "architecture");
+            config.architecture = parseArchitecture(architecture);
         }
 
         return ParseConfigResult{config, std::nullopt};
@@ -340,6 +378,11 @@ nlohmann::json toJson(const ProjectConfig& config)
     document["duplication"] = {
         {"enabled", config.duplication.enabled},
         {"minNormalizedTokens", config.duplication.minNormalizedTokens}};
+
+    document["architecture"] = {
+        {"enabled", config.architecture.enabled},
+        {"fanOutWarning", config.architecture.fanOutWarning},
+        {"fanOutHigh", config.architecture.fanOutHigh}};
 
     return document;
 }

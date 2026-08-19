@@ -352,3 +352,69 @@ TEST_CASE("toJson round-trips duplication through parseConfig")
     CHECK_FALSE(result.config->duplication.enabled);
     CHECK(result.config->duplication.minNormalizedTokens == 45);
 }
+
+TEST_CASE("parseConfig accepts a document with architecture")
+{
+    const std::string text = R"({ "architecture": { "enabled": false, "fanOutWarning": 5, "fanOutHigh": 8 } })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.config.has_value());
+    CHECK_FALSE(result.config->architecture.enabled);
+    CHECK(result.config->architecture.fanOutWarning == 5);
+    CHECK(result.config->architecture.fanOutHigh == 8);
+}
+
+TEST_CASE("parseConfig defaults architecture fields when the object is present but empty")
+{
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(R"({ "architecture": {} })");
+
+    REQUIRE(result.config.has_value());
+    CHECK(result.config->architecture.enabled);
+    CHECK(result.config->architecture.fanOutWarning == 10);
+    CHECK(result.config->architecture.fanOutHigh == 20);
+}
+
+TEST_CASE("parseConfig defaults architecture fields when architecture is absent")
+{
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig("{}");
+
+    REQUIRE(result.config.has_value());
+    CHECK(result.config->architecture.enabled);
+    CHECK(result.config->architecture.fanOutWarning == 10);
+    CHECK(result.config->architecture.fanOutHigh == 20);
+}
+
+TEST_CASE("parseConfig reports CONFIG013 when fanOutWarning is greater than fanOutHigh")
+{
+    const std::string text = R"({ "architecture": { "fanOutWarning": 30, "fanOutHigh": 10 } })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE_FALSE(result.config.has_value());
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG013") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG002 for an unknown key inside architecture")
+{
+    const std::string text = R"({ "architecture": { "enabled": true, "note": "x" } })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE_FALSE(result.config.has_value());
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG002") != std::string::npos);
+}
+
+TEST_CASE("toJson round-trips architecture through parseConfig")
+{
+    codeqa::config::ProjectConfig original = codeqa::config::defaultConfig();
+    original.architecture.enabled = false;
+    original.architecture.fanOutWarning = 7;
+    original.architecture.fanOutHigh = 14;
+
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(codeqa::config::toJson(original).dump());
+
+    REQUIRE(result.config.has_value());
+    CHECK_FALSE(result.config->architecture.enabled);
+    CHECK(result.config->architecture.fanOutWarning == 7);
+    CHECK(result.config->architecture.fanOutHigh == 14);
+}

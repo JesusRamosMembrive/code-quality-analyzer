@@ -35,12 +35,20 @@ struct DuplicationConfig
     std::size_t minNormalizedTokens{30};
 };
 
+struct ArchitectureConfig
+{
+    bool enabled{true};
+    long long fanOutWarning{10};
+    long long fanOutHigh{20};
+};
+
 struct ProjectConfig
 {
     std::vector<HeaderOverrideConfig> headerOverrides;
     std::map<std::string, RuleConfig> rules;
     QualityGateConfig qualityGate;
     DuplicationConfig duplication;
+    ArchitectureConfig architecture;
 };
 
 } // namespace codeqa::config
