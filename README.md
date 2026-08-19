@@ -127,9 +127,42 @@ grupos. Limitaciones actuales, deliberadas: los duplicados no participan en el
 quality gate (ver arriba), y la salida `--format markdown` todavía no incluye
 esta sección.
 
+## Arquitectura
+
+`analyze` construye un grafo de dependencias entre archivos a partir de sus
+`#include` (resolviendo el texto crudo de cada include contra los archivos
+reales del proyecto, por sufijo de ruta — no hay resolución real de rutas de
+compilador). Sobre ese grafo detecta dos cosas: **ciclos** (componentes
+fuertemente conexas de 2 o más archivos que se incluyen mutuamente, directa o
+transitivamente) y **fan-out** excesivo (un archivo que incluye demasiados
+otros archivos del proyecto — acoplamiento saliente). El fan-in (cuántos
+archivos incluyen a uno dado) se calcula y se reporta, pero deliberadamente
+nunca genera un finding: un fan-in alto suele ser señal de una cabecera
+fundacional bien diseñada, no un problema.
+
+El campo `architecture.enabled` (por defecto `true`) activa o desactiva el
+análisis por completo. `architecture.fanOutWarning`/`architecture.fanOutHigh`
+(por defecto `10`/`20`) son los umbrales de fan-out; son una estimación
+inicial sin validar, igual que otros umbrales por defecto de este proyecto.
+
+```json
+{ "architecture": { "enabled": true, "fanOutWarning": 10, "fanOutHigh": 20 } }
+```
+
+La salida de `analyze` en texto y en JSON incluye una sección de arquitectura
+(`"Architecture"` en texto, `"architecture"` en JSON) cuando hay ciclos o
+findings de fan-out que mostrar; el JSON además incluye siempre una tabla
+completa de fan-in/fan-out por archivo, sin filtrar por umbral. Limitaciones
+actuales, deliberadas: solo cubre ciclos y fan-out (capas y dependencias
+prohibidas quedan para una posible vuelta futura), no participa en el quality
+gate, no tiene mecanismo de supresión por comentario, no tiene superficie en
+la GUI de escritorio, y la salida `--format markdown` no incluye esta
+sección (igual que duplicados, arriba).
+
 ## Estado
 
 El analizador es funcional de extremo a extremo: descubre archivos fuente C/C++, detecta
 su lenguaje, los parsea con tree-sitter, calcula métricas, aplica reglas configurables,
-evalúa un quality gate, detecta código duplicado y mantiene histórico de snapshots.
-Además del CLI, existe una GUI de escritorio Qt6/QML.
+evalúa un quality gate, detecta código duplicado, analiza el grafo de dependencias entre
+archivos, y mantiene histórico de snapshots. Además del CLI, existe una GUI de escritorio
+Qt6/QML.
