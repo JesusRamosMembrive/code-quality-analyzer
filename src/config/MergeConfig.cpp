@@ -15,6 +15,7 @@ ProjectConfig mergeConfig(const ProjectConfig& defaults, const ProjectConfig& us
     merged.headerOverrides = user.headerOverrides;
     merged.qualityGate = user.qualityGate;
     merged.duplication = user.duplication;
+    merged.architecture = user.architecture;
 
     return merged;
 }

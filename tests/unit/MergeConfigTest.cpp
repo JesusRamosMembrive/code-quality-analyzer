@@ -96,3 +96,22 @@ TEST_CASE("mergeConfig replaces duplication wholesale with the user's value")
     CHECK_FALSE(merged.duplication.enabled);
     CHECK(merged.duplication.minNormalizedTokens == 60);
 }
+
+TEST_CASE("mergeConfig replaces architecture wholesale with the user's value")
+{
+    codeqa::config::ProjectConfig defaults;
+    defaults.architecture.enabled = true;
+    defaults.architecture.fanOutWarning = 10;
+    defaults.architecture.fanOutHigh = 20;
+
+    codeqa::config::ProjectConfig user;
+    user.architecture.enabled = false;
+    user.architecture.fanOutWarning = 3;
+    user.architecture.fanOutHigh = 6;
+
+    const codeqa::config::ProjectConfig merged = codeqa::config::mergeConfig(defaults, user);
+
+    CHECK_FALSE(merged.architecture.enabled);
+    CHECK(merged.architecture.fanOutWarning == 3);
+    CHECK(merged.architecture.fanOutHigh == 6);
+}

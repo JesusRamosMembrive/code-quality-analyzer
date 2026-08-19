@@ -961,3 +961,25 @@ TEST_CASE("analyze reports a duplicated function pair in the default text report
     CHECK(result.output.find("addFirst") != std::string::npos);
     CHECK(result.output.find("addSecond") != std::string::npos);
 }
+
+TEST_CASE("analyze honors a custom fanOutWarning from codeqa.json")
+{
+    const std::filesystem::path root =
+        std::filesystem::temp_directory_path() / "codeqa_run_application_architecture_test";
+    std::error_code ignored;
+    std::filesystem::remove_all(root, ignored);
+    std::filesystem::create_directories(root);
+    std::ofstream(root / "dep.h") << "\n";
+    std::ofstream(root / "hub.h") << "#include \"dep.h\"\n";
+    const std::filesystem::path configPath = root / "codeqa.json";
+    std::ofstream(configPath) << R"({ "architecture": { "fanOutWarning": 1, "fanOutHigh": 100 } })";
+
+    const RunResult result = run({"analyze", root.string(), "--config", configPath.string()});
+
+    std::error_code cleanupError;
+    std::filesystem::remove_all(root, cleanupError);
+
+    CHECK(result.exitCode == static_cast<int>(codeqa::cli::ExitCode::Success));
+    CHECK(result.output.find("Architecture") != std::string::npos);
+    CHECK(result.output.find("fan-out=1") != std::string::npos);
+}
