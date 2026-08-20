@@ -177,6 +177,7 @@ ScrollView {
                         TextField {
                             id: warningLimitField
                             visible: ruleRow.model.id !== "security.unsafe-string-api"
+                                && ruleRow.model.id !== "memory.uninitialized-pointer"
                             Layout.preferredWidth: 140
                             text: ruleRow.model.warningLimit === undefined
                                 ? ""
@@ -195,6 +196,7 @@ ScrollView {
                         TextField {
                             id: highLimitField
                             visible: ruleRow.model.id !== "security.unsafe-string-api"
+                                && ruleRow.model.id !== "memory.uninitialized-pointer"
                             Layout.preferredWidth: 140
                             text: ruleRow.model.highLimit === undefined
                                 ? ""

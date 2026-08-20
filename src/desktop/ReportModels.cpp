@@ -25,7 +25,8 @@ const QStringList& orderedRuleIds()
         QStringLiteral("complexity.returns"),
         QStringLiteral("complexity.condition"),
         QStringLiteral("complexity.nesting"),
-        QStringLiteral("security.unsafe-string-api")};
+        QStringLiteral("security.unsafe-string-api"),
+        QStringLiteral("memory.uninitialized-pointer")};
     return ids;
 }
 
