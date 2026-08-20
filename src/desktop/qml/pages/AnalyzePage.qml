@@ -178,6 +178,7 @@ ScrollView {
                             id: warningLimitField
                             visible: ruleRow.model.id !== "security.unsafe-string-api"
                                 && ruleRow.model.id !== "memory.uninitialized-pointer"
+                                && ruleRow.model.id !== "memory.array-parameter-decay"
                             Layout.preferredWidth: 140
                             text: ruleRow.model.warningLimit === undefined
                                 ? ""
@@ -197,6 +198,7 @@ ScrollView {
                             id: highLimitField
                             visible: ruleRow.model.id !== "security.unsafe-string-api"
                                 && ruleRow.model.id !== "memory.uninitialized-pointer"
+                                && ruleRow.model.id !== "memory.array-parameter-decay"
                             Layout.preferredWidth: 140
                             text: ruleRow.model.highLimit === undefined
                                 ? ""
