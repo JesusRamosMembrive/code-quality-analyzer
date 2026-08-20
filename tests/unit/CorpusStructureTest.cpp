@@ -165,6 +165,7 @@ codeqa::frontend::ParameterPassing parameterPassingFrom(const std::string& value
     if (value == "pointer") return codeqa::frontend::ParameterPassing::Pointer;
     if (value == "reference") return codeqa::frontend::ParameterPassing::Reference;
     if (value == "function-pointer") return codeqa::frontend::ParameterPassing::FunctionPointer;
+    if (value == "array") return codeqa::frontend::ParameterPassing::Array;
     throw std::runtime_error("Unknown parameter passing '" + value + "'.");
 }
 

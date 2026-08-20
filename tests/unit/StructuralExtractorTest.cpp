@@ -170,6 +170,7 @@ TEST_CASE("derives Array parameter passing from array declarators, including arr
 
     REQUIRE(result.functions.size() == 1);
     REQUIRE(result.functions[0].parameters.size() == 5);
+    CHECK(result.functions[0].parameters[1].name == "sized");
     CHECK(
         result.functions[0].parameters[0].passing
         == codeqa::frontend::ParameterPassing::Array);
@@ -204,6 +205,27 @@ TEST_CASE("derives Array parameter passing from an unnamed array parameter")
         result.functions[0].parameters[0].passing
         == codeqa::frontend::ParameterPassing::Array);
     CHECK(result.functions[0].parameters[0].name.empty());
+}
+
+TEST_CASE("does not classify a reference-to-array or pointer-to-array parameter as Array")
+{
+    const TempSourceFile file{
+        "parenthesized-array-parameters.cpp",
+        "void classify(int (&arrayReference)[10], int (*arrayPointer)[4]) {}\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    REQUIRE(result.functions[0].parameters.size() == 2);
+    CHECK(
+        result.functions[0].parameters[0].passing
+        == codeqa::frontend::ParameterPassing::Reference);
+    CHECK(
+        result.functions[0].parameters[1].passing
+        == codeqa::frontend::ParameterPassing::Pointer);
 }
 
 TEST_CASE("extracts the declared type of each parameter, excluding declarator markers")

@@ -732,7 +732,7 @@ TEST_CASE("memory.array-parameter-decay flags an unnamed array parameter with th
     REQUIRE(findings.size() == 1);
     CHECK(
         findings[0].description
-        == "an unnamed parameter is declared as an array, which decays to a pointer and loses its size information.");
+        == "An unnamed parameter is declared as an array, which decays to a pointer and loses its size information.");
 }
 
 TEST_CASE("memory.array-parameter-decay ignores non-array parameters")

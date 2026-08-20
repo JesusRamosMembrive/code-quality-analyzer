@@ -455,7 +455,7 @@ public:
             }
 
             const std::string subject = parameter.name.empty()
-                ? "an unnamed parameter"
+                ? "An unnamed parameter"
                 : "Parameter '" + parameter.name + "'";
 
             Finding finding;

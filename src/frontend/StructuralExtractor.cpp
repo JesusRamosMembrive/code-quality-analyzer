@@ -397,6 +397,23 @@ bool isFunctionPointerDeclarator(TSNode node)
         && !ts_node_is_null(findDescendantOfType(node, "pointer_declarator"));
 }
 
+bool isDecayingArrayDeclarator(TSNode declarator)
+{
+    TSNode arrayNode = findDescendantOfType(declarator, "array_declarator");
+    if (ts_node_is_null(arrayNode))
+    {
+        arrayNode = findDescendantOfType(declarator, "abstract_array_declarator");
+    }
+    if (ts_node_is_null(arrayNode))
+    {
+        return false;
+    }
+    const TSNode inner = childForField(arrayNode, "declarator");
+    return ts_node_is_null(inner)
+        || (!isNodeType(inner, "parenthesized_declarator")
+            && !isNodeType(inner, "abstract_parenthesized_declarator"));
+}
+
 bool isFunctionPointerDeclaration(TSNode declarator)
 {
     const TSNode nestedDeclarator = childForField(declarator, "declarator");
@@ -581,9 +598,7 @@ std::vector<ParameterModel> parametersFor(TSNode functionDeclarator, std::string
         model.name = declaratorName(declarator, source);
         model.passing = isFunctionPointerDeclarator(declarator)
             ? ParameterPassing::FunctionPointer
-            : (!ts_node_is_null(findDescendantOfType(declarator, "array_declarator"))
-                      || !ts_node_is_null(
-                          findDescendantOfType(declarator, "abstract_array_declarator"))
+            : (isDecayingArrayDeclarator(declarator)
                     ? ParameterPassing::Array
                     : (!ts_node_is_null(findDescendantOfType(declarator, "reference_declarator"))
                               || !ts_node_is_null(
