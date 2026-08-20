@@ -75,6 +75,8 @@ std::string parameterPassingToJsonString(codeqa::model::ParameterPassing passing
         return "reference";
     case codeqa::model::ParameterPassing::FunctionPointer:
         return "functionPointer";
+    case codeqa::model::ParameterPassing::Array:
+        return "array";
     }
     return "value";
 }

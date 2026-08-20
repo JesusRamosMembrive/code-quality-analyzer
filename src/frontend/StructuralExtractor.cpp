@@ -581,15 +581,19 @@ std::vector<ParameterModel> parametersFor(TSNode functionDeclarator, std::string
         model.name = declaratorName(declarator, source);
         model.passing = isFunctionPointerDeclarator(declarator)
             ? ParameterPassing::FunctionPointer
-            : (!ts_node_is_null(findDescendantOfType(declarator, "reference_declarator"))
+            : (!ts_node_is_null(findDescendantOfType(declarator, "array_declarator"))
                       || !ts_node_is_null(
-                          findDescendantOfType(declarator, "abstract_reference_declarator"))
-                    ? ParameterPassing::Reference
-                    : (!ts_node_is_null(findDescendantOfType(declarator, "pointer_declarator"))
+                          findDescendantOfType(declarator, "abstract_array_declarator"))
+                    ? ParameterPassing::Array
+                    : (!ts_node_is_null(findDescendantOfType(declarator, "reference_declarator"))
                               || !ts_node_is_null(
-                                  findDescendantOfType(declarator, "abstract_pointer_declarator"))
-                            ? ParameterPassing::Pointer
-                            : ParameterPassing::Value));
+                                  findDescendantOfType(declarator, "abstract_reference_declarator"))
+                            ? ParameterPassing::Reference
+                            : (!ts_node_is_null(findDescendantOfType(declarator, "pointer_declarator"))
+                                      || !ts_node_is_null(findDescendantOfType(
+                                          declarator, "abstract_pointer_declarator"))
+                                    ? ParameterPassing::Pointer
+                                    : ParameterPassing::Value)));
         model.hasDefaultValue = !ts_node_is_null(defaultValue)
             || isNodeType(parameter, "optional_parameter_declaration");
         model.declaredType = parameterDeclaredType(parameter, declarator, source);

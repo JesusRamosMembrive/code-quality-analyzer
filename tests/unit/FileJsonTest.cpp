@@ -133,3 +133,29 @@ TEST_CASE("fileJson omits cppDetails when a type has none")
     CHECK(document.at("language").get<std::string>() == "c");
     CHECK_FALSE(document.at("types")[0].contains("cppDetails"));
 }
+
+TEST_CASE("fileJson serializes Array parameter passing as \"array\"")
+{
+    codeqa::model::FileModel file;
+    file.path = "src/sample.cpp";
+    file.language = codeqa::core::Language::Cpp;
+
+    codeqa::model::CallableModel callable;
+    callable.symbol.name = "classify";
+    callable.symbol.qualifiedName = "classify";
+
+    codeqa::model::ParameterModel parameter;
+    parameter.name = "items";
+    parameter.passing = codeqa::model::ParameterPassing::Array;
+    parameter.declaredType = "int";
+    callable.parameters.push_back(parameter);
+
+    file.callables.push_back(callable);
+
+    const nlohmann::json document = codeqa::report::fileJson(file);
+
+    REQUIRE(document.at("callables").size() == 1);
+    const nlohmann::json& callableJson = document.at("callables")[0];
+    REQUIRE(callableJson.at("parameters").size() == 1);
+    CHECK(callableJson.at("parameters")[0].at("passing").get<std::string>() == "array");
+}

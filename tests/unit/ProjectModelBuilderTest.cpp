@@ -580,3 +580,33 @@ TEST_CASE("two Free functions with non-overlapping ranges never get a PARSE004 d
     REQUIRE(result.files.size() == 1);
     CHECK(result.files[0].diagnostics.empty());
 }
+
+TEST_CASE("ProjectModelBuilder maps a frontend Array parameter to the model's Array passing")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/sample.cpp"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::Cpp;
+    sourceFile.grammar = codeqa::frontend::Grammar::Cpp;
+    sourceFile.parsed = true;
+    sourceFile.functions.push_back(codeqa::frontend::FunctionModel{
+        "classify",
+        codeqa::frontend::FunctionKind::Free,
+        rangeFor(sourcePath, 0, 30),
+        {codeqa::frontend::ParameterModel{
+            "items", codeqa::frontend::ParameterPassing::Array, false, "int"}},
+        false,
+        false});
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE(result.files[0].callables.size() == 1);
+    REQUIRE(result.files[0].callables[0].parameters.size() == 1);
+    CHECK(
+        result.files[0].callables[0].parameters[0].passing
+        == codeqa::model::ParameterPassing::Array);
+}

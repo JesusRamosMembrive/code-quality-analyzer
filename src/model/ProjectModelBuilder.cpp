@@ -46,6 +46,8 @@ ParameterPassing parameterPassingFor(frontend::ParameterPassing passing)
         return ParameterPassing::Reference;
     case frontend::ParameterPassing::FunctionPointer:
         return ParameterPassing::FunctionPointer;
+    case frontend::ParameterPassing::Array:
+        return ParameterPassing::Array;
     }
 
     throw std::logic_error("Unknown frontend parameter passing.");

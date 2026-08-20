@@ -157,6 +157,55 @@ TEST_CASE("derives C++ parameter passing from the declarator only")
         == codeqa::frontend::ParameterPassing::FunctionPointer);
 }
 
+TEST_CASE("derives Array parameter passing from array declarators, including arrays of pointers")
+{
+    const TempSourceFile file{
+        "array-parameters.cpp",
+        "void classify(int unsized[], int sized[10], int* pointers[5], int plain, int matrix[3][4]);\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    REQUIRE(result.functions[0].parameters.size() == 5);
+    CHECK(
+        result.functions[0].parameters[0].passing
+        == codeqa::frontend::ParameterPassing::Array);
+    CHECK(
+        result.functions[0].parameters[1].passing
+        == codeqa::frontend::ParameterPassing::Array);
+    CHECK(
+        result.functions[0].parameters[2].passing
+        == codeqa::frontend::ParameterPassing::Array);
+    CHECK(
+        result.functions[0].parameters[3].passing
+        == codeqa::frontend::ParameterPassing::Value);
+    CHECK(
+        result.functions[0].parameters[4].passing
+        == codeqa::frontend::ParameterPassing::Array);
+}
+
+TEST_CASE("derives Array parameter passing from an unnamed array parameter")
+{
+    const TempSourceFile file{
+        "unnamed-array-parameter.cpp",
+        "void classify(int[]);\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::Cpp, "detected language", parser, extractor);
+
+    REQUIRE(result.functions.size() == 1);
+    REQUIRE(result.functions[0].parameters.size() == 1);
+    CHECK(
+        result.functions[0].parameters[0].passing
+        == codeqa::frontend::ParameterPassing::Array);
+    CHECK(result.functions[0].parameters[0].name.empty());
+}
+
 TEST_CASE("extracts the declared type of each parameter, excluding declarator markers")
 {
     const TempSourceFile file{

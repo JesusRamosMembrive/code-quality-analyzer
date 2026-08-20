@@ -43,7 +43,8 @@ enum class ParameterPassing
     Value,
     Pointer,
     Reference,
-    FunctionPointer
+    FunctionPointer,
+    Array
 };
 
 enum class ControlFlowKind
