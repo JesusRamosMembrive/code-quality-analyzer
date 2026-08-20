@@ -74,13 +74,30 @@ from a declarator-shape check that never looks for `array_declarator`.
   `CallableModel::parameterListRange` as a shared fallback location). This
   rule follows the same existing convention rather than extending the model
   to add per-parameter ranges, which is a larger, unrelated change.
-- **Multi-dimensional arrays, arrays-of-function-pointers.** These are
-  structurally handled by the same `array_declarator` check (tree-sitter
-  nests declarators, and `findDescendantOfType` finds the outermost match in
-  a preorder walk) without any special-casing, but are not separately
-  tested beyond one representative case — same precision level as the
-  existing pointer/reference/function-pointer classification, which has
-  never enumerated every nesting shape either.
+- **Multi-dimensional arrays.** Structurally handled by the same
+  `array_declarator` check (tree-sitter nests declarators, and
+  `findDescendantOfType` finds the outermost match in a preorder walk)
+  without any special-casing, tested with one representative case
+  (`int m[3][4]`) — same precision level as the existing pointer/reference
+  classification, which has never enumerated every nesting shape either.
+- **Arrays-of-function-pointers.** NOT handled by the array check — a
+  correction to this spec's earlier claim, found during the final
+  whole-branch review. `isFunctionPointerDeclarator` is checked *before*
+  the array check and returns `true` whenever both a `function_declarator`
+  and a `pointer_declarator` exist anywhere in the subtree, which
+  `void (*handlers[3])(int)` satisfies — so such a parameter classifies
+  `FunctionPointer`, not `Array`, and produces no finding from this rule. A
+  benign false negative (not a false positive), consistent with
+  `FunctionPointer`'s existing higher priority in the chain; not fixed here.
+- **Reference-to-array and pointer-to-array declarators**
+  (`int (&arr)[N]`, `int (*p)[N]`) do NOT decay and must NOT classify as
+  `Array` — this was a real false positive the final whole-branch review
+  caught and the branch's fix wave corrected (see §4's
+  `isDecayingArrayDeclarator` helper). A residual, narrower case is
+  accepted as a known limitation: a pointer to a *multi-dimensional* array
+  (`int (*m)[3][4]`) still misclassifies as `Array`, since the fix only
+  unwraps one level of nesting. Pre-existing behavior, unchanged by the
+  fix, judged out of scope for this slice.
 - Any change to `Rule::evaluate`'s signature, `RuleContext`, or any of the
   10 existing rules' behavior. Any change to `parameterDeclaredType()`'s
   text-extraction logic.
