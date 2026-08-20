@@ -432,6 +432,49 @@ public:
     }
 };
 
+class ArrayParameterDecayRule : public Rule
+{
+public:
+    [[nodiscard]] std::string id() const override { return "memory.array-parameter-decay"; }
+
+    [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
+
+    [[nodiscard]] std::vector<Finding> evaluate(const RuleContext& context) const override
+    {
+        std::vector<Finding> findings;
+
+        const codeqa::core::SourceLocation location = context.callable.parameterListRange.has_value()
+            ? context.callable.parameterListRange->begin
+            : context.callable.symbol.range.begin;
+
+        for (const codeqa::model::ParameterModel& parameter : context.callable.parameters)
+        {
+            if (parameter.passing != codeqa::model::ParameterPassing::Array)
+            {
+                continue;
+            }
+
+            const std::string subject = parameter.name.empty()
+                ? "an unnamed parameter"
+                : "Parameter '" + parameter.name + "'";
+
+            Finding finding;
+            finding.ruleId = id();
+            finding.severity = codeqa::core::DiagnosticSeverity::Warning;
+            finding.description = subject
+                + " is declared as an array, which decays to a pointer and loses its size information.";
+            finding.recommendation =
+                "Pass the array's size explicitly as a separate parameter, or use a type "
+                "that carries its own size (e.g. std::span, std::array&, or a fixed-size struct).";
+            finding.location = location;
+            finding.symbolName = context.callable.symbol.qualifiedName;
+            findings.push_back(std::move(finding));
+        }
+
+        return findings;
+    }
+};
+
 } // namespace
 
 std::vector<std::unique_ptr<Rule>> allRules(const codeqa::config::ProjectConfig& config)
@@ -486,6 +529,11 @@ std::vector<std::unique_ptr<Rule>> allRules(const codeqa::config::ProjectConfig&
     if (const codeqa::config::RuleConfig& c = config.rules.at("memory.uninitialized-pointer"); c.enabled)
     {
         rules.push_back(std::make_unique<UninitializedPointerRule>());
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("memory.array-parameter-decay"); c.enabled)
+    {
+        rules.push_back(std::make_unique<ArrayParameterDecayRule>());
     }
 
     return rules;

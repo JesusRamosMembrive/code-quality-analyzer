@@ -49,7 +49,7 @@ TEST_CASE("toReportJson wraps each file's symbols with its metrics and findings,
     CHECK(document.at("schemaVersion").get<int>() == 1);
     CHECK(document.at("metadata").at("rootPath").get<std::string>() == model.rootPath.generic_string());
     CHECK(document.at("metadata").at("toolVersion").get<std::string>() == "9.9.9");
-    CHECK(document.at("config").at("rules").size() == 10);
+    CHECK(document.at("config").at("rules").size() == 11);
 
     REQUIRE(document.at("files").size() == 1);
     const nlohmann::json& fileDocument = document.at("files")[0];

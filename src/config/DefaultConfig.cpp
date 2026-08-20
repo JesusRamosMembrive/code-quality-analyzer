@@ -30,6 +30,7 @@ ProjectConfig defaultConfig()
     config.rules["complexity.nesting"] = thresholds(3, 5);
     config.rules["security.unsafe-string-api"] = thresholds(0, 0);
     config.rules["memory.uninitialized-pointer"] = thresholds(0, 0);
+    config.rules["memory.array-parameter-decay"] = thresholds(0, 0);
     return config;
 }
 

@@ -291,10 +291,10 @@ TEST_CASE("complexity.nesting resolves a tie in favor of the first matching entr
     CHECK(findings[0].location.column == 5);
 }
 
-TEST_CASE("all ten rules are registered and apply to both C and C++")
+TEST_CASE("all eleven rules are registered and apply to both C and C++")
 {
     const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
-    REQUIRE(rules.size() == 10);
+    REQUIRE(rules.size() == 11);
 
     for (const auto& rule : rules)
     {
@@ -310,7 +310,7 @@ TEST_CASE("allRules omits a rule disabled via config")
 
     const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
 
-    REQUIRE(rules.size() == 9);
+    REQUIRE(rules.size() == 10);
     for (const auto& rule : rules)
     {
         CHECK(rule->id() != "complexity.cyclomatic");
@@ -683,4 +683,119 @@ TEST_CASE("memory.uninitialized-pointer produces one finding per matching local,
     REQUIRE(findings.size() == 2);
     CHECK(findings[0].description == "Local pointer variable 'a' is declared without being initialized.");
     CHECK(findings[1].description == "Local pointer variable 'c' is declared without being initialized.");
+}
+
+TEST_CASE("memory.array-parameter-decay flags a named array parameter")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "memory.array-parameter-decay");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    callable.parameters = {
+        codeqa::model::ParameterModel{"items", codeqa::model::ParameterPassing::Array, false, "int"}};
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].ruleId == "memory.array-parameter-decay");
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    CHECK(
+        findings[0].description
+        == "Parameter 'items' is declared as an array, which decays to a pointer and loses its size information.");
+    CHECK(
+        findings[0].recommendation
+        == "Pass the array's size explicitly as a separate parameter, or use a type "
+           "that carries its own size (e.g. std::span, std::array&, or a fixed-size struct).");
+    CHECK_FALSE(findings[0].observedValue.has_value());
+    CHECK_FALSE(findings[0].limitValue.has_value());
+    CHECK(findings[0].symbolName == "Sample::sample");
+    CHECK(findings[0].location.line == 10);
+}
+
+TEST_CASE("memory.array-parameter-decay flags an unnamed array parameter with the unnamed phrasing")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "memory.array-parameter-decay");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    callable.parameters = {
+        codeqa::model::ParameterModel{"", codeqa::model::ParameterPassing::Array, false, "int"}};
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+
+    REQUIRE(findings.size() == 1);
+    CHECK(
+        findings[0].description
+        == "an unnamed parameter is declared as an array, which decays to a pointer and loses its size information.");
+}
+
+TEST_CASE("memory.array-parameter-decay ignores non-array parameters")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "memory.array-parameter-decay");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    callable.parameters = {
+        codeqa::model::ParameterModel{"a", codeqa::model::ParameterPassing::Value, false, "int"},
+        codeqa::model::ParameterModel{"b", codeqa::model::ParameterPassing::Pointer, false, "int"},
+        codeqa::model::ParameterModel{"c", codeqa::model::ParameterPassing::Reference, false, "int"},
+        codeqa::model::ParameterModel{"d", codeqa::model::ParameterPassing::FunctionPointer, false, "int"}};
+
+    CHECK(rule.evaluate(codeqa::rules::RuleContext{metrics, callable}).empty());
+}
+
+TEST_CASE("memory.array-parameter-decay produces one finding per array parameter, at the shared parameter-list location")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "memory.array-parameter-decay");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::core::SourceRange parameterListRange;
+    parameterListRange.begin.line = 10;
+    parameterListRange.begin.column = 13;
+    callable.parameterListRange = parameterListRange;
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    callable.parameters = {
+        codeqa::model::ParameterModel{"a", codeqa::model::ParameterPassing::Array, false, "int"},
+        codeqa::model::ParameterModel{"b", codeqa::model::ParameterPassing::Value, false, "int"},
+        codeqa::model::ParameterModel{"c", codeqa::model::ParameterPassing::Array, false, "int"}};
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+
+    REQUIRE(findings.size() == 2);
+    CHECK(findings[0].description.find("'a'") != std::string::npos);
+    CHECK(findings[0].location.line == 10);
+    CHECK(findings[0].location.column == 13);
+    CHECK(findings[1].description.find("'c'") != std::string::npos);
+    CHECK(findings[1].location.line == 10);
+    CHECK(findings[1].location.column == 13);
+}
+
+TEST_CASE("memory.array-parameter-decay falls back to the function start when there is no parameter list")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "memory.array-parameter-decay");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    callable.parameters = {
+        codeqa::model::ParameterModel{"a", codeqa::model::ParameterPassing::Array, false, "int"}};
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].location.line == 10);
+    CHECK(findings[0].location.column == 1);
 }
