@@ -24,10 +24,22 @@ from a declarator-shape check that never looks for `array_declarator`.
 
 ### In scope
 
-- **Frontend:** a new `ParameterPassing::Array` enumerator
-  (`include/codeqa/model/Models.h`), populated in
-  `parametersFor()` (`src/frontend/StructuralExtractor.cpp`) by checking the
-  parameter's declarator for an `array_declarator`/`abstract_array_declarator`
+- **Frontend:** `ParameterPassing` is defined **twice** in this codebase —
+  once as the frontend's parse-time model
+  (`include/codeqa/frontend/StructuralModels.h`) and once as the common
+  intermediate model rules actually see (`include/codeqa/model/Models.h`) —
+  with a translating switch between them
+  (`src/model/ProjectModelBuilder.cpp::parameterPassingFor`) and a second
+  switch serializing the model one to the JSON report
+  (`src/report/FileJson.cpp::parameterPassingToJsonString`). Both switches
+  are exhaustive with no `default:` case, so this project's warnings-as-errors
+  build (`/W4`, `CODEQA_WARNINGS_AS_ERRORS`) will refuse to compile if a new
+  enumerator is added to either enum without a matching case in both —
+  this is a real safety net, not something to route around with a
+  `default:`. A new `Array` enumerator is added to **both** enums, both
+  switches, populated in `parametersFor()`
+  (`src/frontend/StructuralExtractor.cpp`) by checking the parameter's
+  declarator for an `array_declarator`/`abstract_array_declarator`
   descendant, inserted into the existing priority chain right after the
   `FunctionPointer` check and before `Reference`/`Pointer` — so `int* arr[5]`
   (an array of pointers) is classified `Array`, not `Pointer`, since it still
@@ -111,7 +123,8 @@ already exercised twice (`security.unsafe-string-api`,
 ## 4. Frontend change
 
 ```cpp
-// include/codeqa/model/Models.h
+// include/codeqa/frontend/StructuralModels.h AND include/codeqa/model/Models.h
+// — the enumerator is added identically to BOTH definitions.
 enum class ParameterPassing
 {
     Value,
@@ -120,6 +133,21 @@ enum class ParameterPassing
     FunctionPointer,
     Array
 };
+```
+
+```cpp
+// src/model/ProjectModelBuilder.cpp, parameterPassingFor() — new case added
+// to the existing exhaustive switch (no default:), between the
+// FunctionPointer and closing brace:
+case frontend::ParameterPassing::Array:
+    return ParameterPassing::Array;
+```
+
+```cpp
+// src/report/FileJson.cpp, parameterPassingToJsonString() — new case added
+// to the existing exhaustive switch (no default:):
+case codeqa::model::ParameterPassing::Array:
+    return "array";
 ```
 
 ```cpp
@@ -224,22 +252,32 @@ if (const codeqa::config::RuleConfig& c = config.rules.at("memory.array-paramete
 config.rules["memory.array-parameter-decay"] = thresholds(0, 0);
 ```
 
-The full, now-known set of touch points (5 backend + 3 desktop, all found
-by direct repo inspection before writing the plan, not discovered
-mid-implementation this time):
+The full, now-known set of touch points — 5 rule-id-list surfaces (the same
+class as the previous two slices) plus 5 enum-extension surfaces (new this
+slice, since this is the first rule needing a new `ParameterPassing` value
+rather than a pure rule addition), all found by direct repo inspection
+before writing the plan:
 
+**Rule-id-list surfaces:**
 1. `src/config/DefaultConfig.cpp` — new `config.rules[...]` line.
 2. `src/config/ConfigJson.cpp::knownRuleIds()` — append the id.
 3. `src/desktop/ReportModels.cpp::orderedRuleIds()` — append the id.
 4. `include/codeqa/rules/Rules.h` doc comment — 10 → 11.
 5. `tests/unit/ReportJsonTest.cpp` — the rule-count assertion this exact
-   class of change has needed twice now (9→10 for slice 1, 10→11 here);
-   found only during slice 2's implementation, now known up front.
+   class of change has needed twice now (9→10 for slice 1, 10→11 here).
 6. `src/desktop/qml/pages/AnalyzePage.qml` — extend the `visible` condition
    on both limit fields with a third exclusion.
 7. `tests/desktop/AppControllerTest.cpp` — both `rowCount()` call sites,
    plus `expectedRuleIds`.
 8. `tests/unit/DefaultConfigTest.cpp` — count + new `checkRule` line.
+
+**`ParameterPassing` enum-extension surfaces (see §4):**
+9. `include/codeqa/frontend/StructuralModels.h` — add `Array` enumerator.
+10. `include/codeqa/model/Models.h` — add `Array` enumerator.
+11. `src/model/ProjectModelBuilder.cpp::parameterPassingFor()` — add the
+    translating case (compile error without it).
+12. `src/report/FileJson.cpp::parameterPassingToJsonString()` — add the
+    serializing case (compile error without it).
 
 ## 7. Testing and verification strategy
 
@@ -248,6 +286,11 @@ mid-implementation this time):
   sibling test) with array parameter cases: `int arr[]` → `Array`;
   `int arr[10]` → `Array`; `int* arr[5]` (array of pointers) → `Array`, not
   `Pointer`; a plain `int` parameter stays `Value` (regression guard).
+- `tests/unit/ProjectModelBuilderTest.cpp`: one new assertion that a
+  `frontend::ParameterPassing::Array` parameter maps to
+  `codeqa::model::ParameterPassing::Array` through `ProjectModelBuilder`.
+- `tests/unit/FileJsonTest.cpp`: one new assertion that an `Array`-passing
+  parameter serializes to `"passing": "array"` in the JSON report.
 - `tests/unit/RulesTest.cpp`: new test cases for `memory.array-parameter-decay`
   covering, on `CallableModel::parameters` entries in one `evaluate` call:
   - A named array parameter → 1 finding naming the parameter, `ruleId ==
