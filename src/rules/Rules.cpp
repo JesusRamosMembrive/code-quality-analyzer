@@ -392,6 +392,46 @@ public:
     }
 };
 
+bool looksLikeRawPointer(std::string_view declaredType)
+{
+    return !declaredType.empty() && declaredType.back() == '*';
+}
+
+class UninitializedPointerRule : public Rule
+{
+public:
+    [[nodiscard]] std::string id() const override { return "memory.uninitialized-pointer"; }
+
+    [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
+
+    [[nodiscard]] std::vector<Finding> evaluate(const RuleContext& context) const override
+    {
+        std::vector<Finding> findings;
+
+        for (const codeqa::model::LocalVariableModel& local : context.callable.localVariables)
+        {
+            if (local.hasInitializer || !looksLikeRawPointer(local.declaredType))
+            {
+                continue;
+            }
+
+            Finding finding;
+            finding.ruleId = id();
+            finding.severity = codeqa::core::DiagnosticSeverity::Warning;
+            finding.description =
+                "Local pointer variable '" + local.symbol.name + "' is declared without being initialized.";
+            finding.recommendation =
+                "Initialize the pointer at declaration (e.g., to nullptr or a valid address) "
+                "to avoid undefined behavior from using it before assignment.";
+            finding.location = local.symbol.range.begin;
+            finding.symbolName = context.callable.symbol.qualifiedName;
+            findings.push_back(std::move(finding));
+        }
+
+        return findings;
+    }
+};
+
 } // namespace
 
 std::vector<std::unique_ptr<Rule>> allRules(const codeqa::config::ProjectConfig& config)
@@ -441,6 +481,11 @@ std::vector<std::unique_ptr<Rule>> allRules(const codeqa::config::ProjectConfig&
     if (const codeqa::config::RuleConfig& c = config.rules.at("security.unsafe-string-api"); c.enabled)
     {
         rules.push_back(std::make_unique<UnsafeStringApiRule>());
+    }
+
+    if (const codeqa::config::RuleConfig& c = config.rules.at("memory.uninitialized-pointer"); c.enabled)
+    {
+        rules.push_back(std::make_unique<UninitializedPointerRule>());
     }
 
     return rules;

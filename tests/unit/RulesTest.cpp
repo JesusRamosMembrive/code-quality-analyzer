@@ -291,10 +291,10 @@ TEST_CASE("complexity.nesting resolves a tie in favor of the first matching entr
     CHECK(findings[0].location.column == 5);
 }
 
-TEST_CASE("all nine rules are registered and apply to both C and C++")
+TEST_CASE("all ten rules are registered and apply to both C and C++")
 {
     const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(codeqa::config::defaultConfig());
-    REQUIRE(rules.size() == 9);
+    REQUIRE(rules.size() == 10);
 
     for (const auto& rule : rules)
     {
@@ -310,7 +310,7 @@ TEST_CASE("allRules omits a rule disabled via config")
 
     const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
 
-    REQUIRE(rules.size() == 8);
+    REQUIRE(rules.size() == 9);
     for (const auto& rule : rules)
     {
         CHECK(rule->id() != "complexity.cyclomatic");
@@ -565,4 +565,122 @@ TEST_CASE("security.unsafe-string-api recommends a specific safe alternative for
     CHECK(findings[2].recommendation == "Use snprintf instead, which takes a buffer size.");
     CHECK(findings[3].description == "Call to unsafe function 'vsprintf'.");
     CHECK(findings[3].recommendation == "Use vsnprintf instead, which takes a buffer size.");
+}
+
+TEST_CASE("memory.uninitialized-pointer flags a raw pointer local with no initializer")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "memory.uninitialized-pointer");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    codeqa::model::LocalVariableModel local;
+    local.symbol.name = "p";
+    local.symbol.qualifiedName = "Sample::sample::p";
+    local.symbol.range.begin.line = 12;
+    local.symbol.range.begin.column = 5;
+    local.declaredType = "int*";
+    local.hasInitializer = false;
+    callable.localVariables.push_back(local);
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].ruleId == "memory.uninitialized-pointer");
+    CHECK(findings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    CHECK(findings[0].description == "Local pointer variable 'p' is declared without being initialized.");
+    CHECK(
+        findings[0].recommendation
+        == "Initialize the pointer at declaration (e.g., to nullptr or a valid address) "
+           "to avoid undefined behavior from using it before assignment.");
+    CHECK_FALSE(findings[0].observedValue.has_value());
+    CHECK_FALSE(findings[0].limitValue.has_value());
+    CHECK(findings[0].symbolName == "Sample::sample");
+    CHECK(findings[0].location.line == 12);
+    CHECK(findings[0].location.column == 5);
+}
+
+TEST_CASE("memory.uninitialized-pointer ignores an initialized raw pointer local")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "memory.uninitialized-pointer");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    codeqa::model::LocalVariableModel local;
+    local.symbol.name = "p";
+    local.declaredType = "int*";
+    local.hasInitializer = true;
+    callable.localVariables.push_back(local);
+
+    CHECK(rule.evaluate(codeqa::rules::RuleContext{metrics, callable}).empty());
+}
+
+TEST_CASE("memory.uninitialized-pointer ignores non-pointer, array, smart-pointer, and function-pointer locals")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "memory.uninitialized-pointer");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    codeqa::model::LocalVariableModel plainInt;
+    plainInt.symbol.name = "x";
+    plainInt.declaredType = "int";
+    plainInt.hasInitializer = false;
+
+    codeqa::model::LocalVariableModel array;
+    array.symbol.name = "arr";
+    array.declaredType = "int[10]";
+    array.hasInitializer = false;
+
+    codeqa::model::LocalVariableModel smartPointer;
+    smartPointer.symbol.name = "sp";
+    smartPointer.declaredType = "std::unique_ptr<int>";
+    smartPointer.hasInitializer = false;
+
+    codeqa::model::LocalVariableModel functionPointer;
+    functionPointer.symbol.name = "fp";
+    functionPointer.declaredType = "int(*)(int)";
+    functionPointer.hasInitializer = false;
+
+    callable.localVariables = {plainInt, array, smartPointer, functionPointer};
+
+    CHECK(rule.evaluate(codeqa::rules::RuleContext{metrics, callable}).empty());
+}
+
+TEST_CASE("memory.uninitialized-pointer produces one finding per matching local, in declaration order")
+{
+    const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules =
+        codeqa::rules::allRules(codeqa::config::defaultConfig());
+    const codeqa::rules::Rule& rule = ruleNamed(rules, "memory.uninitialized-pointer");
+    codeqa::model::CallableModel callable = makeCallable();
+    codeqa::metrics::FunctionMetricsModel metrics;
+
+    codeqa::model::LocalVariableModel first;
+    first.symbol.name = "a";
+    first.declaredType = "char*";
+    first.hasInitializer = false;
+
+    codeqa::model::LocalVariableModel initialized;
+    initialized.symbol.name = "b";
+    initialized.declaredType = "char*";
+    initialized.hasInitializer = true;
+
+    codeqa::model::LocalVariableModel second;
+    second.symbol.name = "c";
+    second.declaredType = "char**";
+    second.hasInitializer = false;
+
+    callable.localVariables = {first, initialized, second};
+
+    const std::vector<codeqa::rules::Finding> findings =
+        rule.evaluate(codeqa::rules::RuleContext{metrics, callable});
+
+    REQUIRE(findings.size() == 2);
+    CHECK(findings[0].description == "Local pointer variable 'a' is declared without being initialized.");
+    CHECK(findings[1].description == "Local pointer variable 'c' is declared without being initialized.");
 }

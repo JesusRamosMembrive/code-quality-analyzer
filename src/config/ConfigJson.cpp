@@ -31,7 +31,8 @@ const std::vector<std::string>& knownRuleIds()
         "complexity.returns",
         "complexity.condition",
         "complexity.nesting",
-        "security.unsafe-string-api"};
+        "security.unsafe-string-api",
+        "memory.uninitialized-pointer"};
     return ids;
 }
 
