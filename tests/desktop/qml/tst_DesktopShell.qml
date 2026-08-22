@@ -364,6 +364,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 1
         shell.show()
         shell.requestActivate()
         tryVerify(function() { return shell.active })
@@ -381,12 +382,12 @@ TestCase {
         tryCompare(shell.findChild("findingDetails"), "text", "first.rule")
     }
 
-    function test_results_page_is_findings_first_and_read_only() {
+    function test_results_page_findings_view_is_read_only() {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 1
         compare(shell.findChild("resultsTitle").text, "Findings")
         verify(shell.findChild("findingTable") !== null)
-        verify(shell.findChild("resultsSummary") !== null)
         verify(shell.findChild("saveFindingButton") === null)
     }
 
@@ -445,10 +446,12 @@ TestCase {
         shell.controller = fixtureController
         shell.selectPage("Results")
 
+        verify(shell.findChild("overviewSummary") !== null)
         verify(shell.findChild("qualityGateSummaryCard") !== null)
         verify(shell.findChild("findingsSummaryCard") !== null)
         verify(shell.findChild("errorsSummaryCard") !== null)
         verify(shell.findChild("warningsSummaryCard") !== null)
+        shell.findChild("resultsTabs").currentIndex = 1
         verify(shell.findChild("findingTable") !== null)
         verify(shell.findChild("findingDetails") !== null)
         verify(shell.findChild("saveFindingButton") === null)
@@ -459,6 +462,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 1
 
         const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 2 })
@@ -508,6 +512,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 1
 
         fixtureController.setFindingSearchText("does-not-exist")
 
@@ -525,6 +530,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 1
 
         const errorState = shell.findChild("resultsErrorMessage")
         verify(errorState !== null)
@@ -571,6 +577,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 1
 
         fixtureController.setFindingSearchText("secondFunction")
 
@@ -870,15 +877,15 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 3
 
         const suppressedList = shell.findChild("suppressedFindingsList")
         verify(suppressedList !== null)
         tryVerify(function() { return suppressedList.count === 1 })
 
         // StackLayout only instantiates ListView delegates for the current
-        // tab, so the "Suprimidos" tab must be selected before its rows
+        // tab, so the "Suppressed" tab must be selected before its rows
         // can be inspected via itemAtIndex().
-        shell.findChild("resultsTabs").currentIndex = 2
         tryVerify(function() { return suppressedList.itemAtIndex(0) !== null })
 
         const row = suppressedList.itemAtIndex(0)
@@ -904,6 +911,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 1
 
         const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 2 })
@@ -921,6 +929,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 1
 
         const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 2 })

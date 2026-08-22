@@ -14,6 +14,7 @@ Item {
 
     ListView {
         id: fileMetricsList
+        objectName: "fileMetricsList"
         anchors.fill: parent
         clip: true
         model: root.controller ? root.controller.files : null
