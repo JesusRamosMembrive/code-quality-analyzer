@@ -594,6 +594,25 @@ TestCase {
         })
     }
 
+    function test_header_override_entry_surface_keeps_its_controls_inside_the_section() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+        shell.show()
+
+        const headerTable = shell.findChild("headerOverrideTable")
+        const exclusionsField = shell.findChild("excludePatternsField")
+        const headerContent = headerTable.parent
+        const addOverrideSurface = headerContent.children[1]
+        const contentTop = function(item) { return item.mapToItem(shell.contentItem, 0, 0).y }
+        const contentBottom = function(item) { return contentTop(item) + item.height }
+
+        tryVerify(function() {
+            return addOverrideSurface.height > 0
+                && contentBottom(addOverrideSurface) <= contentTop(exclusionsField)
+        })
+    }
+
     function test_history_lists_newest_first_and_open_is_non_destructive() {
         resetHistoryCalls()
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)

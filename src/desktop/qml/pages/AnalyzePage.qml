@@ -407,10 +407,13 @@ ScrollView {
                         }
 
                         WorkbenchSurface {
+                            id: headerOverrideAddSurface
                             Layout.fillWidth: true
                             tintColor: Root.CodeQaTheme.surfaceSubtle
+                            implicitHeight: headerOverrideAddContent.implicitHeight + Root.CodeQaTheme.spaceMd * 2
 
                             RowLayout {
+                                id: headerOverrideAddContent
                                 anchors.fill: parent
                                 anchors.margins: Root.CodeQaTheme.spaceMd
                                 spacing: Root.CodeQaTheme.spaceMd
