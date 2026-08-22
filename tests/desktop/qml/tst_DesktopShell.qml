@@ -377,6 +377,11 @@ TestCase {
         compare(shell.findChild("findingDetails").text, "second.rule")
         verify(shell.findChild("findingDetailsDescription").text.indexOf("second finding") !== -1)
         verify(shell.findChild("findingDetailsRecommendation").text.indexOf("reduce parameters") !== -1)
+        compare(shell.findChild("findingDetailsObservedValue").text, "Observed value: 3")
+        compare(shell.findChild("findingDetailsLimitValue").text, "Limit value: 2")
+        compare(shell.findChild("findingDetailsPath").text, "Path: second.cpp")
+        compare(shell.findChild("findingDetailsLocation").text, "Location: Line 9, column 2")
+        compare(shell.findChild("findingDetailsMetrics").text, "Metrics: Parameters: 3")
     }
 
     function test_results_summary_uses_controller_model_counts() {
@@ -390,6 +395,17 @@ TestCase {
         compare(shell.findChild("findingsSummaryCard").trend, "3 files analyzed")
         compare(shell.findChild("errorsSummaryCard").value, "1")
         compare(shell.findChild("warningsSummaryCard").value, "1")
+
+        fixtureController.qualityGateSeverity = "error"
+        fixtureController.qualityGateStatus = "Passed"
+        tryCompare(shell.findChild("qualityGateSummaryCard"), "status", "success")
+
+        fixtureController.qualityGateSeverity = "warning"
+        fixtureController.qualityGateStatus = "Failed"
+        tryCompare(shell.findChild("qualityGateSummaryCard"), "status", "error")
+
+        fixtureController.qualityGateStatus = "Not evaluated"
+        tryCompare(shell.findChild("qualityGateSummaryCard"), "status", "not-evaluated")
 
         fixtureController.setFindingSeverityFilter("warning")
         tryCompare(shell.findChild("findingsSummaryCard"), "value", "1")

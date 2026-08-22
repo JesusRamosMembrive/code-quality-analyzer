@@ -28,11 +28,11 @@ WorkbenchSurface {
     readonly property color tint: {
         switch (root.status) {
         case "success":
-            return Qt.rgba(0.31, 0.57, 0.46, 0.12)
+            return Root.CodeQaTheme.successSoft
         case "error":
-            return Qt.rgba(0.74, 0.37, 0.32, 0.1)
+            return Root.CodeQaTheme.errorSoft
         case "warning":
-            return Qt.rgba(0.70, 0.48, 0.18, 0.1)
+            return Root.CodeQaTheme.warningSoft
         case "not-evaluated":
             return Root.CodeQaTheme.surfaceSubtle
         default:

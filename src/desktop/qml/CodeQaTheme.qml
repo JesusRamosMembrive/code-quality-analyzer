@@ -19,8 +19,11 @@ QtObject {
     readonly property color accent: "#d59a3f"
     readonly property color accentSoft: "#f6e7c7"
     readonly property color success: "#4f9276"
+    readonly property color successSoft: "#e5f0e8"
     readonly property color error: "#bd5e51"
+    readonly property color errorSoft: "#f4dfdc"
     readonly property color warning: "#b27b2d"
+    readonly property color warningSoft: "#f6e9d2"
     readonly property color link: "#4f6585"
 
     readonly property int spaceXs: 4

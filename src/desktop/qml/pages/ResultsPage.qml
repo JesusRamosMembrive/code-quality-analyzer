@@ -32,16 +32,11 @@ Item {
         if (statusText === "not evaluated") {
             return "not-evaluated"
         }
-
-        const severityText = root.controller.qualityGateSeverity ? String(root.controller.qualityGateSeverity).toLowerCase() : ""
-        if (severityText === "error") {
-            return "error"
-        }
-        if (severityText === "warning") {
-            return "warning"
-        }
-        if (severityText === "success") {
+        if (statusText === "passed") {
             return "success"
+        }
+        if (statusText === "failed") {
+            return "error"
         }
         return "neutral"
     }
