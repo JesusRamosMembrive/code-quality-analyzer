@@ -44,8 +44,9 @@ Rectangle {
             leftPadding: root.compact ? 0 : Root.CodeQaTheme.spaceLg
             rightPadding: root.compact ? 0 : Root.CodeQaTheme.spaceLg
             Accessible.name: navRoot.title
+            property string navigationTooltip: navRoot.title
             ToolTip.visible: root.compact && hovered
-            ToolTip.text: navRoot.title
+            ToolTip.text: navigationTooltip
             ToolTip.delay: 500
 
             background: Rectangle {

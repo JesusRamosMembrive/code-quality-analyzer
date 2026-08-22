@@ -202,6 +202,16 @@ TestCase {
 
         function setFindingSearchText(value) {
             findingSearchText = value
+            fixtureFindings.clear()
+            if (value === "") {
+                fixtureFindings.append(errorFinding)
+                fixtureFindings.append(warningFinding)
+                fixtureFindings.errorCount = 1
+                fixtureFindings.warningCount = 1
+            } else {
+                fixtureFindings.errorCount = 0
+                fixtureFindings.warningCount = 0
+            }
         }
     }
 
@@ -363,6 +373,8 @@ TestCase {
         row.forceActiveFocus()
         tryCompare(row, "activeFocus", true)
         verify(row.activeFocus)
+        row.selectCurrentFinding()
+        tryCompare(shell.findChild("findingDetails"), "text", "first.rule")
     }
 
     function test_results_page_is_findings_first_and_read_only() {
@@ -445,15 +457,12 @@ TestCase {
         shell.selectPage("Results")
 
         fixtureController.setFindingSearchText("does-not-exist")
-        fixtureFindings.clear()
-        fixtureFindings.errorCount = 0
-        fixtureFindings.warningCount = 0
 
         const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 0 })
         const emptyState = shell.findChild("findingEmptyState")
         verify(emptyState !== null)
-        verify(emptyState.visible)
+        tryCompare(emptyState, "visible", true)
         compare(emptyState.text, "No findings match the current filters.")
     }
 
@@ -479,12 +488,24 @@ TestCase {
         const sidebar = shell.findChild("workbenchSidebar")
         tryCompare(sidebar, "compact", true)
         tryCompare(sidebar, "width", CodeQaTheme.compactSidebarWidth)
-        compare(shell.findChild("analyzeNavigationButton").text, "A")
-        compare(shell.findChild("historyNavigationButton").text, "H")
-        compare(shell.findChild("resultsNavigationButton").text, "R")
+        const analyzeButton = shell.findChild("analyzeNavigationButton")
+        const historyButton = shell.findChild("historyNavigationButton")
+        const resultsButton = shell.findChild("resultsNavigationButton")
+        compare(analyzeButton.text, "A")
+        compare(historyButton.text, "H")
+        compare(resultsButton.text, "R")
+        compare(analyzeButton.Accessible.name, "Analyze")
+        compare(analyzeButton.navigationTooltip, "Analyze")
         verify(shell.findChild("analyzeNavigationButton").visible)
         verify(shell.findChild("historyNavigationButton").visible)
         verify(shell.findChild("resultsNavigationButton").visible)
+
+        shell.width = 1120
+        tryCompare(sidebar, "compact", true)
+        shell.width = 1280
+        tryCompare(sidebar, "compact", false)
+        tryCompare(sidebar, "width", CodeQaTheme.sidebarWidth)
+        compare(analyzeButton.text, "Analyze")
     }
 
     function test_clear_recent_paths_action_is_visible_calls_controller_and_is_disabled_during_analysis() {

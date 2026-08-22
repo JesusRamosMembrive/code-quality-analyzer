@@ -363,7 +363,7 @@ Item {
                                         anchors.centerIn: parent
                                         width: Math.min(440, Math.max(240, parent.width - Root.CodeQaTheme.spaceXl * 2))
                                         height: emptyStateLabel.implicitHeight + Root.CodeQaTheme.spaceLg * 2
-                                        visible: !findingTable.model || findingTable.model.count === 0
+                                        visible: findingTable.count === 0
                                         tintColor: Root.CodeQaTheme.surfaceSubtle
 
                                         Label {
