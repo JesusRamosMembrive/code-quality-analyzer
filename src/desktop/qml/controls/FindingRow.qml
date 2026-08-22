@@ -23,6 +23,10 @@ WorkbenchSurface {
 
     implicitHeight: contentRow.implicitHeight + (Root.CodeQaTheme.spaceMd * 2)
     elevated: root.selected
+    border.width: root.selected || root.activeFocus ? 2 : 1
+    border.color: root.selected || root.activeFocus ? Root.CodeQaTheme.accent : Root.CodeQaTheme.border
+    activeFocusOnTab: true
+    Accessible.name: root.ruleId + ", " + root.symbolName
 
     function statusForSeverity() {
         const normalized = root.severity ? root.severity.toLowerCase() : ""
@@ -40,6 +44,22 @@ WorkbenchSurface {
 
     function locationText() {
         return "Line " + root.line + ", column " + root.column
+    }
+
+    function selectCurrentFinding() {
+        root.findingSelected({
+            severity: root.severity,
+            ruleId: root.ruleId,
+            symbolName: root.symbolName,
+            path: root.path,
+            line: root.line,
+            column: root.column,
+            observedValue: root.observedValue,
+            limitValue: root.limitValue,
+            description: root.description,
+            recommendation: root.recommendation,
+            metricSummary: root.metricSummary
+        })
     }
 
     RowLayout {
@@ -100,20 +120,13 @@ WorkbenchSurface {
     }
 
     TapHandler {
-        onTapped: {
-            root.findingSelected({
-                severity: root.severity,
-                ruleId: root.ruleId,
-                symbolName: root.symbolName,
-                path: root.path,
-                line: root.line,
-                column: root.column,
-                observedValue: root.observedValue,
-                limitValue: root.limitValue,
-                description: root.description,
-                recommendation: root.recommendation,
-                metricSummary: root.metricSummary
-            })
+        onTapped: root.selectCurrentFinding()
+    }
+
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            event.accepted = true
+            root.selectCurrentFinding()
         }
     }
 }

@@ -8,6 +8,10 @@ Rectangle {
 
     property string selectedPage: "Results"
     property bool analysisRunning: false
+    property bool compact: false
+    readonly property int preferredWidth: compact
+        ? Root.CodeQaTheme.compactSidebarWidth
+        : Root.CodeQaTheme.sidebarWidth
     signal pageRequested(string page)
     signal openReportRequested()
     signal clearRecentPathsRequested()
@@ -22,20 +26,27 @@ Rectangle {
         id: navRoot
 
         required property string title
+        required property string shortTitle
         required property string page
         required property string objectNameValue
 
         implicitHeight: 44
-        implicitWidth: 160
+        implicitWidth: root.compact ? 44 : 160
 
         WorkbenchButton {
             id: button
             objectName: navRoot.objectNameValue
             anchors.fill: parent
-            text: navRoot.title
+            text: root.compact ? navRoot.shortTitle : navRoot.title
             variant: "quiet"
             highlighted: root.isSelected(navRoot.page)
             font.bold: root.isSelected(navRoot.page)
+            leftPadding: root.compact ? 0 : Root.CodeQaTheme.spaceLg
+            rightPadding: root.compact ? 0 : Root.CodeQaTheme.spaceLg
+            Accessible.name: navRoot.title
+            ToolTip.visible: root.compact && hovered
+            ToolTip.text: navRoot.title
+            ToolTip.delay: 500
 
             background: Rectangle {
                 radius: Root.CodeQaTheme.radiusMd
@@ -58,7 +69,7 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Root.CodeQaTheme.spaceLg
+        anchors.margins: root.compact ? Root.CodeQaTheme.spaceSm : Root.CodeQaTheme.spaceLg
         spacing: Root.CodeQaTheme.spaceLg
 
         ColumnLayout {
@@ -66,10 +77,12 @@ Rectangle {
             spacing: Root.CodeQaTheme.spaceXs
 
             Label {
-                text: "CodeQA"
+                text: root.compact ? "CQ" : "CodeQA"
                 color: Root.CodeQaTheme.surface
-                font.pixelSize: 24
+                font.pixelSize: root.compact ? 18 : 24
                 font.bold: true
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
             }
 
             Label {
@@ -77,6 +90,7 @@ Rectangle {
                 color: Root.CodeQaTheme.sidebarMutedText
                 opacity: 0.72
                 font.pixelSize: 12
+                visible: !root.compact
             }
         }
 
@@ -90,10 +104,12 @@ Rectangle {
                 opacity: 0.62
                 font.pixelSize: 11
                 font.letterSpacing: 1
+                visible: !root.compact
             }
 
             NavigationButton {
                 title: "Analyze"
+                shortTitle: "A"
                 page: "Analyze"
                 objectNameValue: "analyzeNavigationButton"
                 Layout.fillWidth: true
@@ -110,10 +126,12 @@ Rectangle {
                 opacity: 0.62
                 font.pixelSize: 11
                 font.letterSpacing: 1
+                visible: !root.compact
             }
 
             NavigationButton {
                 title: "History"
+                shortTitle: "H"
                 page: "History"
                 objectNameValue: "historyNavigationButton"
                 Layout.fillWidth: true
@@ -121,6 +139,7 @@ Rectangle {
 
             NavigationButton {
                 title: "Results"
+                shortTitle: "R"
                 page: "Results"
                 objectNameValue: "resultsNavigationButton"
                 Layout.fillWidth: true
@@ -133,6 +152,7 @@ Rectangle {
 
         WorkbenchSurface {
             Layout.fillWidth: true
+            visible: !root.compact
             tintColor: Root.CodeQaTheme.sidebarSurfaceTint
             border.color: Root.CodeQaTheme.sidebarSurfaceBorder
 

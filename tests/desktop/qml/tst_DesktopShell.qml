@@ -340,6 +340,31 @@ TestCase {
         compare(badge.status, "not-evaluated")
     }
 
+    function test_workbench_keyboard_focus_is_tab_reachable() {
+        const button = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/controls/WorkbenchButton.qml"), this, {
+            text: "Analyze project"
+        })
+        verify(button !== null)
+        compare(button.activeFocusOnTab, true)
+
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+        shell.show()
+        shell.requestActivate()
+        const table = shell.findChild("findingTable")
+        tryVerify(function() { return table.count === 2 })
+        const row = table.itemAtIndex(0).children[0]
+        verify(row !== null)
+        compare(row.activeFocusOnTab, true)
+
+        table.forceActiveFocus()
+        row.forceActiveFocus()
+        tryCompare(row, "activeFocus", true)
+        verify(row.activeFocus)
+    }
+
     function test_results_page_is_findings_first_and_read_only() {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.selectPage("Results")
@@ -411,6 +436,55 @@ TestCase {
         tryCompare(shell.findChild("findingsSummaryCard"), "value", "1")
         compare(shell.findChild("errorsSummaryCard").value, "0")
         compare(shell.findChild("warningsSummaryCard").value, "1")
+    }
+
+    function test_results_empty_state_remains_visible_after_filtering_all_findings() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        fixtureController.setFindingSearchText("does-not-exist")
+        fixtureFindings.clear()
+        fixtureFindings.errorCount = 0
+        fixtureFindings.warningCount = 0
+
+        const table = shell.findChild("findingTable")
+        tryVerify(function() { return table.count === 0 })
+        const emptyState = shell.findChild("findingEmptyState")
+        verify(emptyState !== null)
+        verify(emptyState.visible)
+        compare(emptyState.text, "No findings match the current filters.")
+    }
+
+    function test_results_error_state_is_inline_and_theme_styled() {
+        resetFixtureFindings()
+        fixtureController.errorMessage = "Error [REPORT001]: report could not be imported"
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        const errorState = shell.findChild("resultsErrorMessage")
+        verify(errorState !== null)
+        verify(errorState.visible)
+        compare(errorState.text, "Error [REPORT001]: report could not be imported")
+        compare(errorState.color.toString(), CodeQaTheme.error.toString())
+    }
+
+    function test_shell_keeps_all_primary_navigation_at_minimum_size() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.width = 960
+        shell.height = 600
+
+        const sidebar = shell.findChild("workbenchSidebar")
+        tryCompare(sidebar, "compact", true)
+        tryCompare(sidebar, "width", CodeQaTheme.compactSidebarWidth)
+        compare(shell.findChild("analyzeNavigationButton").text, "A")
+        compare(shell.findChild("historyNavigationButton").text, "H")
+        compare(shell.findChild("resultsNavigationButton").text, "R")
+        verify(shell.findChild("analyzeNavigationButton").visible)
+        verify(shell.findChild("historyNavigationButton").visible)
+        verify(shell.findChild("resultsNavigationButton").visible)
     }
 
     function test_clear_recent_paths_action_is_visible_calls_controller_and_is_disabled_during_analysis() {

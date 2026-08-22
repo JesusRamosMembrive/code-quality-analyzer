@@ -17,10 +17,12 @@ T.Button {
         ? Root.CodeQaTheme.accent
         : (root.secondaryVariant ? Root.CodeQaTheme.border : "transparent")
     readonly property color baseTextColor: root.primaryVariant
-        ? "#ffffff"
+        ? Root.CodeQaTheme.onAccent
         : (root.quietVariant ? Root.CodeQaTheme.mutedInk : Root.CodeQaTheme.ink)
 
     hoverEnabled: true
+    activeFocusOnTab: true
+    Accessible.name: root.text
     leftPadding: Root.CodeQaTheme.spaceLg
     rightPadding: Root.CodeQaTheme.spaceLg
     topPadding: Root.CodeQaTheme.spaceSm

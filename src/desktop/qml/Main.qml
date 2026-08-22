@@ -30,7 +30,6 @@ ApplicationWindow {
 
     property var controller: typeof appController !== "undefined" ? appController : null
     property string selectedPage: controller && controller.lastPage !== "" ? controller.lastPage : "Results"
-
     function selectPage(name) {
         if (name !== "Analyze" && name !== "History" && name !== "Results") {
             return
@@ -99,7 +98,8 @@ ApplicationWindow {
             id: workbenchSidebar
             objectName: "workbenchSidebar"
             Layout.fillHeight: true
-            Layout.preferredWidth: CodeQaTheme.sidebarWidth
+            Layout.preferredWidth: workbenchSidebar.preferredWidth
+            compact: shell.width <= 1120
             selectedPage: shell.selectedPage
             analysisRunning: shell.controller ? shell.controller.analysisRunning : false
             onPageRequested: function(page) { shell.selectPage(page) }

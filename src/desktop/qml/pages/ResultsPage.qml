@@ -222,6 +222,24 @@ Item {
                         }
                     }
 
+                    WorkbenchSurface {
+                        id: resultsErrorSurface
+                        Layout.fillWidth: true
+                        visible: resultsErrorMessage.text !== ""
+                        tintColor: Root.CodeQaTheme.errorSoft
+                        implicitHeight: resultsErrorMessage.implicitHeight + Root.CodeQaTheme.spaceLg * 2
+
+                        Label {
+                            id: resultsErrorMessage
+                            objectName: "resultsErrorMessage"
+                            anchors.fill: parent
+                            anchors.margins: Root.CodeQaTheme.spaceLg
+                            text: root.controller ? root.controller.errorMessage : ""
+                            color: Root.CodeQaTheme.error
+                            wrapMode: Text.Wrap
+                        }
+                    }
+
                     Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -276,68 +294,88 @@ Item {
                                     }
                                 }
 
-                                ListView {
-                                    id: findingTable
-                                    objectName: "findingTable"
+                                Item {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
-                                    clip: true
-                                    currentIndex: -1
-                                    model: root.controller ? root.controller.findings : null
-                                    spacing: Root.CodeQaTheme.spaceSm
 
-                                    ScrollBar.vertical: ScrollBar {}
+                                    ListView {
+                                        id: findingTable
+                                        objectName: "findingTable"
+                                        anchors.fill: parent
+                                        clip: true
+                                        currentIndex: -1
+                                        model: root.controller ? root.controller.findings : null
+                                        spacing: Root.CodeQaTheme.spaceSm
 
-                                    Component.onCompleted: currentIndex = -1
-                                    onModelChanged: currentIndex = -1
+                                        ScrollBar.vertical: ScrollBar {}
 
-                                    delegate: Item {
-                                        id: findingDelegate
-                                        required property int index
-                                        required property string severity
-                                        required property string ruleId
-                                        required property string symbolName
-                                        required property string path
-                                        required property var line
-                                        required property var column
-                                        required property var observedValue
-                                        required property var limitValue
-                                        required property string description
-                                        required property string recommendation
-                                        required property string metricSummary
+                                        Component.onCompleted: currentIndex = -1
+                                        onModelChanged: currentIndex = -1
 
-                                        width: findingTable.width
-                                        height: Math.max(72, findingRow.implicitHeight)
-                                        property bool isCurrent: ListView.isCurrentItem
+                                        delegate: Item {
+                                            id: findingDelegate
+                                            required property int index
+                                            required property string severity
+                                            required property string ruleId
+                                            required property string symbolName
+                                            required property string path
+                                            required property var line
+                                            required property var column
+                                            required property var observedValue
+                                            required property var limitValue
+                                            required property string description
+                                            required property string recommendation
+                                            required property string metricSummary
 
-                                        FindingRow {
-                                            id: findingRow
-                                            anchors.fill: parent
-                                            severity: findingDelegate.severity
-                                            ruleId: findingDelegate.ruleId
-                                            symbolName: findingDelegate.symbolName
-                                            path: findingDelegate.path
-                                            line: findingDelegate.line
-                                            column: findingDelegate.column
-                                            observedValue: findingDelegate.observedValue
-                                            limitValue: findingDelegate.limitValue
-                                            description: findingDelegate.description
-                                            recommendation: findingDelegate.recommendation
-                                            metricSummary: findingDelegate.metricSummary
-                                            selected: findingDelegate.isCurrent
+                                            width: findingTable.width
+                                            height: Math.max(72, findingRow.implicitHeight)
+                                            property bool isCurrent: ListView.isCurrentItem
 
-                                            onFindingSelected: function(finding) {
-                                                findingTable.currentIndex = findingDelegate.index
-                                                root.selectFinding(finding)
+                                            FindingRow {
+                                                id: findingRow
+                                                anchors.fill: parent
+                                                severity: findingDelegate.severity
+                                                ruleId: findingDelegate.ruleId
+                                                symbolName: findingDelegate.symbolName
+                                                path: findingDelegate.path
+                                                line: findingDelegate.line
+                                                column: findingDelegate.column
+                                                observedValue: findingDelegate.observedValue
+                                                limitValue: findingDelegate.limitValue
+                                                description: findingDelegate.description
+                                                recommendation: findingDelegate.recommendation
+                                                metricSummary: findingDelegate.metricSummary
+                                                selected: findingDelegate.isCurrent
+
+                                                onFindingSelected: function(finding) {
+                                                    findingTable.currentIndex = findingDelegate.index
+                                                    root.selectFinding(finding)
+                                                }
                                             }
                                         }
+
                                     }
 
-                                    Label {
+                                    WorkbenchSurface {
+                                        id: findingEmptyState
+                                        objectName: "findingEmptyState"
+                                        property alias text: emptyStateLabel.text
                                         anchors.centerIn: parent
-                                        visible: findingTable.count === 0
-                                        text: "No findings match the current filters."
-                                        color: Root.CodeQaTheme.mutedInk
+                                        width: Math.min(440, Math.max(240, parent.width - Root.CodeQaTheme.spaceXl * 2))
+                                        height: emptyStateLabel.implicitHeight + Root.CodeQaTheme.spaceLg * 2
+                                        visible: !findingTable.model || findingTable.model.count === 0
+                                        tintColor: Root.CodeQaTheme.surfaceSubtle
+
+                                        Label {
+                                            id: emptyStateLabel
+                                            anchors.fill: parent
+                                            anchors.margins: Root.CodeQaTheme.spaceLg
+                                            text: "No findings match the current filters."
+                                            color: Root.CodeQaTheme.mutedInk
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            wrapMode: Text.Wrap
+                                        }
                                     }
                                 }
                             }
