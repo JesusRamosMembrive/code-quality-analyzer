@@ -202,16 +202,19 @@ TestCase {
 
         function setFindingSearchText(value) {
             findingSearchText = value
+            const normalized = value.toLowerCase()
+            const candidates = [errorFinding, warningFinding]
             fixtureFindings.clear()
-            if (value === "") {
-                fixtureFindings.append(errorFinding)
-                fixtureFindings.append(warningFinding)
-                fixtureFindings.errorCount = 1
-                fixtureFindings.warningCount = 1
-            } else {
-                fixtureFindings.errorCount = 0
-                fixtureFindings.warningCount = 0
+            for (const finding of candidates) {
+                if (normalized === ""
+                        || finding.ruleId.toLowerCase().indexOf(normalized) !== -1
+                        || finding.symbolName.toLowerCase().indexOf(normalized) !== -1
+                        || finding.path.toLowerCase().indexOf(normalized) !== -1) {
+                    fixtureFindings.append(finding)
+                }
             }
+            fixtureFindings.errorCount = fixtureFindings.count > 0 && fixtureFindings.get(0).severity === "error" ? 1 : 0
+            fixtureFindings.warningCount = fixtureFindings.count > 0 && fixtureFindings.get(fixtureFindings.count - 1).severity === "warning" ? 1 : 0
         }
     }
 
@@ -373,7 +376,7 @@ TestCase {
         row.forceActiveFocus()
         tryCompare(row, "activeFocus", true)
         verify(row.activeFocus)
-        row.selectCurrentFinding()
+        keyClick(Qt.Key_Return)
         tryCompare(shell.findChild("findingDetails"), "text", "first.rule")
     }
 
@@ -496,6 +499,11 @@ TestCase {
         compare(resultsButton.text, "R")
         compare(analyzeButton.Accessible.name, "Analyze")
         compare(analyzeButton.navigationTooltip, "Analyze")
+        compare(historyButton.Accessible.name, "History")
+        compare(resultsButton.Accessible.name, "Results")
+        mouseMove(analyzeButton)
+        tryCompare(analyzeButton, "hovered", true)
+        tryCompare(analyzeButton, "navigationTooltipVisible", true)
         verify(shell.findChild("analyzeNavigationButton").visible)
         verify(shell.findChild("historyNavigationButton").visible)
         verify(shell.findChild("resultsNavigationButton").visible)
@@ -506,6 +514,18 @@ TestCase {
         tryCompare(sidebar, "compact", false)
         tryCompare(sidebar, "width", CodeQaTheme.sidebarWidth)
         compare(analyzeButton.text, "Analyze")
+    }
+
+    function test_results_search_preserves_matching_findings() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        fixtureController.setFindingSearchText("secondFunction")
+
+        const table = shell.findChild("findingTable")
+        tryCompare(table, "count", 1)
     }
 
     function test_clear_recent_paths_action_is_visible_calls_controller_and_is_disabled_during_analysis() {
