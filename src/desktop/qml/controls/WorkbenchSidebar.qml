@@ -74,7 +74,8 @@ Rectangle {
 
             Label {
                 text: "Warm Workbench"
-                color: Qt.rgba(0.86, 0.89, 0.87, 0.72)
+                color: Root.CodeQaTheme.sidebarMutedText
+                opacity: 0.72
                 font.pixelSize: 12
             }
         }
@@ -85,7 +86,8 @@ Rectangle {
 
             Label {
                 text: "Workspace"
-                color: Qt.rgba(0.86, 0.89, 0.87, 0.62)
+                color: Root.CodeQaTheme.sidebarMutedText
+                opacity: 0.62
                 font.pixelSize: 11
                 font.letterSpacing: 1
             }
@@ -104,7 +106,8 @@ Rectangle {
 
             Label {
                 text: "Explore"
-                color: Qt.rgba(0.86, 0.89, 0.87, 0.62)
+                color: Root.CodeQaTheme.sidebarMutedText
+                opacity: 0.62
                 font.pixelSize: 11
                 font.letterSpacing: 1
             }
@@ -130,8 +133,8 @@ Rectangle {
 
         WorkbenchSurface {
             Layout.fillWidth: true
-            tintColor: Qt.rgba(1, 0.99, 0.97, 0.08)
-            border.color: Qt.rgba(0.94, 0.88, 0.78, 0.22)
+            tintColor: Root.CodeQaTheme.sidebarSurfaceTint
+            border.color: Root.CodeQaTheme.sidebarSurfaceBorder
 
             implicitHeight: contextLayout.implicitHeight + Root.CodeQaTheme.spaceLg * 2
 
@@ -155,14 +158,15 @@ Rectangle {
                         : root.selectedPage === "History"
                             ? "Review recent snapshots and compare changes."
                             : "Inspect findings and exported reports."
-                    color: Qt.rgba(0.86, 0.89, 0.87, 0.72)
+                    color: Root.CodeQaTheme.sidebarMutedText
+                    opacity: 0.72
                     wrapMode: Text.Wrap
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 1
-                    color: Qt.rgba(0.94, 0.88, 0.78, 0.18)
+                    color: Root.CodeQaTheme.sidebarDivider
                 }
 
                 WorkbenchButton {

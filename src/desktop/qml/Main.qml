@@ -26,7 +26,7 @@ ApplicationWindow {
     palette.button: CodeQaTheme.surface
     palette.buttonText: CodeQaTheme.ink
     palette.highlight: CodeQaTheme.accent
-    palette.highlightedText: "#ffffff"
+    palette.highlightedText: CodeQaTheme.onAccent
 
     property var controller: typeof appController !== "undefined" ? appController : null
     property string selectedPage: controller && controller.lastPage !== "" ? controller.lastPage : "Results"
@@ -126,7 +126,7 @@ ApplicationWindow {
                 projectName: shell.controller
                     ? shell.controller.currentProject.toString()
                     : "No project selected"
-                branchText: "UI-Alternative"
+                branchText: "Local project"
             }
 
             StackLayout {
