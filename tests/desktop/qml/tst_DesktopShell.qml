@@ -296,6 +296,15 @@ TestCase {
         compare(resultsButton.text, "Results")
     }
 
+    function test_warm_workbench_shell_exposes_header_and_sidebar() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        verify(shell.findChild("workbenchHeader") !== null)
+        verify(shell.findChild("workbenchSidebar") !== null)
+        compare(shell.findChild("analyzeNavigationButton").text, "Analyze")
+        compare(shell.findChild("historyNavigationButton").text, "History")
+        compare(shell.findChild("resultsNavigationButton").text, "Results")
+    }
+
     function test_warm_workbench_theme_singleton_exposes_approved_roles() {
         const probe = createTemporaryObject(themeProbeComponent, this)
 

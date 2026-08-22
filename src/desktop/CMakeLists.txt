@@ -75,6 +75,14 @@ set_source_files_properties(qml/controls/StatusBadge.qml PROPERTIES
     QT_RESOURCE_ALIAS controls/StatusBadge.qml
 )
 
+set_source_files_properties(qml/controls/WorkbenchSidebar.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/WorkbenchSidebar.qml
+)
+
+set_source_files_properties(qml/controls/WorkbenchHeader.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/WorkbenchHeader.qml
+)
+
 qt_add_qml_module(codeqa_desktop
     URI CodeQA.Desktop
     VERSION 1.0
@@ -90,6 +98,8 @@ qt_add_qml_module(codeqa_desktop
         qml/controls/WorkbenchSurface.qml
         qml/controls/WorkbenchButton.qml
         qml/controls/StatusBadge.qml
+        qml/controls/WorkbenchSidebar.qml
+        qml/controls/WorkbenchHeader.qml
 )
 
 get_target_property(_codeqa_qmake_executable Qt6::qmake IMPORTED_LOCATION)
