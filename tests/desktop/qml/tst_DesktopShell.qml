@@ -300,7 +300,8 @@ TestCase {
 
     function selectFindingRow(table, index) {
         const row = findingRowAt(table, index)
-        row.selectCurrentFinding()
+        tryVerify(function() { return row.visible })
+        mouseClick(row, row.width / 2, row.height / 2)
         return row
     }
 

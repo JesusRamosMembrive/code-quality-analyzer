@@ -164,3 +164,34 @@ Final verification result:
 - Exit code: `0`
 - Output file: `buildQt/tests/qml-final-diagnose.txt`
 - Totals: `36 passed, 0 failed, 0 skipped, 0 blacklisted, 2797ms`
+
+## Pointer-selection fix
+
+Status: complete.
+
+Changed files:
+- `tests/desktop/qml/tst_DesktopShell.qml`
+- `.superpowers/sdd/2026-08-22-results-tabs/task-3-report.md`
+
+Diagnosis:
+- The shared helper `selectFindingRow()` was calling `row.selectCurrentFinding()` directly.
+- That bypassed the production `TapHandler` in `src/desktop/qml/controls/FindingRow.qml`, so the tests were no longer exercising real pointer selection behavior.
+- The existing synchronization helpers already materialized the delegate and waited for non-zero row geometry, so the scoped fix was to keep those waits and replace the direct call with a real click on the rendered row.
+
+Fix applied:
+- Kept `findingRowAt()` and the existing synchronization helpers unchanged.
+- Updated `selectFindingRow()` to wait for a visible row and call `mouseClick(row, row.width / 2, row.height / 2)`.
+- Left the detail assertions on the existing `findingDetailsHasText()` traversal.
+
+Verification command run:
+
+```powershell
+$env:PATH = 'C:\Qt\6.11.0\llvm-mingw_64\bin;' + $env:PATH
+$env:QT_QPA_PLATFORM = 'offscreen'
+& '..\codeqa_desktop_qml_smoke.exe' -o qml-pointer-final.txt,txt
+```
+
+Verification result:
+- Exit code: `0`
+- Output file: `buildQt/tests/qml-pointer-final.txt`
+- Totals: `36 passed, 0 failed, 0 skipped, 0 blacklisted`
