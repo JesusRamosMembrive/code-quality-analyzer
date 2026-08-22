@@ -37,7 +37,7 @@ Create a focused QML component for the report summary. It contains:
 - total matching findings and analyzed-file count;
 - matching errors;
 - matching warnings;
-- a compact context row showing analyzed files and suppressed findings, using values already exposed by the controller.
+- a compact context row showing the analyzed-file count and current quality-gate state, using values already exposed by the controller.
 
 The overview consumes controller values only. It does not own finding filters or finding selection.
 
@@ -70,6 +70,7 @@ Move the existing suppressed-findings `ListView` into its own focused component 
 - Each tab receives the same `controller` object.
 - Existing filter properties remain `findingSeverityFilter`, `findingRuleFilter`, and `findingSearchText`.
 - Existing model properties remain `findings`, `files`, and `suppressedFindings`.
+- The overview does not invent a suppressed-finding count because `SuppressedFindingListModel` does not currently expose a summary property; users reach those rows through the dedicated `Suppressed` tab.
 - Opening a report continues to select the `Results` page; the Results page then starts on `Overview`.
 - The export action continues to call `controller.exportMarkdown()`.
 
