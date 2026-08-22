@@ -79,5 +79,5 @@ $env:PATH = 'C:\Qt\6.11.0\llvm-mingw_64\bin;' + $env:PATH
 
 Result:
 - Build succeeded.
-- Targeted smoke failed: `1/1 Test #15: codeqa_desktop_qml_smoke .........***Failed 25.34 sec`; CTest reported `0% tests passed, 1 tests failed out of 1`.
-- No further long diagnostic command was run after this result, per the requested stop condition.
+- Targeted smoke failed: `1/1 Test #15: codeqa_desktop_qml_smoke .........***Failed 26.33 sec`; CTest reported `0% tests passed, 1 tests failed out of 1`.
+- A fresh rerun on 2026-08-22 produced the same failure state; no further long diagnostic command was run after this result, per the requested stop condition.
