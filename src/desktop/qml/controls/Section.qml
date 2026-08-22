@@ -13,9 +13,9 @@ ColumnLayout {
 
     Label {
         text: root.title.toUpperCase()
-        font.pixelSize: 12
-        font.bold: true
-        font.letterSpacing: 1.2
+        font.pixelSize: Root.CodeQaTheme.sectionLabelPixelSize
+        font.bold: Root.CodeQaTheme.sectionLabelBold
+        font.letterSpacing: Root.CodeQaTheme.sectionLabelLetterSpacing
         color: Root.CodeQaTheme.mutedInk
         Layout.leftMargin: Root.CodeQaTheme.spaceXs
     }

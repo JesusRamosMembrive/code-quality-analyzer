@@ -472,8 +472,9 @@ TestCase {
         tryVerify(function() { return list.itemAtIndex(0) !== null })
         const newest = list.itemAtIndex(0)
         compare(newest.timestampText, "20260301T000000Z")
-        mouseClick(newest.openAction, newest.openAction.width / 2, newest.openAction.height / 2)
-        newest.openAction.clicked()
+        mouseClick(newest.openAction,
+                   newest.openAction.width / 2,
+                   newest.openAction.height / 2)
 
         compare(fixtureController.openSnapshotCalls, 1)
         compare(fixtureController.openedTimestamp, "20260301T000000Z")
@@ -533,17 +534,20 @@ TestCase {
         tryVerify(function() { return list.itemAtIndex(0) !== null })
         const newest = list.itemAtIndex(0)
 
-        mouseClick(newest.deleteAction, newest.deleteAction.width / 2, newest.deleteAction.height / 2)
-        newest.deleteAction.clicked()
-
+        const deletePoint = newest.deleteAction.mapToItem(shell.contentItem, 0, 0)
+        mouseClick(shell.contentItem,
+                   deletePoint.x + newest.deleteAction.width / 2,
+                   deletePoint.y + newest.deleteAction.height / 2)
         compare(fixtureController.deleteSnapshotCalls, 0)
         compare(history.deleteConfirmation.title, "Delete snapshot?")
         verify(history.deleteConfirmationText.indexOf("20260301T000000Z") !== -1)
         history.deleteConfirmation.reject()
         compare(fixtureController.deleteSnapshotCalls, 0)
 
-        mouseClick(newest.deleteAction, newest.deleteAction.width / 2, newest.deleteAction.height / 2)
-        newest.deleteAction.clicked()
+        const secondDeletePoint = newest.deleteAction.mapToItem(shell.contentItem, 0, 0)
+        mouseClick(shell.contentItem,
+                   secondDeletePoint.x + newest.deleteAction.width / 2,
+                   secondDeletePoint.y + newest.deleteAction.height / 2)
         history.deleteConfirmation.accept()
         compare(fixtureController.deleteSnapshotCalls, 1)
         compare(fixtureController.deletedTimestamp, "20260301T000000Z")

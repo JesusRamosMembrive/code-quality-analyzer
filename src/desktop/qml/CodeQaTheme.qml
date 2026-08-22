@@ -34,6 +34,9 @@ QtObject {
     readonly property int radiusSm: 7
     readonly property int radiusMd: 11
     readonly property int radiusLg: 14
+    readonly property int sectionLabelPixelSize: 12
+    readonly property bool sectionLabelBold: true
+    readonly property real sectionLabelLetterSpacing: 1.2
     readonly property int sidebarWidth: 208
     readonly property int compactSidebarWidth: 64
     readonly property int contentMaxWidth: 1480
