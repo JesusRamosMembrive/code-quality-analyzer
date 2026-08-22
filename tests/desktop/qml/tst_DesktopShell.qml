@@ -390,6 +390,55 @@ TestCase {
         verify(shell.findChild("saveFindingButton") === null)
     }
 
+    function test_results_tabs_start_on_overview_in_the_requested_order() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        const resultsTabs = shell.findChild("resultsTabs")
+        verify(resultsTabs !== null)
+
+        const overviewTab = shell.findChild("overviewTab")
+        verify(overviewTab !== null)
+        if (overviewTab === null) {
+            return
+        }
+
+        const findingsTab = shell.findChild("findingsTab")
+        const filesMetricsTab = shell.findChild("filesMetricsTab")
+        const suppressedTab = shell.findChild("suppressedTab")
+
+        verify(findingsTab !== null)
+        verify(filesMetricsTab !== null)
+        verify(suppressedTab !== null)
+        compare(resultsTabs.count, 4)
+        compare(resultsTabs.currentIndex, 0)
+        compare(resultsTabs.tabText(0), "Overview")
+        compare(resultsTabs.tabText(1), "Findings")
+        compare(resultsTabs.tabText(2), "Files and metrics")
+        compare(resultsTabs.tabText(3), "Suppressed")
+        verify(shell.findChild("overviewSummary") !== null)
+    }
+
+    function test_results_tabs_expose_findings_files_and_suppressed_views() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        const resultsTabs = shell.findChild("resultsTabs")
+        verify(resultsTabs !== null)
+
+        resultsTabs.currentIndex = 1
+        verify(shell.findChild("findingTable") !== null)
+        verify(shell.findChild("findingDetails") !== null)
+
+        resultsTabs.currentIndex = 2
+        verify(shell.findChild("fileMetricsList") !== null)
+
+        resultsTabs.currentIndex = 3
+        verify(shell.findChild("suppressedFindingsList") !== null)
+    }
+
     function test_results_has_workbench_summary_cards_and_detail_surface() {
         resetFixtureFindings()
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
