@@ -246,6 +246,26 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         COPYONLY
     )
     configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsOverview.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsOverview.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsFindings.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFindings.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsFilesMetrics.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFilesMetrics.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsSuppressed.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsSuppressed.qml
+        COPYONLY
+    )
+    configure_file(
         ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/AnalyzePage.qml
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalyzePage.qml
         COPYONLY
@@ -328,7 +348,11 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/CodeQaTheme.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalyzePage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/HistoryPage.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsOverview.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFindings.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFilesMetrics.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsPage.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsSuppressed.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/PulseButton.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/GlassPanel.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/Section.qml

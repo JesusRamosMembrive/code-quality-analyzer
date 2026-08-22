@@ -107,7 +107,11 @@ qt_add_qml_module(codeqa_desktop
         qml/CodeQaTheme.qml
         qml/pages/AnalyzePage.qml
         qml/pages/HistoryPage.qml
+        qml/pages/ResultsOverview.qml
+        qml/pages/ResultsFindings.qml
+        qml/pages/ResultsFilesMetrics.qml
         qml/pages/ResultsPage.qml
+        qml/pages/ResultsSuppressed.qml
         qml/controls/PulseButton.qml
         qml/controls/GlassPanel.qml
         qml/controls/Section.qml
