@@ -269,6 +269,41 @@ TestCase {
         fixtureController.nextProjectErrorMessage = ""
     }
 
+    function showResultsTab(shell, tabIndex) {
+        const resultsTabs = shell.findChild("resultsTabs")
+        verify(resultsTabs !== null)
+        shell.show()
+        resultsTabs.currentIndex = tabIndex
+        tryCompare(resultsTabs, "currentIndex", tabIndex)
+        tryVerify(function() { return shell.visible })
+        return resultsTabs
+    }
+
+    function prepareFindingsView(shell) {
+        showResultsTab(shell, 1)
+        const table = shell.findChild("findingTable")
+        verify(table !== null)
+        tryVerify(function() { return table.width > 0 && table.height > 0 })
+        return table
+    }
+
+    function findingRowAt(table, index) {
+        tryVerify(function() { return table.itemAtIndex(index) !== null })
+        const delegate = table.itemAtIndex(index)
+        verify(delegate !== null)
+        tryVerify(function() { return delegate.children !== null && delegate.children.length > 0 && delegate.children[0] !== null })
+        const row = delegate.children[0]
+        verify(row !== null)
+        tryVerify(function() { return row.width > 0 && row.height > 0 })
+        return row
+    }
+
+    function selectFindingRow(table, index) {
+        const row = findingRowAt(table, index)
+        row.selectCurrentFinding()
+        return row
+    }
+
     function findVisualText(parent, expectedText) {
         if (!parent) {
             return null
@@ -287,6 +322,12 @@ TestCase {
             }
         }
         return null
+    }
+
+    function findingDetailsHasText(shell, expectedText) {
+        const detailsPanel = shell.findChild("findingDetails")
+        verify(detailsPanel !== null)
+        return findVisualText(detailsPanel, expectedText) !== null
     }
 
     function test_shell_has_the_three_primary_pages() {
@@ -364,15 +405,11 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
-        shell.findChild("resultsTabs").currentIndex = 1
-        shell.show()
+        const table = prepareFindingsView(shell)
         shell.requestActivate()
         tryVerify(function() { return shell.active })
-        const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 2 })
-        tryVerify(function() { return table.itemAtIndex(0) !== null })
-        const row = table.itemAtIndex(0).children[0]
-        verify(row !== null)
+        const row = findingRowAt(table, 0)
         compare(row.activeFocusOnTab, true)
 
         table.forceActiveFocus()
@@ -380,7 +417,7 @@ TestCase {
         tryCompare(row, "activeFocus", true)
         verify(row.activeFocus)
         keyClick(Qt.Key_Return)
-        tryCompare(shell.findChild("findingDetails"), "text", "first.rule")
+        tryVerify(function() { return findingDetailsHasText(shell, "first.rule") })
     }
 
     function test_results_page_findings_view_is_read_only() {
@@ -415,10 +452,10 @@ TestCase {
         verify(suppressedTab !== null)
         compare(resultsTabs.count, 4)
         compare(resultsTabs.currentIndex, 0)
-        compare(resultsTabs.tabText(0), "Overview")
-        compare(resultsTabs.tabText(1), "Findings")
-        compare(resultsTabs.tabText(2), "Files and metrics")
-        compare(resultsTabs.tabText(3), "Suppressed")
+        compare(overviewTab.text, "Overview")
+        compare(findingsTab.text, "Findings")
+        compare(filesMetricsTab.text, "Files and metrics")
+        compare(suppressedTab.text, "Suppressed")
         verify(shell.findChild("overviewSummary") !== null)
     }
 
@@ -427,17 +464,18 @@ TestCase {
         shell.controller = fixtureController
         shell.selectPage("Results")
 
-        const resultsTabs = shell.findChild("resultsTabs")
+        const resultsTabs = showResultsTab(shell, 1)
         verify(resultsTabs !== null)
 
-        resultsTabs.currentIndex = 1
         verify(shell.findChild("findingTable") !== null)
         verify(shell.findChild("findingDetails") !== null)
 
         resultsTabs.currentIndex = 2
+        tryCompare(resultsTabs, "currentIndex", 2)
         verify(shell.findChild("fileMetricsList") !== null)
 
         resultsTabs.currentIndex = 3
+        tryCompare(resultsTabs, "currentIndex", 3)
         verify(shell.findChild("suppressedFindingsList") !== null)
     }
 
@@ -452,7 +490,7 @@ TestCase {
         verify(shell.findChild("findingsSummaryCard") !== null)
         verify(shell.findChild("errorsSummaryCard") !== null)
         verify(shell.findChild("warningsSummaryCard") !== null)
-        shell.findChild("resultsTabs").currentIndex = 1
+        showResultsTab(shell, 1)
         verify(shell.findChild("findingTable") !== null)
         verify(shell.findChild("findingDetails") !== null)
         verify(shell.findChild("saveFindingButton") === null)
@@ -463,14 +501,11 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
-        shell.findChild("resultsTabs").currentIndex = 1
-
-        const table = shell.findChild("findingTable")
+        const table = prepareFindingsView(shell)
         tryVerify(function() { return table.count === 2 })
-        tryVerify(function() { return table.itemAtIndex(1) !== null })
-        mouseClick(table.itemAtIndex(1), table.itemAtIndex(1).width / 2, table.itemAtIndex(1).height / 2)
+        selectFindingRow(table, 1)
 
-        compare(shell.findChild("findingDetails").text, "second.rule")
+        tryVerify(function() { return findingDetailsHasText(shell, "second.rule") })
         verify(shell.findChild("findingDetailsDescription").text.indexOf("second finding") !== -1)
         verify(shell.findChild("findingDetailsRecommendation").text.indexOf("reduce parameters") !== -1)
         compare(shell.findChild("findingDetailsObservedValue").text, "Observed value: 3")
@@ -514,7 +549,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
-        shell.findChild("resultsTabs").currentIndex = 1
+        prepareFindingsView(shell)
 
         fixtureController.setFindingSearchText("does-not-exist")
 
@@ -532,7 +567,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
-        shell.findChild("resultsTabs").currentIndex = 1
+        showResultsTab(shell, 1)
 
         const errorState = shell.findChild("resultsErrorMessage")
         verify(errorState !== null)
@@ -579,7 +614,7 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
-        shell.findChild("resultsTabs").currentIndex = 1
+        prepareFindingsView(shell)
 
         fixtureController.setFindingSearchText("secondFunction")
 
@@ -913,18 +948,11 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
-        shell.findChild("resultsTabs").currentIndex = 1
-
-        const table = shell.findChild("findingTable")
+        const table = prepareFindingsView(shell)
         tryVerify(function() { return table.count === 2 })
-        tryVerify(function() { return table.itemAtIndex(1) !== null })
+        selectFindingRow(table, 1)
 
-        const secondFinding = table.itemAtIndex(1)
-        verify(secondFinding !== null)
-        mouseClick(secondFinding, secondFinding.width / 2, secondFinding.height / 2)
-
-        const details = shell.findChild("findingDetails")
-        tryVerify(function() { return details.text === "second.rule" })
+        tryVerify(function() { return findingDetailsHasText(shell, "second.rule") })
     }
 
     function test_filtering_out_the_selected_finding_clears_details() {
@@ -932,22 +960,17 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
-        shell.findChild("resultsTabs").currentIndex = 1
-
-        const table = shell.findChild("findingTable")
+        const table = prepareFindingsView(shell)
         tryVerify(function() { return table.count === 2 })
-        tryVerify(function() { return table.itemAtIndex(0) !== null })
-        const firstFinding = table.itemAtIndex(0)
-        mouseClick(firstFinding, firstFinding.width / 2, firstFinding.height / 2)
+        selectFindingRow(table, 0)
 
-        const details = shell.findChild("findingDetails")
-        tryVerify(function() { return details.text === "first.rule" })
+        tryVerify(function() { return findingDetailsHasText(shell, "first.rule") })
 
         const severityFilter = shell.findChild("findingSeverityFilter")
         severityFilter.currentIndex = 2
         severityFilter.activated(2)
 
         tryVerify(function() { return table.count === 1 })
-        tryVerify(function() { return details.text === "Finding details" })
+        tryVerify(function() { return findingDetailsHasText(shell, "Finding details") })
     }
 }
