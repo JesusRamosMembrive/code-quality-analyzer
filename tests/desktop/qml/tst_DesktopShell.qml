@@ -349,22 +349,52 @@ TestCase {
         verify(shell.findChild("saveFindingButton") === null)
     }
 
+    function test_results_has_workbench_summary_cards_and_detail_surface() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        verify(shell.findChild("qualityGateSummaryCard") !== null)
+        verify(shell.findChild("findingsSummaryCard") !== null)
+        verify(shell.findChild("errorsSummaryCard") !== null)
+        verify(shell.findChild("warningsSummaryCard") !== null)
+        verify(shell.findChild("findingTable") !== null)
+        verify(shell.findChild("findingDetails") !== null)
+        verify(shell.findChild("saveFindingButton") === null)
+    }
+
+    function test_results_row_selection_keeps_existing_finding_values() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        const table = shell.findChild("findingTable")
+        tryVerify(function() { return table.count === 2 })
+        mouseClick(table.itemAtIndex(1), table.itemAtIndex(1).width / 2, table.itemAtIndex(1).height / 2)
+
+        compare(shell.findChild("findingDetails").text, "second.rule")
+        verify(shell.findChild("findingDetailsDescription").text.indexOf("second finding") !== -1)
+        verify(shell.findChild("findingDetailsRecommendation").text.indexOf("reduce parameters") !== -1)
+    }
+
     function test_results_summary_uses_controller_model_counts() {
         resetFixtureFindings()
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
 
-        compare(shell.findChild("summaryFilesLabel").text, "Files: 3")
-        compare(shell.findChild("summaryDiagnosticsLabel").text, "Diagnostics: 4")
-        compare(shell.findChild("summaryFindingsLabel").text, "Matching findings: 2")
-        compare(shell.findChild("summaryErrorsLabel").text, "Matching errors: 1")
-        compare(shell.findChild("summaryWarningsLabel").text, "Matching warnings: 1")
+        compare(shell.findChild("qualityGateSummaryCard").value, "Not evaluated")
+        compare(shell.findChild("findingsSummaryCard").value, "2")
+        compare(shell.findChild("findingsSummaryCard").trend, "3 files analyzed")
+        compare(shell.findChild("errorsSummaryCard").value, "1")
+        compare(shell.findChild("warningsSummaryCard").value, "1")
 
         fixtureController.setFindingSeverityFilter("warning")
-        tryCompare(shell.findChild("summaryFindingsLabel"), "text", "Matching findings: 1")
-        compare(shell.findChild("summaryErrorsLabel").text, "Matching errors: 0")
-        compare(shell.findChild("summaryWarningsLabel").text, "Matching warnings: 1")
+        tryCompare(shell.findChild("findingsSummaryCard"), "value", "1")
+        compare(shell.findChild("errorsSummaryCard").value, "0")
+        compare(shell.findChild("warningsSummaryCard").value, "1")
     }
 
     function test_clear_recent_paths_action_is_visible_calls_controller_and_is_disabled_during_analysis() {

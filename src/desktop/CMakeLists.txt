@@ -83,6 +83,22 @@ set_source_files_properties(qml/controls/WorkbenchHeader.qml PROPERTIES
     QT_RESOURCE_ALIAS controls/WorkbenchHeader.qml
 )
 
+set_source_files_properties(qml/controls/SummaryCard.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/SummaryCard.qml
+)
+
+set_source_files_properties(qml/controls/FilterBar.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/FilterBar.qml
+)
+
+set_source_files_properties(qml/controls/FindingRow.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/FindingRow.qml
+)
+
+set_source_files_properties(qml/controls/FindingDetails.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/FindingDetails.qml
+)
+
 qt_add_qml_module(codeqa_desktop
     URI CodeQA.Desktop
     VERSION 1.0
@@ -100,6 +116,10 @@ qt_add_qml_module(codeqa_desktop
         qml/controls/StatusBadge.qml
         qml/controls/WorkbenchSidebar.qml
         qml/controls/WorkbenchHeader.qml
+        qml/controls/SummaryCard.qml
+        qml/controls/FilterBar.qml
+        qml/controls/FindingRow.qml
+        qml/controls/FindingDetails.qml
 )
 
 get_target_property(_codeqa_qmake_executable Qt6::qmake IMPORTED_LOCATION)

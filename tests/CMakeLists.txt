@@ -296,9 +296,29 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchHeader.qml
         COPYONLY
     )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/SummaryCard.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/SummaryCard.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/FilterBar.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FilterBar.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/FindingRow.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FindingRow.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/FindingDetails.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FindingDetails.qml
+        COPYONLY
+    )
     file(GENERATE
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
-        CONTENT "module CodeQA.Desktop\nsingleton CodeQaTheme 1.0 CodeQaTheme.qml\nMain 1.0 Main.qml\nWorkbenchSurface 1.0 controls/WorkbenchSurface.qml\nWorkbenchButton 1.0 controls/WorkbenchButton.qml\nStatusBadge 1.0 controls/StatusBadge.qml\nWorkbenchSidebar 1.0 controls/WorkbenchSidebar.qml\nWorkbenchHeader 1.0 controls/WorkbenchHeader.qml\n"
+        CONTENT "module CodeQA.Desktop\nsingleton CodeQaTheme 1.0 CodeQaTheme.qml\nMain 1.0 Main.qml\nWorkbenchSurface 1.0 controls/WorkbenchSurface.qml\nWorkbenchButton 1.0 controls/WorkbenchButton.qml\nStatusBadge 1.0 controls/StatusBadge.qml\nWorkbenchSidebar 1.0 controls/WorkbenchSidebar.qml\nWorkbenchHeader 1.0 controls/WorkbenchHeader.qml\nSummaryCard 1.0 controls/SummaryCard.qml\nFilterBar 1.0 controls/FilterBar.qml\nFindingRow 1.0 controls/FindingRow.qml\nFindingDetails 1.0 controls/FindingDetails.qml\n"
     )
     qt_add_resources(codeqa_desktop_qml_smoke desktop_shell_resources
         PREFIX "/qt/qml/CodeQA/Desktop"
@@ -317,6 +337,10 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/StatusBadge.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchSidebar.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchHeader.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/SummaryCard.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FilterBar.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FindingRow.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FindingDetails.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
     )
 
