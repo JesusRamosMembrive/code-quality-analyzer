@@ -182,8 +182,8 @@ Item {
                                 id: snapshotRow
                                 required property string timestamp
                                 readonly property string timestampText: timestamp
-                                property alias openAction: openActionArea
-                                property alias deleteAction: deleteActionArea
+                                property alias openAction: openButton
+                                property alias deleteAction: deleteButton
 
                                 width: ListView.view.width
                                 height: 60
@@ -210,17 +210,10 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
 
                                         WorkbenchButton {
+                                            id: openButton
                                             anchors.fill: parent
                                             text: "Open"
                                             variant: "secondary"
-                                            enabled: historyPage.controller && !historyPage.controller.analysisRunning
-                                            opacity: 1.0
-                                        }
-
-                                        MouseArea {
-                                            id: openActionArea
-                                            anchors.fill: parent
-                                            z: 1
                                             enabled: historyPage.controller && !historyPage.controller.analysisRunning
                                             onClicked: historyPage.controller.openSnapshot(snapshotRow.timestamp)
                                         }
@@ -232,17 +225,10 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
 
                                         WorkbenchButton {
+                                            id: deleteButton
                                             anchors.fill: parent
                                             text: "Delete"
                                             variant: "quiet"
-                                            enabled: historyPage.controller && !historyPage.controller.analysisRunning
-                                            opacity: 1.0
-                                        }
-
-                                        MouseArea {
-                                            id: deleteActionArea
-                                            anchors.fill: parent
-                                            z: 1
                                             enabled: historyPage.controller && !historyPage.controller.analysisRunning
                                             onClicked: {
                                                 historyPage.pendingDeleteTimestamp = snapshotRow.timestamp

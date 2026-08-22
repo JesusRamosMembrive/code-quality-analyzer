@@ -472,9 +472,10 @@ TestCase {
         tryVerify(function() { return list.itemAtIndex(0) !== null })
         const newest = list.itemAtIndex(0)
         compare(newest.timestampText, "20260301T000000Z")
-        mouseClick(newest.openAction,
-                   newest.openAction.width / 2,
-                   newest.openAction.height / 2)
+        const openPoint = newest.openAction.mapToItem(shell.contentItem, 0, 0)
+        mouseClick(shell.contentItem,
+                   openPoint.x + newest.openAction.width / 2,
+                   openPoint.y + newest.openAction.height / 2)
 
         compare(fixtureController.openSnapshotCalls, 1)
         compare(fixtureController.openedTimestamp, "20260301T000000Z")
