@@ -285,6 +285,41 @@ TestCase {
         compare(resultsButton.text, "Results")
     }
 
+    function test_warm_workbench_theme_singleton_exposes_approved_roles() {
+        const probe = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/CodeQaTheme.qml"), this)
+
+        verify(probe !== null)
+        compare(probe.canvas.toString(), "#f3eee6")
+        compare(probe.accent.toString(), "#d59a3f")
+        compare(probe.sidebarWidth, 208)
+        compare(probe.contentMaxWidth, 1480)
+    }
+
+    function test_workbench_primitives_instantiate_with_expected_states() {
+        const root = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/controls/WorkbenchSurface.qml"), this, {
+            selected: true
+        })
+        verify(root !== null)
+        compare(root.color.toString(), "#f6e7c7")
+        compare(root.border.color.toString(), "#d59a3f")
+
+        const button = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/controls/WorkbenchButton.qml"), this, {
+            text: "Analyze project",
+            variant: "secondary"
+        })
+        verify(button !== null)
+        compare(button.text, "Analyze project")
+        compare(button.variant, "secondary")
+
+        const badge = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/controls/StatusBadge.qml"), this, {
+            text: "Not evaluated",
+            status: "not-evaluated"
+        })
+        verify(badge !== null)
+        compare(badge.text, "Not evaluated")
+        compare(badge.status, "not-evaluated")
+    }
+
     function test_results_page_is_findings_first_and_read_only() {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.selectPage("Results")

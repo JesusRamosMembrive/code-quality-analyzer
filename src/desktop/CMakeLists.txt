@@ -34,6 +34,11 @@ set_source_files_properties(qml/Main.qml PROPERTIES
     QT_RESOURCE_ALIAS Main.qml
 )
 
+set_source_files_properties(qml/CodeQaTheme.qml PROPERTIES
+    QT_QML_SINGLETON_TYPE TRUE
+    QT_RESOURCE_ALIAS CodeQaTheme.qml
+)
+
 set_source_files_properties(qml/pages/ResultsPage.qml PROPERTIES
     QT_RESOURCE_ALIAS pages/ResultsPage.qml
 )
@@ -58,17 +63,33 @@ set_source_files_properties(qml/controls/Section.qml PROPERTIES
     QT_RESOURCE_ALIAS controls/Section.qml
 )
 
+set_source_files_properties(qml/controls/WorkbenchSurface.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/WorkbenchSurface.qml
+)
+
+set_source_files_properties(qml/controls/WorkbenchButton.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/WorkbenchButton.qml
+)
+
+set_source_files_properties(qml/controls/StatusBadge.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/StatusBadge.qml
+)
+
 qt_add_qml_module(codeqa_desktop
     URI CodeQA.Desktop
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/CodeQaTheme.qml
         qml/pages/AnalyzePage.qml
         qml/pages/HistoryPage.qml
         qml/pages/ResultsPage.qml
         qml/controls/PulseButton.qml
         qml/controls/GlassPanel.qml
         qml/controls/Section.qml
+        qml/controls/WorkbenchSurface.qml
+        qml/controls/WorkbenchButton.qml
+        qml/controls/StatusBadge.qml
 )
 
 get_target_property(_codeqa_qmake_executable Qt6::qmake IMPORTED_LOCATION)

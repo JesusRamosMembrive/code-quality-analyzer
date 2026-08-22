@@ -234,6 +234,11 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ${CODEQA_DESKTOP_QML_TEST_MAIN_QML}
         COPYONLY
     )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/CodeQaTheme.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/CodeQaTheme.qml
+        COPYONLY
+    )
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages)
     configure_file(
         ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsPage.qml
@@ -266,21 +271,40 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/Section.qml
         COPYONLY
     )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/WorkbenchSurface.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchSurface.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/WorkbenchButton.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchButton.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/StatusBadge.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/StatusBadge.qml
+        COPYONLY
+    )
     file(GENERATE
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
-        CONTENT "module CodeQA.Desktop\nMain 1.0 Main.qml\n"
+        CONTENT "module CodeQA.Desktop\nsingleton CodeQaTheme 1.0 CodeQaTheme.qml\nMain 1.0 Main.qml\nWorkbenchSurface 1.0 controls/WorkbenchSurface.qml\nWorkbenchButton 1.0 controls/WorkbenchButton.qml\nStatusBadge 1.0 controls/StatusBadge.qml\n"
     )
     qt_add_resources(codeqa_desktop_qml_smoke desktop_shell_resources
         PREFIX "/qt/qml/CodeQA/Desktop"
         BASE ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml
         FILES
             ${CODEQA_DESKTOP_QML_TEST_MAIN_QML}
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/CodeQaTheme.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalyzePage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/HistoryPage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsPage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/PulseButton.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/GlassPanel.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/Section.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchSurface.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchButton.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/StatusBadge.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
     )
 
