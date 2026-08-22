@@ -370,6 +370,7 @@ TestCase {
         tryVerify(function() { return shell.active })
         const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 2 })
+        tryVerify(function() { return table.itemAtIndex(0) !== null })
         const row = table.itemAtIndex(0).children[0]
         verify(row !== null)
         compare(row.activeFocusOnTab, true)
@@ -466,6 +467,7 @@ TestCase {
 
         const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 2 })
+        tryVerify(function() { return table.itemAtIndex(1) !== null })
         mouseClick(table.itemAtIndex(1), table.itemAtIndex(1).width / 2, table.itemAtIndex(1).height / 2)
 
         compare(shell.findChild("findingDetails").text, "second.rule")
@@ -915,6 +917,7 @@ TestCase {
 
         const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 2 })
+        tryVerify(function() { return table.itemAtIndex(1) !== null })
 
         const secondFinding = table.itemAtIndex(1)
         verify(secondFinding !== null)
@@ -933,6 +936,7 @@ TestCase {
 
         const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 2 })
+        tryVerify(function() { return table.itemAtIndex(0) !== null })
         const firstFinding = table.itemAtIndex(0)
         mouseClick(firstFinding, firstFinding.width / 2, firstFinding.height / 2)
 
