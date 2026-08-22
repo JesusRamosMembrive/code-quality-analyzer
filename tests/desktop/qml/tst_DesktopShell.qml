@@ -574,6 +574,26 @@ TestCase {
         compare(shell.findChild("startAnalysisButton").text, "Analyze project")
     }
 
+    function test_analyze_sections_keep_vertical_content_geometry() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+        shell.show()
+
+        const ruleTable = shell.findChild("ruleThresholdTable")
+        const headerTable = shell.findChild("headerOverrideTable")
+        const exclusionsField = shell.findChild("excludePatternsField")
+        const qualityGateSelector = shell.findChild("qualityGateSelector")
+        const contentTop = function(item) { return item.mapToItem(shell.contentItem, 0, 0).y }
+        const contentBottom = function(item) { return contentTop(item) + item.height }
+
+        tryVerify(function() {
+            return contentBottom(ruleTable) <= contentTop(headerTable)
+                && contentBottom(headerTable) <= contentTop(exclusionsField)
+                && contentBottom(exclusionsField) <= contentTop(qualityGateSelector)
+        })
+    }
+
     function test_history_lists_newest_first_and_open_is_non_destructive() {
         resetHistoryCalls()
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)

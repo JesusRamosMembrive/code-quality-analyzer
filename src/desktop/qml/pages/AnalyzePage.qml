@@ -95,8 +95,10 @@ ScrollView {
             objectName: "analyzePageSurface"
             Layout.fillWidth: true
             elevated: true
+            implicitHeight: analyzeHeaderContent.implicitHeight + Root.CodeQaTheme.spaceXl * 2
 
             ColumnLayout {
+                id: analyzeHeaderContent
                 anchors.fill: parent
                 anchors.margins: Root.CodeQaTheme.spaceXl
                 spacing: Root.CodeQaTheme.spaceMd
@@ -157,11 +159,14 @@ ScrollView {
         }
 
         WorkbenchSurface {
+            id: analyzeInlineErrorSurface
             Layout.fillWidth: true
             visible: root.hasInlineError
             tintColor: Root.CodeQaTheme.errorSoft
+            implicitHeight: analyzeInlineErrorLabel.implicitHeight + Root.CodeQaTheme.spaceLg * 2
 
             Label {
+                id: analyzeInlineErrorLabel
                 anchors.fill: parent
                 anchors.margins: Root.CodeQaTheme.spaceLg
                 text: root.controller ? root.controller.errorMessage : ""
@@ -171,11 +176,14 @@ ScrollView {
         }
 
         WorkbenchSurface {
+            id: rulesSurface
             Layout.fillWidth: true
             enabled: root.canEdit
             opacity: enabled ? 1.0 : 0.74
+            implicitHeight: rulesContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
 
             ColumnLayout {
+                id: rulesContent
                 anchors.fill: parent
                 anchors.margins: Root.CodeQaTheme.spaceLg
                 spacing: Root.CodeQaTheme.spaceMd
@@ -319,11 +327,14 @@ ScrollView {
         }
 
         WorkbenchSurface {
+            id: headerOverridesSurface
             Layout.fillWidth: true
             enabled: root.canEdit
             opacity: enabled ? 1.0 : 0.74
+            implicitHeight: headerOverridesContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
 
             ColumnLayout {
+                id: headerOverridesContent
                 anchors.fill: parent
                 anchors.margins: Root.CodeQaTheme.spaceLg
                 spacing: Root.CodeQaTheme.spaceMd
@@ -433,11 +444,14 @@ ScrollView {
         }
 
         WorkbenchSurface {
+            id: exclusionsSurface
             Layout.fillWidth: true
             enabled: root.hasProject && !root.analysisRunning
             opacity: enabled ? 1.0 : 0.74
+            implicitHeight: exclusionsContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
 
             ColumnLayout {
+                id: exclusionsContent
                 anchors.fill: parent
                 anchors.margins: Root.CodeQaTheme.spaceLg
                 spacing: Root.CodeQaTheme.spaceMd
@@ -465,11 +479,14 @@ ScrollView {
         }
 
         WorkbenchSurface {
+            id: qualityGateSurface
             Layout.fillWidth: true
             enabled: root.canEdit
             opacity: enabled ? 1.0 : 0.74
+            implicitHeight: qualityGateContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
 
             ColumnLayout {
+                id: qualityGateContent
                 anchors.fill: parent
                 anchors.margins: Root.CodeQaTheme.spaceLg
                 spacing: Root.CodeQaTheme.spaceMd
@@ -510,10 +527,13 @@ ScrollView {
         }
 
         WorkbenchSurface {
+            id: configurationActionsSurface
             Layout.fillWidth: true
             tintColor: Root.CodeQaTheme.surfaceSubtle
+            implicitHeight: configurationActionsContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
 
             RowLayout {
+                id: configurationActionsContent
                 anchors.fill: parent
                 anchors.margins: Root.CodeQaTheme.spaceLg
                 spacing: Root.CodeQaTheme.spaceMd
