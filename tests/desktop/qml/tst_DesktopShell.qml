@@ -366,6 +366,7 @@ TestCase {
         shell.selectPage("Results")
         shell.show()
         shell.requestActivate()
+        tryVerify(function() { return shell.active })
         const table = shell.findChild("findingTable")
         tryVerify(function() { return table.count === 2 })
         const row = table.itemAtIndex(0).children[0]
