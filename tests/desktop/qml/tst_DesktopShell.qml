@@ -5,6 +5,17 @@ import CodeQA.Desktop
 TestCase {
     name: "DesktopShell"
 
+    Component {
+        id: themeProbeComponent
+
+        QtObject {
+            property color canvas: CodeQaTheme.canvas
+            property color accent: CodeQaTheme.accent
+            property int sidebarWidth: CodeQaTheme.sidebarWidth
+            property int contentMaxWidth: CodeQaTheme.contentMaxWidth
+        }
+    }
+
     ListModel {
         id: fixtureFindings
         property int findingCount: count
@@ -286,7 +297,7 @@ TestCase {
     }
 
     function test_warm_workbench_theme_singleton_exposes_approved_roles() {
-        const probe = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/CodeQaTheme.qml"), this)
+        const probe = createTemporaryObject(themeProbeComponent, this)
 
         verify(probe !== null)
         compare(probe.canvas.toString(), "#f3eee6")
