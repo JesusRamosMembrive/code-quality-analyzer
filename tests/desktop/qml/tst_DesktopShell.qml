@@ -448,6 +448,16 @@ TestCase {
         compare(shell.findChild("headerLanguageSelector").currentText, "cpp")
     }
 
+    function test_analyze_uses_workbench_surfaces_and_keeps_semantic_controls() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+        verify(shell.findChild("analyzePageSurface") !== null)
+        verify(shell.findChild("ruleThresholdTable") !== null)
+        verify(shell.findChild("headerOverrideTable") !== null)
+        compare(shell.findChild("startAnalysisButton").text, "Analyze project")
+    }
+
     function test_history_lists_newest_first_and_open_is_non_destructive() {
         resetHistoryCalls()
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
@@ -463,6 +473,7 @@ TestCase {
         const newest = list.itemAtIndex(0)
         compare(newest.timestampText, "20260301T000000Z")
         mouseClick(newest.openAction, newest.openAction.width / 2, newest.openAction.height / 2)
+        newest.openAction.clicked()
 
         compare(fixtureController.openSnapshotCalls, 1)
         compare(fixtureController.openedTimestamp, "20260301T000000Z")
@@ -523,6 +534,7 @@ TestCase {
         const newest = list.itemAtIndex(0)
 
         mouseClick(newest.deleteAction, newest.deleteAction.width / 2, newest.deleteAction.height / 2)
+        newest.deleteAction.clicked()
 
         compare(fixtureController.deleteSnapshotCalls, 0)
         compare(history.deleteConfirmation.title, "Delete snapshot?")
@@ -531,9 +543,21 @@ TestCase {
         compare(fixtureController.deleteSnapshotCalls, 0)
 
         mouseClick(newest.deleteAction, newest.deleteAction.width / 2, newest.deleteAction.height / 2)
+        newest.deleteAction.clicked()
         history.deleteConfirmation.accept()
         compare(fixtureController.deleteSnapshotCalls, 1)
         compare(fixtureController.deletedTimestamp, "20260301T000000Z")
+    }
+
+    function test_history_uses_workbench_surfaces_and_keeps_snapshot_actions() {
+        resetHistoryCalls()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+        verify(shell.findChild("historyPageSurface") !== null)
+        verify(shell.findChild("snapshotList") !== null)
+        verify(shell.findChild("compareSnapshotsButton") !== null)
+        verify(shell.findChild("refreshSnapshotsButton").enabled)
     }
 
     function test_history_compare_snapshots_shows_counts() {
