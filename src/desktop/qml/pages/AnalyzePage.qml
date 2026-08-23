@@ -280,6 +280,7 @@ ScrollView {
                                         visible: ruleCard.model.id !== "security.unsafe-string-api"
                                             && ruleCard.model.id !== "memory.uninitialized-pointer"
                                             && ruleCard.model.id !== "memory.array-parameter-decay"
+                                            && ruleCard.model.id !== "preprocessor.unparenthesized-macro-parameter"
                                         Layout.preferredWidth: 140
                                         text: ruleCard.model.warningLimit === undefined
                                             ? ""
@@ -300,6 +301,7 @@ ScrollView {
                                         visible: ruleCard.model.id !== "security.unsafe-string-api"
                                             && ruleCard.model.id !== "memory.uninitialized-pointer"
                                             && ruleCard.model.id !== "memory.array-parameter-decay"
+                                            && ruleCard.model.id !== "preprocessor.unparenthesized-macro-parameter"
                                         Layout.preferredWidth: 140
                                         text: ruleCard.model.highLimit === undefined
                                             ? ""

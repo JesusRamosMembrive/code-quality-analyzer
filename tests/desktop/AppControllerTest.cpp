@@ -216,7 +216,7 @@ void AppControllerTest::selectingProjectLoadsSemanticConfiguration()
     QVERIFY(controller.configurationAvailable());
     QVERIFY(!controller.configurationDirty());
     QCOMPARE(controller.errorMessage(), QString{});
-    QCOMPARE(controller.rules()->rowCount(), 11);
+    QCOMPARE(controller.rules()->rowCount(), 12);
     const QStringList expectedRuleIds = {
         "size.function-length",
         "size.local-variables",
@@ -228,7 +228,8 @@ void AppControllerTest::selectingProjectLoadsSemanticConfiguration()
         "complexity.nesting",
         "security.unsafe-string-api",
         "memory.uninitialized-pointer",
-        "memory.array-parameter-decay"};
+        "memory.array-parameter-decay",
+        "preprocessor.unparenthesized-macro-parameter"};
     for (int row = 0; row < expectedRuleIds.size(); ++row)
     {
         QCOMPARE(
@@ -261,7 +262,7 @@ void AppControllerTest::missingConfigurationUsesUnsavedDefaultsWithoutWriting()
 
     QVERIFY(controller.configurationAvailable());
     QVERIFY(controller.configurationDirty());
-    QCOMPARE(controller.rules()->rowCount(), 11);
+    QCOMPARE(controller.rules()->rowCount(), 12);
     QCOMPARE(
         controller.rules()->data(controller.rules()->index(0), RuleConfigModel::WarningLimitRole).toLongLong(),
         50LL);
