@@ -285,6 +285,9 @@ TEST_CASE("makeReportDocument and parseReportDocument round-trip architecture da
         {analysis.model.rootPath / "src" / "a.h", analysis.model.rootPath / "src" / "b.h"}});
     analysis.architecture.fanOutFindings.push_back(codeqa::architecture::FanOutFinding{
         analysis.model.rootPath / "src" / "a.h", 12, codeqa::core::DiagnosticSeverity::Warning});
+    analysis.architecture.forbiddenDependencyViolations.push_back(codeqa::architecture::ForbiddenDependencyViolation{
+        analysis.model.rootPath / "src" / "core" / "a.h", "core",
+        analysis.model.rootPath / "src" / "desktop" / "b.h", "desktop"});
     analysis.architecture.externalOrUnresolvedIncludes = 2;
     analysis.architecture.ambiguousIncludes = 1;
 
@@ -296,6 +299,8 @@ TEST_CASE("makeReportDocument and parseReportDocument round-trip architecture da
     CHECK(document.architecture.files[0].path == analysis.model.rootPath / "src" / "a.h");
     REQUIRE(document.architecture.cycles.size() == 1);
     CHECK(document.architecture.fanOutFindings.size() == 1);
+    REQUIRE(document.architecture.forbiddenDependencyViolations.size() == 1);
+    CHECK(document.architecture.forbiddenDependencyViolations[0].fromLayer == "core");
     CHECK(document.architecture.externalOrUnresolvedIncludes == 2);
     CHECK(document.architecture.ambiguousIncludes == 1);
 
@@ -311,6 +316,26 @@ TEST_CASE("makeReportDocument and parseReportDocument round-trip architecture da
     REQUIRE(parsed.document->architecture.cycles.size() == 1);
     REQUIRE(parsed.document->architecture.fanOutFindings.size() == 1);
     CHECK(parsed.document->architecture.fanOutFindings[0].severity == codeqa::core::DiagnosticSeverity::Warning);
+    REQUIRE(parsed.document->architecture.forbiddenDependencyViolations.size() == 1);
+    CHECK(
+        parsed.document->architecture.forbiddenDependencyViolations[0].fromPath
+        == std::filesystem::path{"src"} / "core" / "a.h");
+    CHECK(parsed.document->architecture.forbiddenDependencyViolations[0].fromLayer == "core");
+    CHECK(
+        parsed.document->architecture.forbiddenDependencyViolations[0].toPath
+        == std::filesystem::path{"src"} / "desktop" / "b.h");
+    CHECK(parsed.document->architecture.forbiddenDependencyViolations[0].toLayer == "desktop");
     CHECK(parsed.document->architecture.externalOrUnresolvedIncludes == 2);
     CHECK(parsed.document->architecture.ambiguousIncludes == 1);
+}
+
+TEST_CASE("parseReportDocument defaults to no forbidden-dependency violations when the field is absent (pre-existing reports)")
+{
+    nlohmann::json report = makeCompleteReportJson();
+    report["architecture"].erase("forbiddenDependencyViolations");
+
+    const auto result = codeqa::application::parseReportDocument(report);
+
+    REQUIRE(result.document.has_value());
+    CHECK(result.document->architecture.forbiddenDependencyViolations.empty());
 }

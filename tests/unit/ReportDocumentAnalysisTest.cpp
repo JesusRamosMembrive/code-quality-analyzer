@@ -79,6 +79,9 @@ TEST_CASE("toAnalysisResult absolutizes architecture paths read from a document"
         {std::filesystem::path{"src"} / "a.h", std::filesystem::path{"src"} / "b.h"}});
     document.architecture.fanOutFindings.push_back(codeqa::architecture::FanOutFinding{
         std::filesystem::path{"src"} / "a.h", 5, codeqa::core::DiagnosticSeverity::Warning});
+    document.architecture.forbiddenDependencyViolations.push_back(codeqa::architecture::ForbiddenDependencyViolation{
+        std::filesystem::path{"src"} / "core" / "a.h", "core", std::filesystem::path{"src"} / "desktop" / "b.h",
+        "desktop"});
 
     const codeqa::application::RunAnalysisResult analysis = codeqa::application::toAnalysisResult(document);
 
@@ -88,4 +91,13 @@ TEST_CASE("toAnalysisResult absolutizes architecture paths read from a document"
     CHECK(analysis.architecture.cycles[0].files[0] == std::filesystem::path{"C:/project"} / "src" / "a.h");
     REQUIRE(analysis.architecture.fanOutFindings.size() == 1);
     CHECK(analysis.architecture.fanOutFindings[0].path == std::filesystem::path{"C:/project"} / "src" / "a.h");
+    REQUIRE(analysis.architecture.forbiddenDependencyViolations.size() == 1);
+    CHECK(
+        analysis.architecture.forbiddenDependencyViolations[0].fromPath
+        == std::filesystem::path{"C:/project"} / "src" / "core" / "a.h");
+    CHECK(analysis.architecture.forbiddenDependencyViolations[0].fromLayer == "core");
+    CHECK(
+        analysis.architecture.forbiddenDependencyViolations[0].toPath
+        == std::filesystem::path{"C:/project"} / "src" / "desktop" / "b.h");
+    CHECK(analysis.architecture.forbiddenDependencyViolations[0].toLayer == "desktop");
 }
