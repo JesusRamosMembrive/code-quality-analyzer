@@ -149,15 +149,44 @@ inicial sin validar, igual que otros umbrales por defecto de este proyecto.
 { "architecture": { "enabled": true, "fanOutWarning": 10, "fanOutHigh": 20 } }
 ```
 
+Además de ciclos y fan-out, `analyze` puede detectar **dependencias
+prohibidas entre capas** declaradas por el usuario. Una capa es un nombre
+más una lista de patrones glob sobre rutas relativas al proyecto (el mismo
+motor de glob que `--exclude`/`headerOverrides`); una capa que no matchea
+ningún archivo real simplemente nunca genera violaciones. Importante: un
+patrón sin `/` (p. ej. `"core"`) matchea solo por nombre de archivo, no por
+carpeta — para una capa basada en directorio hay que escribir el patrón
+completo (p. ej. `"src/core/**"`). `architecture.forbiddenDependencies` es
+una lista de pares `{from, to}` que referencian nombres de capa ya
+declarados en `architecture.layers`; un `#include` resuelto que cruce
+directamente uno de esos pares genera una violación (severidad fija
+`error`, no participa en el quality gate ni tiene supresión por comentario,
+igual que ciclos y fan-out). `from`/`to` deben existir en `layers`
+(`CONFIG014` si no) y no pueden ser la misma capa (`CONFIG015`).
+
+```json
+{
+  "architecture": {
+    "enabled": true,
+    "fanOutWarning": 10,
+    "fanOutHigh": 20,
+    "layers": {
+      "core": ["src/core/**", "include/codeqa/core/**"],
+      "desktop": ["src/desktop/**"]
+    },
+    "forbiddenDependencies": [{ "from": "core", "to": "desktop" }]
+  }
+}
+```
+
 La salida de `analyze` en texto y en JSON incluye una sección de arquitectura
-(`"Architecture"` en texto, `"architecture"` en JSON) cuando hay ciclos o
-findings de fan-out que mostrar; el JSON además incluye siempre una tabla
-completa de fan-in/fan-out por archivo, sin filtrar por umbral. Limitaciones
-actuales, deliberadas: solo cubre ciclos y fan-out (capas y dependencias
-prohibidas quedan para una posible vuelta futura), no participa en el quality
-gate, no tiene mecanismo de supresión por comentario, no tiene superficie en
-la GUI de escritorio, y la salida `--format markdown` no incluye esta
-sección (igual que duplicados, arriba).
+(`"Architecture"` en texto, `"architecture"` en JSON) cuando hay ciclos,
+findings de fan-out o violaciones de dependencia prohibida que mostrar; el
+JSON además incluye siempre una tabla completa de fan-in/fan-out por
+archivo, sin filtrar por umbral. Limitaciones actuales, deliberadas: no
+participa en el quality gate, no tiene mecanismo de supresión por
+comentario, no tiene superficie en la GUI de escritorio, y la salida
+`--format markdown` no incluye esta sección (igual que duplicados, arriba).
 
 ## Estado
 
