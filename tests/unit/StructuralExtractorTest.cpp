@@ -828,6 +828,82 @@ TEST_CASE("extracts file scope globals from C")
     CHECK(result.globalVariables[1].range.begin.line == 2);
 }
 
+TEST_CASE("extracts an object-like macro with no parameters")
+{
+    const TempSourceFile file{
+        "object-like-macro.c",
+        "#define MAX_SIZE 128\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.macros.size() == 1);
+    CHECK(result.macros[0].name == "MAX_SIZE");
+    CHECK_FALSE(result.macros[0].isFunctionLike);
+    CHECK(result.macros[0].parameters.empty());
+    CHECK_FALSE(result.macros[0].isVariadic);
+    CHECK(result.macros[0].body == "128");
+}
+
+TEST_CASE("extracts a function-like macro with parameters")
+{
+    const TempSourceFile file{
+        "function-like-macro.c",
+        "#define SQUARE(x) x*x\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.macros.size() == 1);
+    CHECK(result.macros[0].name == "SQUARE");
+    CHECK(result.macros[0].isFunctionLike);
+    REQUIRE(result.macros[0].parameters.size() == 1);
+    CHECK(result.macros[0].parameters[0] == "x");
+    CHECK_FALSE(result.macros[0].isVariadic);
+    CHECK(result.macros[0].body == "x*x");
+}
+
+TEST_CASE("extracts a variadic function-like macro, recording only the named parameter")
+{
+    const TempSourceFile file{
+        "variadic-macro.c",
+        "#define LOG(fmt, ...) printf(fmt, __VA_ARGS__)\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.macros.size() == 1);
+    CHECK(result.macros[0].name == "LOG");
+    CHECK(result.macros[0].isFunctionLike);
+    REQUIRE(result.macros[0].parameters.size() == 1);
+    CHECK(result.macros[0].parameters[0] == "fmt");
+    CHECK(result.macros[0].isVariadic);
+    CHECK(result.macros[0].body == "printf(fmt, __VA_ARGS__)");
+}
+
+TEST_CASE("extracts a macro with no value without crashing")
+{
+    const TempSourceFile file{
+        "flag-macro.c",
+        "#define FLAG\n"};
+    codeqa::frontend::TreeSitterParser parser;
+    codeqa::frontend::StructuralExtractor extractor;
+
+    const codeqa::frontend::ParsedFile result = codeqa::frontend::parseSourceFile(
+        file.path(), codeqa::frontend::Grammar::C, "detected language", parser, extractor);
+
+    REQUIRE(result.macros.size() == 1);
+    CHECK(result.macros[0].name == "FLAG");
+    CHECK_FALSE(result.macros[0].isFunctionLike);
+    CHECK(result.macros[0].body.empty());
+}
+
 TEST_CASE("extracts typedef aliases from C and C++ namespace scope")
 {
     const TempSourceFile cFile{

@@ -37,4 +37,12 @@ inline constexpr std::string_view cppDeclarations = R"CQPD(
 @CODEQA_CPP_DECLARATIONS_QUERY@
 )CQPD";
 
+inline constexpr std::string_view cMacros = R"CQCM(
+@CODEQA_C_MACROS_QUERY@
+)CQCM";
+
+inline constexpr std::string_view cppMacros = R"CQPM(
+@CODEQA_CPP_MACROS_QUERY@
+)CQPM";
+
 } // namespace codeqa::frontend::embedded_queries

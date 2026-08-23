@@ -781,6 +781,40 @@ IncludeDependency adaptInclude(
     return model;
 }
 
+MacroModel adaptMacro(TSNode candidate, std::string_view source, const std::filesystem::path& path)
+{
+    const TSNode nameNode = childForField(candidate, "name");
+
+    MacroModel model;
+    model.name = ts_node_is_null(nameNode) ? std::string{} : nodeText(nameNode, source);
+    model.isFunctionLike = isNodeType(candidate, "preproc_function_def");
+
+    if (model.isFunctionLike)
+    {
+        const TSNode parametersNode = childForField(candidate, "parameters");
+        const uint32_t childCount = ts_node_child_count(parametersNode);
+
+        for (uint32_t index = 0; index < childCount; ++index)
+        {
+            const TSNode child = ts_node_child(parametersNode, index);
+
+            if (isNodeType(child, "identifier"))
+            {
+                model.parameters.push_back(nodeText(child, source));
+            }
+            else if (isNodeType(child, "..."))
+            {
+                model.isVariadic = true;
+            }
+        }
+    }
+
+    const TSNode valueNode = childForField(candidate, "value");
+    model.body = ts_node_is_null(valueNode) ? std::string{} : trim(nodeText(valueNode, source));
+    model.range = sourceRange(candidate, path);
+    return model;
+}
+
 bool isFileOrNamespaceScopeDeclaration(TSNode candidate)
 {
     for (TSNode parent = ts_node_parent(candidate); !ts_node_is_null(parent);
@@ -1323,6 +1357,11 @@ bool hasSameTypeAliasRange(const TypeAliasModel& left, const TypeAliasModel& rig
     return left.range == right.range;
 }
 
+bool hasSameMacroRange(const MacroModel& left, const MacroModel& right)
+{
+    return left.range == right.range;
+}
+
 } // namespace
 
 class StructuralExtractor::Impl
@@ -1339,6 +1378,8 @@ public:
         , cppIncludes_(compileQuery(tree_sitter_cpp(), "queries/cpp/includes.scm", embedded_queries::cppIncludes))
         , cppDeclarations_(compileQuery(
               tree_sitter_cpp(), "queries/cpp/declarations.scm", embedded_queries::cppDeclarations))
+        , cMacros_(compileQuery(tree_sitter_c(), "queries/c/macros.scm", embedded_queries::cMacros))
+        , cppMacros_(compileQuery(tree_sitter_cpp(), "queries/cpp/macros.scm", embedded_queries::cppMacros))
     {
     }
 
@@ -1362,6 +1403,11 @@ public:
         return grammar == Grammar::C ? cDeclarations_.get() : cppDeclarations_.get();
     }
 
+    [[nodiscard]] TSQuery* macrosFor(Grammar grammar) const
+    {
+        return grammar == Grammar::C ? cMacros_.get() : cppMacros_.get();
+    }
+
 private:
     QueryPointer cFunctions_;
     QueryPointer cTypes_;
@@ -1371,6 +1417,8 @@ private:
     QueryPointer cppTypes_;
     QueryPointer cppIncludes_;
     QueryPointer cppDeclarations_;
+    QueryPointer cMacros_;
+    QueryPointer cppMacros_;
 };
 
 StructuralExtractor::StructuralExtractor()
@@ -1530,6 +1578,23 @@ void StructuralExtractor::extract(
     result.typeAliases.erase(
         std::unique(result.typeAliases.begin(), result.typeAliases.end(), hasSameTypeAliasRange),
         result.typeAliases.end());
+
+    ts_query_cursor_exec(cursor.get(), impl_->macrosFor(grammar), root);
+
+    while (ts_query_cursor_next_match(cursor.get(), &match))
+    {
+        for (uint16_t index = 0; index < match.capture_count; ++index)
+        {
+            result.macros.push_back(adaptMacro(match.captures[index].node, source, path));
+        }
+    }
+
+    std::sort(
+        result.macros.begin(), result.macros.end(),
+        [](const MacroModel& left, const MacroModel& right) { return left.range < right.range; });
+    result.macros.erase(
+        std::unique(result.macros.begin(), result.macros.end(), hasSameMacroRange),
+        result.macros.end());
 }
 
 } // namespace codeqa::frontend

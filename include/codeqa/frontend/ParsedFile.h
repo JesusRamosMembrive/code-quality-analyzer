@@ -25,6 +25,7 @@ struct ParsedFile
     std::vector<IncludeDependency> includes;
     std::vector<GlobalVariableModel> globalVariables;
     std::vector<TypeAliasModel> typeAliases;
+    std::vector<MacroModel> macros;
     std::vector<core::SourceRange> comments;
     bool parsed{false};
 };

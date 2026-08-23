@@ -153,4 +153,16 @@ struct TypeAliasModel
     core::SourceRange range;
 };
 
+struct MacroModel
+{
+    std::string name;
+    bool isFunctionLike{false};
+    std::vector<std::string> parameters;
+    bool isVariadic{false};
+    // Raw, unparsed replacement-list text (tree-sitter never parses a
+    // macro body as C++); empty if the macro has no value (`#define FLAG`).
+    std::string body;
+    core::SourceRange range;
+};
+
 } // namespace codeqa::frontend
