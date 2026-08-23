@@ -30,6 +30,10 @@ ApplicationWindow {
 
     property var controller: typeof appController !== "undefined" ? appController : null
     property string selectedPage: controller && controller.lastPage !== "" ? controller.lastPage : "Results"
+    readonly property int analysisProgressMinimumDurationMs: 2000
+    property double analysisStartedAt: 0
+    property bool pendingResultsNavigation: false
+
     function selectPage(name) {
         if (name !== "Analyze" && name !== "History" && name !== "Results") {
             return
@@ -39,6 +43,56 @@ ApplicationWindow {
         if (controller) {
             controller.lastPage = name
         }
+    }
+
+    function beginAnalysisTiming() {
+        analysisStartedAt = Date.now()
+        pendingResultsNavigation = false
+        resultsNavigationTimer.stop()
+    }
+
+    function requestResultsPage() {
+        if (!shell.controller) {
+            shell.selectPage("Results")
+            return
+        }
+
+        if (shell.analysisStartedAt > 0 && shell.controller.analysisRunning) {
+            shell.pendingResultsNavigation = true
+            return
+        }
+
+        if (shell.pendingResultsNavigation) {
+            scheduleResultsNavigation()
+            return
+        }
+
+        shell.selectPage("Results")
+    }
+
+    function scheduleResultsNavigation() {
+        if (!shell.pendingResultsNavigation) {
+            return
+        }
+
+        if (shell.analysisStartedAt <= 0) {
+            shell.pendingResultsNavigation = false
+            shell.selectPage("Results")
+            return
+        }
+
+        const elapsed = Date.now() - shell.analysisStartedAt
+        const remaining = Math.max(shell.analysisProgressMinimumDurationMs - elapsed, 0)
+        if (remaining > 0) {
+            resultsNavigationTimer.interval = remaining
+            resultsNavigationTimer.start()
+            return
+        }
+
+        resultsNavigationTimer.stop()
+        shell.pendingResultsNavigation = false
+        shell.analysisStartedAt = 0
+        shell.selectPage("Results")
     }
 
     function findChild(childObjectName) {
@@ -69,12 +123,44 @@ ApplicationWindow {
         return null
     }
 
+    onControllerChanged: {
+        if (shell.controller && shell.controller.analysisRunning) {
+            beginAnalysisTiming()
+        }
+    }
+
+    Component.onCompleted: {
+        if (shell.controller && shell.controller.analysisRunning) {
+            beginAnalysisTiming()
+        }
+    }
+
+    Timer {
+        id: resultsNavigationTimer
+        objectName: "resultsNavigationMinimumTimer"
+        interval: shell.analysisProgressMinimumDurationMs
+        repeat: false
+        onTriggered: {
+            shell.pendingResultsNavigation = false
+            shell.analysisStartedAt = 0
+            shell.selectPage("Results")
+        }
+    }
+
     Connections {
         target: shell.controller
         ignoreUnknownSignals: true
 
         function onCurrentReportChanged() {
-            shell.selectPage("Results")
+            shell.requestResultsPage()
+        }
+
+        function onAnalysisRunningChanged(running) {
+            if (running) {
+                shell.beginAnalysisTiming()
+            } else {
+                shell.scheduleResultsNavigation()
+            }
         }
     }
 

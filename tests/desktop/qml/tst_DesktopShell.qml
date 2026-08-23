@@ -908,6 +908,8 @@ TestCase {
 
         fixtureController.analysisRunning = false
         fixtureController.analysisPhase = ""
+        verify(progressPanel.visible)
+        tryVerify(function() { return progressPanel.visible === false }, 2500)
     }
 
     function test_completed_analysis_selects_results() {
@@ -918,6 +920,21 @@ TestCase {
         fixtureController.currentReportChanged()
 
         tryCompare(shell, "selectedPage", "Results")
+    }
+
+    function test_completed_analysis_waits_for_progress_panel_minimum() {
+        fixtureController.analysisRunning = true
+        fixtureController.analysisPhase = "Discovering files"
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+
+        fixtureController.currentReportChanged()
+        compare(shell.selectedPage, "Analyze")
+
+        fixtureController.analysisRunning = false
+        tryVerify(function() { return shell.selectedPage === "Results" }, 2500)
+        fixtureController.analysisPhase = ""
     }
 
     function test_suppressed_findings_tab_lists_rows_and_shows_empty_state() {

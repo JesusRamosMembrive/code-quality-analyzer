@@ -13,9 +13,46 @@ ScrollView {
 
     property var controller: null
     readonly property bool analysisRunning: controller ? controller.analysisRunning : false
+    readonly property int analysisProgressMinimumDurationMs: 2000
+    property double analysisProgressStartedAt: 0
+    readonly property bool analysisProgressVisible: analysisRunning || analysisProgressMinimumTimer.running
     readonly property bool hasProject: controller && controller.currentProject.toString() !== ""
     readonly property bool canEdit: controller && controller.configurationAvailable && !analysisRunning
     readonly property bool hasInlineError: controller && controller.errorMessage !== ""
+
+    function beginAnalysisProgress() {
+        analysisProgressStartedAt = Date.now()
+        analysisProgressMinimumTimer.stop()
+    }
+
+    function holdAnalysisProgressUntilMinimum() {
+        if (analysisProgressStartedAt <= 0) {
+            return
+        }
+
+        const elapsed = Date.now() - analysisProgressStartedAt
+        const remaining = Math.max(analysisProgressMinimumDurationMs - elapsed, 0)
+        if (remaining > 0) {
+            analysisProgressMinimumTimer.interval = remaining
+            analysisProgressMinimumTimer.start()
+        } else {
+            analysisProgressStartedAt = 0
+        }
+    }
+
+    onAnalysisRunningChanged: {
+        if (analysisRunning) {
+            beginAnalysisProgress()
+        } else {
+            holdAnalysisProgressUntilMinimum()
+        }
+    }
+
+    Component.onCompleted: {
+        if (analysisRunning) {
+            beginAnalysisProgress()
+        }
+    }
 
     function configurationStatusText() {
         if (!root.hasProject) {
@@ -84,6 +121,14 @@ ScrollView {
                 root.controller.selectProject(selectedFolder)
             }
         }
+    }
+
+    Timer {
+        id: analysisProgressMinimumTimer
+        objectName: "analysisProgressMinimumTimer"
+        interval: root.analysisProgressMinimumDurationMs
+        repeat: false
+        onTriggered: root.analysisProgressStartedAt = 0
     }
 
     ColumnLayout {
@@ -161,7 +206,7 @@ ScrollView {
         AnalysisProgressPanel {
             id: analysisProgressPanel
             Layout.fillWidth: true
-            running: root.analysisRunning
+            running: root.analysisProgressVisible
             phaseText: root.controller ? root.controller.analysisPhase : ""
             projectPath: root.hasProject ? root.controller.currentProject.toString() : ""
         }
