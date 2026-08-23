@@ -51,6 +51,22 @@ set_source_files_properties(qml/pages/HistoryPage.qml PROPERTIES
     QT_RESOURCE_ALIAS pages/HistoryPage.qml
 )
 
+set_source_files_properties(qml/pages/ResultsOverview.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/ResultsOverview.qml
+)
+
+set_source_files_properties(qml/pages/ResultsFindings.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/ResultsFindings.qml
+)
+
+set_source_files_properties(qml/pages/ResultsFilesMetrics.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/ResultsFilesMetrics.qml
+)
+
+set_source_files_properties(qml/pages/ResultsSuppressed.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/ResultsSuppressed.qml
+)
+
 set_source_files_properties(qml/controls/PulseButton.qml PROPERTIES
     QT_RESOURCE_ALIAS controls/PulseButton.qml
 )

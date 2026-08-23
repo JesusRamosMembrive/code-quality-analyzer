@@ -376,4 +376,11 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${QT6_INSTALL_PREFIX}/bin"
     )
+
+    add_test(
+        NAME codeqa_desktop_qml_module_layout
+        COMMAND ${CMAKE_COMMAND}
+            -DQML_MODULE_DIR=${CMAKE_BINARY_DIR}/src/desktop/CodeQA/Desktop/qmldir
+            -P ${PROJECT_SOURCE_DIR}/tests/desktop/VerifyQmlModuleLayout.cmake
+    )
 endif()
