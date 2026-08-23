@@ -894,8 +894,17 @@ TestCase {
         compare(shell.findChild("resetConfigurationButton").enabled, false)
         compare(shell.findChild("startAnalysisButton").enabled, false)
         compare(shell.findChild("openReportButton").enabled, false)
-        compare(shell.findChild("analysisBusyIndicator").running, true)
-        compare(shell.findChild("analysisPhaseLabel").text, "Measuring functions")
+
+        const progressPanel = shell.findChild("analysisProgressPanel")
+        verify(progressPanel !== null)
+        verify(progressPanel.visible)
+        compare(progressPanel.running, true)
+        compare(progressPanel.phaseText, "Measuring functions")
+        compare(progressPanel.activePhaseIndex, 2)
+        compare(progressPanel.phaseCount, 5)
+        compare(progressPanel.projectPath, "file:///C:/projects/sample")
+        verify(shell.findChild("analysisProgressRing").running)
+        compare(shell.findChild("analysisProgressPhaseLabel").text, "Measuring functions")
 
         fixtureController.analysisRunning = false
         fixtureController.analysisPhase = ""

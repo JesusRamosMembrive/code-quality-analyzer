@@ -158,6 +158,14 @@ ScrollView {
             }
         }
 
+        AnalysisProgressPanel {
+            id: analysisProgressPanel
+            Layout.fillWidth: true
+            running: root.analysisRunning
+            phaseText: root.controller ? root.controller.analysisPhase : ""
+            projectPath: root.hasProject ? root.controller.currentProject.toString() : ""
+        }
+
         WorkbenchSurface {
             id: analyzeInlineErrorSurface
             Layout.fillWidth: true
@@ -561,21 +569,6 @@ ScrollView {
 
                 Item {
                     Layout.fillWidth: true
-                }
-
-                BusyIndicator {
-                    id: analysisBusyIndicator
-                    objectName: "analysisBusyIndicator"
-                    running: root.analysisRunning
-                    visible: running
-                }
-
-                Label {
-                    id: analysisPhaseLabel
-                    objectName: "analysisPhaseLabel"
-                    text: root.controller ? root.controller.analysisPhase : ""
-                    visible: root.analysisRunning
-                    color: Root.CodeQaTheme.mutedInk
                 }
 
                 WorkbenchButton {
