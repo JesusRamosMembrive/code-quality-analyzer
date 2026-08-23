@@ -898,9 +898,9 @@ TestCase {
         const progressPanel = shell.findChild("analysisProgressPanel")
         verify(progressPanel !== null)
         verify(progressPanel.visible)
-        const actionsContent = shell.findChild("configurationActionsContent")
-        verify(actionsContent !== null)
-        compare(progressPanel.parent, actionsContent)
+        const progressPage = shell.findChild("analysisProgressPage")
+        verify(progressPage !== null)
+        verify(progressPage.visible)
         compare(progressPanel.running, true)
         compare(progressPanel.phaseText, "Measuring functions")
         compare(progressPanel.activePhaseIndex, 2)
@@ -911,8 +911,25 @@ TestCase {
 
         fixtureController.analysisRunning = false
         fixtureController.analysisPhase = ""
-        verify(progressPanel.visible)
-        tryVerify(function() { return progressPanel.visible === false }, 2500)
+        tryVerify(function() { return progressPage.visible === false }, 1000)
+    }
+
+    function test_running_analysis_uses_dedicated_progress_page() {
+        fixtureController.analysisRunning = true
+        fixtureController.analysisPhase = "Parsing source files"
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+
+        const progressPage = shell.findChild("analysisProgressPage")
+        verify(progressPage !== null)
+        verify(progressPage.visible)
+        verify(shell.findChild("analysisProgressPanel").visible)
+        compare(shell.selectedPage, "Analyze")
+
+        fixtureController.analysisRunning = false
+        fixtureController.analysisPhase = ""
+        tryVerify(function() { return progressPage.visible === false }, 2500)
     }
 
     function test_completed_analysis_selects_results() {
@@ -934,6 +951,7 @@ TestCase {
 
         fixtureController.currentReportChanged()
         compare(shell.selectedPage, "Analyze")
+        verify(shell.findChild("analysisProgressPage").visible)
 
         fixtureController.analysisRunning = false
         tryVerify(function() { return shell.selectedPage === "Results" }, 2500)

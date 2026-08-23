@@ -275,6 +275,11 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/HistoryPage.qml
         COPYONLY
     )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/AnalysisProgressPage.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalysisProgressPage.qml
+        COPYONLY
+    )
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls)
     configure_file(
         ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/PulseButton.qml
@@ -353,6 +358,7 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/CodeQaTheme.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalyzePage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/HistoryPage.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalysisProgressPage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsOverview.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFindings.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFilesMetrics.qml

@@ -33,6 +33,7 @@ ApplicationWindow {
     readonly property int analysisProgressMinimumDurationMs: 2000
     property double analysisStartedAt: 0
     property bool pendingResultsNavigation: false
+    property bool analysisProgressPageActive: false
 
     function selectPage(name) {
         if (name !== "Analyze" && name !== "History" && name !== "Results") {
@@ -48,11 +49,13 @@ ApplicationWindow {
     function beginAnalysisTiming() {
         analysisStartedAt = Date.now()
         pendingResultsNavigation = false
+        analysisProgressPageActive = true
         resultsNavigationTimer.stop()
     }
 
     function requestResultsPage() {
         if (!shell.controller) {
+            shell.analysisProgressPageActive = false
             shell.selectPage("Results")
             return
         }
@@ -67,16 +70,22 @@ ApplicationWindow {
             return
         }
 
+        shell.analysisProgressPageActive = false
         shell.selectPage("Results")
     }
 
     function scheduleResultsNavigation() {
         if (!shell.pendingResultsNavigation) {
+            if (shell.analysisProgressPageActive) {
+                shell.analysisProgressPageActive = false
+                shell.selectPage("Analyze")
+            }
             return
         }
 
         if (shell.analysisStartedAt <= 0) {
             shell.pendingResultsNavigation = false
+            shell.analysisProgressPageActive = false
             shell.selectPage("Results")
             return
         }
@@ -92,6 +101,7 @@ ApplicationWindow {
         resultsNavigationTimer.stop()
         shell.pendingResultsNavigation = false
         shell.analysisStartedAt = 0
+        shell.analysisProgressPageActive = false
         shell.selectPage("Results")
     }
 
@@ -143,6 +153,7 @@ ApplicationWindow {
         onTriggered: {
             shell.pendingResultsNavigation = false
             shell.analysisStartedAt = 0
+            shell.analysisProgressPageActive = false
             shell.selectPage("Results")
         }
     }
@@ -220,7 +231,9 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.margins: CodeQaTheme.spaceXl
-                currentIndex: shell.selectedPage === "Analyze" ? 0 : shell.selectedPage === "History" ? 1 : 2
+                currentIndex: shell.analysisProgressPageActive
+                    ? 3
+                    : (shell.selectedPage === "Analyze" ? 0 : shell.selectedPage === "History" ? 1 : 2)
 
                 NumberAnimation {
                     id: pageFadeIn
@@ -246,6 +259,11 @@ ApplicationWindow {
 
                 ResultsPage {
                     id: resultsPage
+                    controller: shell.controller
+                }
+
+                AnalysisProgressPage {
+                    id: analysisProgressPage
                     controller: shell.controller
                 }
             }

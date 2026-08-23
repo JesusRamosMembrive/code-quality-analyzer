@@ -51,6 +51,10 @@ set_source_files_properties(qml/pages/HistoryPage.qml PROPERTIES
     QT_RESOURCE_ALIAS pages/HistoryPage.qml
 )
 
+set_source_files_properties(qml/pages/AnalysisProgressPage.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/AnalysisProgressPage.qml
+)
+
 set_source_files_properties(qml/pages/ResultsOverview.qml PROPERTIES
     QT_RESOURCE_ALIAS pages/ResultsOverview.qml
 )
@@ -127,6 +131,7 @@ qt_add_qml_module(codeqa_desktop
         qml/CodeQaTheme.qml
         qml/pages/AnalyzePage.qml
         qml/pages/HistoryPage.qml
+        qml/pages/AnalysisProgressPage.qml
         qml/pages/ResultsOverview.qml
         qml/pages/ResultsFindings.qml
         qml/pages/ResultsFilesMetrics.qml
