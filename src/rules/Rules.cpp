@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -475,6 +477,112 @@ public:
     }
 };
 
+bool isWordBoundaryChar(char character)
+{
+    return std::isalnum(static_cast<unsigned char>(character)) != 0 || character == '_';
+}
+
+std::size_t findNextWholeWord(std::string_view text, std::string_view word, std::size_t from)
+{
+    for (std::size_t pos = text.find(word, from); pos != std::string_view::npos;
+         pos = text.find(word, pos + 1))
+    {
+        const bool leftBoundary = pos == 0 || !isWordBoundaryChar(text[pos - 1]);
+        const bool rightBoundary =
+            pos + word.size() >= text.size() || !isWordBoundaryChar(text[pos + word.size()]);
+
+        if (leftBoundary && rightBoundary)
+        {
+            return pos;
+        }
+    }
+
+    return std::string_view::npos;
+}
+
+// Returns true as soon as any occurrence of `parameter` in `body` is not safely
+// bracketed -- "safe" meaning the nearest non-space character before it is one of
+// ( [ , (or body start) AND the nearest non-space character after it is one of
+// ) ] , (or body end). Deliberately permissive: a sole call argument (LOG(x)) or
+// sole subscript index (arr[x]) is safe, only a juxtaposition with an operator or
+// another token is flagged.
+bool hasUnwrappedOccurrence(std::string_view body, std::string_view parameter)
+{
+    for (std::size_t pos = findNextWholeWord(body, parameter, 0); pos != std::string_view::npos;
+         pos = findNextWholeWord(body, parameter, pos + parameter.size()))
+    {
+        std::size_t before = pos;
+        while (before > 0 && std::isspace(static_cast<unsigned char>(body[before - 1])) != 0)
+        {
+            --before;
+        }
+
+        std::size_t after = pos + parameter.size();
+        while (after < body.size() && std::isspace(static_cast<unsigned char>(body[after])) != 0)
+        {
+            ++after;
+        }
+
+        const bool safeBefore =
+            before == 0 || body[before - 1] == '(' || body[before - 1] == '[' || body[before - 1] == ',';
+        const bool safeAfter =
+            after >= body.size() || body[after] == ')' || body[after] == ']' || body[after] == ',';
+
+        if (!safeBefore || !safeAfter)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+class UnparenthesizedMacroParameterRule : public FileRule
+{
+public:
+    [[nodiscard]] std::string id() const override
+    {
+        return "preprocessor.unparenthesized-macro-parameter";
+    }
+
+    [[nodiscard]] bool appliesTo(codeqa::core::Language) const override { return true; }
+
+    [[nodiscard]] std::vector<Finding> evaluate(const FileRuleContext& context) const override
+    {
+        std::vector<Finding> findings;
+
+        for (const codeqa::model::MacroModel& macro : context.file.macros)
+        {
+            if (!macro.isFunctionLike)
+            {
+                continue;
+            }
+
+            for (const std::string& parameter : macro.parameters)
+            {
+                if (!hasUnwrappedOccurrence(macro.body, parameter))
+                {
+                    continue;
+                }
+
+                Finding finding;
+                finding.ruleId = id();
+                finding.severity = codeqa::core::DiagnosticSeverity::Warning;
+                finding.description = "Parameter '" + parameter + "' of macro '" + macro.symbol.name
+                    + "' is used without enclosing parentheses in the macro body.";
+                finding.recommendation = "Wrap the parameter as (" + parameter
+                    + ") everywhere it appears in the macro body to avoid operator-precedence "
+                      "bugs at the call site.";
+                finding.location = macro.symbol.range.begin;
+                finding.symbolName = macro.symbol.qualifiedName;
+                findings.push_back(std::move(finding));
+            }
+        }
+
+        return findings;
+    }
+};
+
 } // namespace
 
 std::vector<std::unique_ptr<Rule>> allRules(const codeqa::config::ProjectConfig& config)
@@ -534,6 +642,20 @@ std::vector<std::unique_ptr<Rule>> allRules(const codeqa::config::ProjectConfig&
     if (const codeqa::config::RuleConfig& c = config.rules.at("memory.array-parameter-decay"); c.enabled)
     {
         rules.push_back(std::make_unique<ArrayParameterDecayRule>());
+    }
+
+    return rules;
+}
+
+std::vector<std::unique_ptr<FileRule>> allFileRules(const codeqa::config::ProjectConfig& config)
+{
+    std::vector<std::unique_ptr<FileRule>> rules;
+
+    if (const codeqa::config::RuleConfig& c =
+            config.rules.at("preprocessor.unparenthesized-macro-parameter");
+        c.enabled)
+    {
+        rules.push_back(std::make_unique<UnparenthesizedMacroParameterRule>());
     }
 
     return rules;

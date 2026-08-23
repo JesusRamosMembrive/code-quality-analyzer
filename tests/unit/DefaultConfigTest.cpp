@@ -19,12 +19,14 @@ void checkRule(
 
 } // namespace
 
-TEST_CASE("defaultConfig ships the eight Fase 7 thresholds plus the unsafe-string-api, uninitialized-pointer, and array-parameter-decay rules, all enabled, no header overrides")
+TEST_CASE("defaultConfig ships the eight Fase 7 thresholds plus the unsafe-string-api, "
+          "uninitialized-pointer, array-parameter-decay, and unparenthesized-macro-parameter rules, "
+          "all enabled, no header overrides")
 {
     const codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
 
     CHECK(config.headerOverrides.empty());
-    REQUIRE(config.rules.size() == 11);
+    REQUIRE(config.rules.size() == 12);
 
     checkRule(config, "size.function-length", 50, 90);
     checkRule(config, "size.local-variables", 8, 12);
@@ -37,4 +39,5 @@ TEST_CASE("defaultConfig ships the eight Fase 7 thresholds plus the unsafe-strin
     checkRule(config, "security.unsafe-string-api", 0, 0);
     checkRule(config, "memory.uninitialized-pointer", 0, 0);
     checkRule(config, "memory.array-parameter-decay", 0, 0);
+    checkRule(config, "preprocessor.unparenthesized-macro-parameter", 0, 0);
 }

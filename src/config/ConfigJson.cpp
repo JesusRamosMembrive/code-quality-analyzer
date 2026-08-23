@@ -33,7 +33,8 @@ const std::vector<std::string>& knownRuleIds()
         "complexity.nesting",
         "security.unsafe-string-api",
         "memory.uninitialized-pointer",
-        "memory.array-parameter-decay"};
+        "memory.array-parameter-decay",
+        "preprocessor.unparenthesized-macro-parameter"};
     return ids;
 }
 
