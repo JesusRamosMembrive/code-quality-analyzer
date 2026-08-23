@@ -234,10 +234,35 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ${CODEQA_DESKTOP_QML_TEST_MAIN_QML}
         COPYONLY
     )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/CodeQaTheme.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/CodeQaTheme.qml
+        COPYONLY
+    )
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages)
     configure_file(
         ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsPage.qml
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsPage.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsOverview.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsOverview.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsFindings.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFindings.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsFilesMetrics.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFilesMetrics.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/ResultsSuppressed.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsSuppressed.qml
         COPYONLY
     )
     configure_file(
@@ -248,6 +273,11 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
     configure_file(
         ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/HistoryPage.qml
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/HistoryPage.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/pages/AnalysisProgressPage.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalysisProgressPage.qml
         COPYONLY
     )
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls)
@@ -266,21 +296,87 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
         ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/Section.qml
         COPYONLY
     )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/WorkbenchSurface.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchSurface.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/WorkbenchButton.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchButton.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/StatusBadge.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/StatusBadge.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/WorkbenchSidebar.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchSidebar.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/WorkbenchHeader.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchHeader.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/SummaryCard.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/SummaryCard.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/FilterBar.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FilterBar.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/FindingRow.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FindingRow.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/FindingDetails.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FindingDetails.qml
+        COPYONLY
+    )
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/src/desktop/qml/controls/AnalysisProgressPanel.qml
+        ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/AnalysisProgressPanel.qml
+        COPYONLY
+    )
     file(GENERATE
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
-        CONTENT "module CodeQA.Desktop\nMain 1.0 Main.qml\n"
+        CONTENT "module CodeQA.Desktop\nsingleton CodeQaTheme 1.0 CodeQaTheme.qml\nMain 1.0 Main.qml\nWorkbenchSurface 1.0 controls/WorkbenchSurface.qml\nWorkbenchButton 1.0 controls/WorkbenchButton.qml\nStatusBadge 1.0 controls/StatusBadge.qml\nWorkbenchSidebar 1.0 controls/WorkbenchSidebar.qml\nWorkbenchHeader 1.0 controls/WorkbenchHeader.qml\nSummaryCard 1.0 controls/SummaryCard.qml\nFilterBar 1.0 controls/FilterBar.qml\nFindingRow 1.0 controls/FindingRow.qml\nFindingDetails 1.0 controls/FindingDetails.qml\nAnalysisProgressPanel 1.0 controls/AnalysisProgressPanel.qml\n"
     )
     qt_add_resources(codeqa_desktop_qml_smoke desktop_shell_resources
         PREFIX "/qt/qml/CodeQA/Desktop"
         BASE ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml
         FILES
             ${CODEQA_DESKTOP_QML_TEST_MAIN_QML}
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/CodeQaTheme.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalyzePage.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/HistoryPage.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/AnalysisProgressPage.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsOverview.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFindings.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsFilesMetrics.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsPage.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/pages/ResultsSuppressed.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/PulseButton.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/GlassPanel.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/Section.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchSurface.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchButton.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/StatusBadge.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchSidebar.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/WorkbenchHeader.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/SummaryCard.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FilterBar.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FindingRow.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/FindingDetails.qml
+            ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/controls/AnalysisProgressPanel.qml
             ${CMAKE_CURRENT_BINARY_DIR}/desktop-qml/qmldir
     )
 
@@ -291,5 +387,12 @@ if(WIN32 AND CODEQA_BUILD_DESKTOP)
     set_tests_properties(codeqa_desktop_qml_smoke PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${QT6_INSTALL_PREFIX}/bin"
+    )
+
+    add_test(
+        NAME codeqa_desktop_qml_module_layout
+        COMMAND ${CMAKE_COMMAND}
+            -DQML_MODULE_DIR=${CMAKE_BINARY_DIR}/src/desktop/CodeQA/Desktop/qmldir
+            -P ${PROJECT_SOURCE_DIR}/tests/desktop/VerifyQmlModuleLayout.cmake
     )
 endif()

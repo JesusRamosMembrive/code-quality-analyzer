@@ -4,6 +4,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
+
+import ".." as Root
 import "../controls"
 
 ScrollView {
@@ -13,6 +15,63 @@ ScrollView {
     readonly property bool analysisRunning: controller ? controller.analysisRunning : false
     readonly property bool hasProject: controller && controller.currentProject.toString() !== ""
     readonly property bool canEdit: controller && controller.configurationAvailable && !analysisRunning
+    readonly property bool hasInlineError: controller && controller.errorMessage !== ""
+
+    function configurationStatusText() {
+        if (!root.hasProject) {
+            return "No project selected"
+        }
+        if (!root.controller) {
+            return "No project selected"
+        }
+        if (root.analysisRunning) {
+            return "Analysis running"
+        }
+        if (!root.controller.configurationAvailable) {
+            return "Configuration unavailable"
+        }
+        if (root.controller.configurationDirty) {
+            return "Unsaved changes"
+        }
+        return "Configuration ready"
+    }
+
+    function configurationStatusDetail() {
+        if (!root.hasProject) {
+            return "Select a local C or C++ project to configure and analyze."
+        }
+        if (!root.controller) {
+            return "Select a local C or C++ project to configure and analyze."
+        }
+        if (root.analysisRunning) {
+            return root.controller.analysisPhase !== ""
+                ? root.controller.analysisPhase
+                : "CodeQA is analyzing the current project."
+        }
+        if (!root.controller.configurationAvailable) {
+            return "Configuration could not be loaded. The existing file will not be overwritten."
+        }
+        if (root.controller.configurationDirty) {
+            return "Configuration has unsaved changes."
+        }
+        return "Configuration loaded."
+    }
+
+    function configurationStatusKind() {
+        if (!root.hasProject) {
+            return "neutral"
+        }
+        if (root.analysisRunning) {
+            return "warning"
+        }
+        if (root.controller && !root.controller.configurationAvailable) {
+            return "warning"
+        }
+        if (root.controller && root.controller.configurationDirty) {
+            return "warning"
+        }
+        return "success"
+    }
 
     clip: true
 
@@ -28,190 +87,438 @@ ScrollView {
     }
 
     ColumnLayout {
-        width: Math.max(root.availableWidth, 860)
-        spacing: 18
+        width: Math.max(root.availableWidth, 900)
+        spacing: Root.CodeQaTheme.spaceLg
 
-        RowLayout {
+        WorkbenchSurface {
+            id: analyzePageSurface
+            objectName: "analyzePageSurface"
             Layout.fillWidth: true
+            elevated: true
+            implicitHeight: analyzeHeaderContent.implicitHeight + Root.CodeQaTheme.spaceXl * 2
 
             ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-
-                Label {
-                    text: "Analyze project"
-                    font.pixelSize: 26
-                    font.bold: true
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    text: root.hasProject
-                        ? root.controller.currentProject.toString()
-                        : "Select a local C or C++ project to configure and analyze."
-                    color: "#9aa1b0"
-                    elide: Text.ElideMiddle
-                }
-            }
-
-            PulseButton {
-                id: selectProjectButton
-                objectName: "selectProjectButton"
-                text: "Select project…"
-                enabled: root.controller && !root.analysisRunning
-                onClicked: projectDialog.open()
-            }
-        }
-
-        Label {
-            Layout.fillWidth: true
-            text: !root.hasProject
-                ? "No project selected"
-                : !root.controller.configurationAvailable
-                    ? "Configuration could not be loaded. The existing file will not be overwritten."
-                    : root.controller.configurationDirty
-                        ? "Configuration has unsaved changes."
-                        : "Configuration loaded."
-            color: root.controller && !root.controller.configurationAvailable && root.hasProject
-                ? "#ffb454"
-                : "#9aa1b0"
-            wrapMode: Text.Wrap
-        }
-
-        Label {
-            Layout.fillWidth: true
-            visible: root.controller && root.controller.errorMessage !== ""
-            text: root.controller ? root.controller.errorMessage : ""
-            color: "#ff6b6b"
-            wrapMode: Text.Wrap
-        }
-
-        Section {
-            title: "Rules"
-            Layout.fillWidth: true
-            enabled: root.canEdit
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 6
+                id: analyzeHeaderContent
+                anchors.fill: parent
+                anchors.margins: Root.CodeQaTheme.spaceXl
+                spacing: Root.CodeQaTheme.spaceMd
 
                 RowLayout {
                     Layout.fillWidth: true
+                    spacing: Root.CodeQaTheme.spaceLg
 
-                    Label {
-                        Layout.preferredWidth: 360
-                        text: "RULE"
-                        font.pixelSize: 11
-                        font.letterSpacing: 1
-                        color: "#9aa1b0"
-                    }
-
-                    Label {
-                        Layout.preferredWidth: 90
-                        text: "ENABLED"
-                        font.pixelSize: 11
-                        font.letterSpacing: 1
-                        color: "#9aa1b0"
-                    }
-
-                    Label {
-                        Layout.preferredWidth: 140
-                        text: "WARNING LIMIT"
-                        font.pixelSize: 11
-                        font.letterSpacing: 1
-                        color: "#9aa1b0"
-                    }
-
-                    Label {
-                        Layout.preferredWidth: 140
-                        text: "HIGH LIMIT"
-                        font.pixelSize: 11
-                        font.letterSpacing: 1
-                        color: "#9aa1b0"
-                    }
-
-                    Item {
+                    ColumnLayout {
                         Layout.fillWidth: true
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 1
-                    color: "#333844"
-                }
-
-                ListView {
-                    id: ruleThresholdTable
-                    objectName: "ruleThresholdTable"
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: contentHeight
-                    interactive: false
-                    spacing: 4
-                    model: root.controller ? root.controller.rules : null
-
-                    delegate: RowLayout {
-                        id: ruleRow
-
-                        required property var model
-
-                        width: ruleThresholdTable.width
-                        height: 42
+                        spacing: Root.CodeQaTheme.spaceXs
 
                         Label {
-                            Layout.preferredWidth: 360
-                            text: ruleRow.model.id === undefined ? "" : ruleRow.model.id
-                            elide: Text.ElideRight
+                            text: "Analyze project"
+                            color: Root.CodeQaTheme.ink
+                            font.pixelSize: 28
+                            font.bold: true
                         }
 
-                        CheckBox {
-                            Layout.preferredWidth: 90
-                            checked: ruleRow.model.enabled === undefined ? false : ruleRow.model.enabled
-                            onToggled: {
-                                if (root.controller && ruleRow.model.id !== undefined) {
-                                    root.controller.setRuleEnabled(ruleRow.model.id, checked)
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.hasProject
+                                ? root.controller.currentProject.toString()
+                                : "Select a local C or C++ project to configure and analyze."
+                            color: Root.CodeQaTheme.mutedInk
+                            elide: Text.ElideMiddle
+                            wrapMode: Text.Wrap
+                        }
+                    }
+
+                    WorkbenchButton {
+                        id: selectProjectButton
+                        objectName: "selectProjectButton"
+                        text: "Select project…"
+                        variant: "secondary"
+                        enabled: root.controller && !root.analysisRunning
+                        onClicked: projectDialog.open()
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Root.CodeQaTheme.spaceMd
+
+                    StatusBadge {
+                        text: root.configurationStatusText()
+                        status: root.configurationStatusKind()
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: root.configurationStatusDetail()
+                        color: Root.CodeQaTheme.mutedInk
+                        wrapMode: Text.Wrap
+                    }
+                }
+            }
+        }
+
+        WorkbenchSurface {
+            id: analyzeInlineErrorSurface
+            Layout.fillWidth: true
+            visible: root.hasInlineError
+            tintColor: Root.CodeQaTheme.errorSoft
+            implicitHeight: analyzeInlineErrorLabel.implicitHeight + Root.CodeQaTheme.spaceLg * 2
+
+            Label {
+                id: analyzeInlineErrorLabel
+                anchors.fill: parent
+                anchors.margins: Root.CodeQaTheme.spaceLg
+                text: root.controller ? root.controller.errorMessage : ""
+                color: Root.CodeQaTheme.error
+                wrapMode: Text.Wrap
+            }
+        }
+
+        WorkbenchSurface {
+            id: rulesSurface
+            Layout.fillWidth: true
+            enabled: root.canEdit
+            opacity: enabled ? 1.0 : 0.74
+            implicitHeight: rulesContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
+
+            ColumnLayout {
+                id: rulesContent
+                anchors.fill: parent
+                anchors.margins: Root.CodeQaTheme.spaceLg
+                spacing: Root.CodeQaTheme.spaceMd
+
+                Section {
+                    title: "Rules"
+                    Layout.fillWidth: true
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Root.CodeQaTheme.spaceSm
+
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            Label {
+                                Layout.preferredWidth: 360
+                                text: "RULE"
+                                font.pixelSize: 11
+                                font.letterSpacing: 1
+                                color: Root.CodeQaTheme.mutedInk
+                            }
+
+                            Label {
+                                Layout.preferredWidth: 90
+                                text: "ENABLED"
+                                font.pixelSize: 11
+                                font.letterSpacing: 1
+                                color: Root.CodeQaTheme.mutedInk
+                            }
+
+                            Label {
+                                Layout.preferredWidth: 140
+                                text: "WARNING LIMIT"
+                                font.pixelSize: 11
+                                font.letterSpacing: 1
+                                color: Root.CodeQaTheme.mutedInk
+                            }
+
+                            Label {
+                                Layout.preferredWidth: 140
+                                text: "HIGH LIMIT"
+                                font.pixelSize: 11
+                                font.letterSpacing: 1
+                                color: Root.CodeQaTheme.mutedInk
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        ListView {
+                            id: ruleThresholdTable
+                            objectName: "ruleThresholdTable"
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: contentHeight
+                            interactive: false
+                            spacing: Root.CodeQaTheme.spaceSm
+                            model: root.controller ? root.controller.rules : null
+
+                            delegate: WorkbenchSurface {
+                                id: ruleCard
+                                required property var model
+
+                                width: ruleThresholdTable.width
+                                height: 52
+                                tintColor: Root.CodeQaTheme.surfaceSubtle
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: Root.CodeQaTheme.spaceMd
+                                    spacing: Root.CodeQaTheme.spaceMd
+
+                                    Label {
+                                        Layout.preferredWidth: 360
+                                        text: ruleCard.model.id === undefined ? "" : ruleCard.model.id
+                                        color: Root.CodeQaTheme.ink
+                                        elide: Text.ElideRight
+                                    }
+
+                                    CheckBox {
+                                        Layout.preferredWidth: 90
+                                        checked: ruleCard.model.enabled === undefined ? false : ruleCard.model.enabled
+                                        onToggled: {
+                                            if (root.controller && ruleCard.model.id !== undefined) {
+                                                root.controller.setRuleEnabled(ruleCard.model.id, checked)
+                                            }
+                                        }
+                                    }
+
+                                    TextField {
+                                        id: warningLimitField
+                                        visible: ruleCard.model.id !== "security.unsafe-string-api"
+                                            && ruleCard.model.id !== "memory.uninitialized-pointer"
+                                            && ruleCard.model.id !== "memory.array-parameter-decay"
+                                        Layout.preferredWidth: 140
+                                        text: ruleCard.model.warningLimit === undefined
+                                            ? ""
+                                            : ruleCard.model.warningLimit.toString()
+                                        inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                        validator: IntValidator {}
+                                        onEditingFinished: {
+                                            if (acceptableInput && highLimitField.acceptableInput
+                                                    && root.controller && ruleCard.model.id !== undefined) {
+                                                root.controller.setRuleLimits(
+                                                    ruleCard.model.id, Number(text), Number(highLimitField.text))
+                                            }
+                                        }
+                                    }
+
+                                    TextField {
+                                        id: highLimitField
+                                        visible: ruleCard.model.id !== "security.unsafe-string-api"
+                                            && ruleCard.model.id !== "memory.uninitialized-pointer"
+                                            && ruleCard.model.id !== "memory.array-parameter-decay"
+                                        Layout.preferredWidth: 140
+                                        text: ruleCard.model.highLimit === undefined
+                                            ? ""
+                                            : ruleCard.model.highLimit.toString()
+                                        inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                        validator: IntValidator {}
+                                        onEditingFinished: {
+                                            if (acceptableInput && warningLimitField.acceptableInput
+                                                    && root.controller && ruleCard.model.id !== undefined) {
+                                                root.controller.setRuleLimits(
+                                                    ruleCard.model.id, Number(warningLimitField.text), Number(text))
+                                            }
+                                        }
+                                    }
+
+                                    Item {
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        WorkbenchSurface {
+            id: headerOverridesSurface
+            Layout.fillWidth: true
+            enabled: root.canEdit
+            opacity: enabled ? 1.0 : 0.74
+            implicitHeight: headerOverridesContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
+
+            ColumnLayout {
+                id: headerOverridesContent
+                anchors.fill: parent
+                anchors.margins: Root.CodeQaTheme.spaceLg
+                spacing: Root.CodeQaTheme.spaceMd
+
+                Section {
+                    title: "Header language overrides"
+                    Layout.fillWidth: true
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Root.CodeQaTheme.spaceMd
+
+                        ListView {
+                            id: headerOverrideTable
+                            objectName: "headerOverrideTable"
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.max(contentHeight, 1)
+                            interactive: false
+                            spacing: Root.CodeQaTheme.spaceSm
+                            model: root.controller ? root.controller.headerOverrides : null
+
+                            delegate: WorkbenchSurface {
+                                id: headerCard
+                                required property int index
+                                required property var model
+
+                                width: headerOverrideTable.width
+                                height: 54
+                                tintColor: Root.CodeQaTheme.surfaceSubtle
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: Root.CodeQaTheme.spaceMd
+                                    spacing: Root.CodeQaTheme.spaceMd
+
+                                    TextField {
+                                        id: patternField
+                                        Layout.fillWidth: true
+                                        placeholderText: "Header pattern, for example include/**/*.h"
+                                        text: headerCard.model.pattern === undefined ? "" : headerCard.model.pattern
+                                        onEditingFinished: {
+                                            if (root.controller) {
+                                                root.controller.updateHeaderOverride(
+                                                    headerCard.index, text, languageSelector.currentText)
+                                            }
+                                        }
+                                    }
+
+                                    ComboBox {
+                                        id: languageSelector
+                                        objectName: "headerLanguageSelector"
+                                        Layout.preferredWidth: 120
+                                        model: ["c", "cpp"]
+                                        currentIndex: headerCard.model.language === "cpp" ? 1 : 0
+                                        onActivated: {
+                                            if (root.controller) {
+                                                root.controller.updateHeaderOverride(
+                                                    headerCard.index, patternField.text, currentText)
+                                            }
+                                        }
+                                    }
+
+                                    WorkbenchButton {
+                                        text: "Remove"
+                                        variant: "quiet"
+                                        onClicked: root.controller.removeHeaderOverride(headerCard.index)
+                                    }
                                 }
                             }
                         }
 
-                        TextField {
-                            id: warningLimitField
-                            visible: ruleRow.model.id !== "security.unsafe-string-api"
-                                && ruleRow.model.id !== "memory.uninitialized-pointer"
-                                && ruleRow.model.id !== "memory.array-parameter-decay"
-                            Layout.preferredWidth: 140
-                            text: ruleRow.model.warningLimit === undefined
-                                ? ""
-                                : ruleRow.model.warningLimit.toString()
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: IntValidator {}
-                            onEditingFinished: {
-                                if (acceptableInput && highLimitField.acceptableInput
-                                        && root.controller && ruleRow.model.id !== undefined) {
-                                    root.controller.setRuleLimits(
-                                        ruleRow.model.id, Number(text), Number(highLimitField.text))
+                        WorkbenchSurface {
+                            id: headerOverrideAddSurface
+                            Layout.fillWidth: true
+                            tintColor: Root.CodeQaTheme.surfaceSubtle
+                            implicitHeight: headerOverrideAddContent.implicitHeight + Root.CodeQaTheme.spaceMd * 2
+
+                            RowLayout {
+                                id: headerOverrideAddContent
+                                anchors.fill: parent
+                                anchors.margins: Root.CodeQaTheme.spaceMd
+                                spacing: Root.CodeQaTheme.spaceMd
+
+                                TextField {
+                                    id: newHeaderPattern
+                                    Layout.fillWidth: true
+                                    placeholderText: "Header pattern, for example include/**/*.h"
+                                }
+
+                                ComboBox {
+                                    id: newHeaderLanguage
+                                    Layout.preferredWidth: 120
+                                    model: ["c", "cpp"]
+                                }
+
+                                WorkbenchButton {
+                                    text: "Add override"
+                                    variant: "secondary"
+                                    onClicked: {
+                                        root.controller.addHeaderOverride(
+                                            newHeaderPattern.text, newHeaderLanguage.currentText)
+                                        newHeaderPattern.clear()
+                                    }
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
 
-                        TextField {
-                            id: highLimitField
-                            visible: ruleRow.model.id !== "security.unsafe-string-api"
-                                && ruleRow.model.id !== "memory.uninitialized-pointer"
-                                && ruleRow.model.id !== "memory.array-parameter-decay"
-                            Layout.preferredWidth: 140
-                            text: ruleRow.model.highLimit === undefined
-                                ? ""
-                                : ruleRow.model.highLimit.toString()
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: IntValidator {}
-                            onEditingFinished: {
-                                if (acceptableInput && warningLimitField.acceptableInput
-                                        && root.controller && ruleRow.model.id !== undefined) {
-                                    root.controller.setRuleLimits(
-                                        ruleRow.model.id, Number(warningLimitField.text), Number(text))
-                                }
+        WorkbenchSurface {
+            id: exclusionsSurface
+            Layout.fillWidth: true
+            enabled: root.hasProject && !root.analysisRunning
+            opacity: enabled ? 1.0 : 0.74
+            implicitHeight: exclusionsContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
+
+            ColumnLayout {
+                id: exclusionsContent
+                anchors.fill: parent
+                anchors.margins: Root.CodeQaTheme.spaceLg
+                spacing: Root.CodeQaTheme.spaceMd
+
+                Section {
+                    title: "Exclusions"
+                    Layout.fillWidth: true
+
+                    TextField {
+                        id: excludePatternsField
+                        objectName: "excludePatternsField"
+                        Layout.fillWidth: true
+                        placeholderText: "Comma-separated glob patterns to skip, for example json.hpp, third_party/**"
+                        text: root.controller && root.controller.excludePatterns !== undefined
+                            ? root.controller.excludePatterns
+                            : ""
+                        onEditingFinished: {
+                            if (root.controller) {
+                                root.controller.excludePatterns = text
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        WorkbenchSurface {
+            id: qualityGateSurface
+            Layout.fillWidth: true
+            enabled: root.canEdit
+            opacity: enabled ? 1.0 : 0.74
+            implicitHeight: qualityGateContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
+
+            ColumnLayout {
+                id: qualityGateContent
+                anchors.fill: parent
+                anchors.margins: Root.CodeQaTheme.spaceLg
+                spacing: Root.CodeQaTheme.spaceMd
+
+                Section {
+                    title: "Quality gate"
+                    Layout.fillWidth: true
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Root.CodeQaTheme.spaceMd
+
+                        Label {
+                            text: "Minimum finding severity"
+                            color: Root.CodeQaTheme.ink
+                        }
+
+                        ComboBox {
+                            id: qualityGateSelector
+                            objectName: "qualityGateSelector"
+                            model: ["information", "warning", "error"]
+                            currentIndex: {
+                                if (!root.controller) {
+                                    return 1
+                                }
+                                const matchedIndex = qualityGateSelector.find(root.controller.qualityGateSeverity)
+                                return matchedIndex >= 0 ? matchedIndex : 1
+                            }
+                            onActivated: root.controller.setQualityGateSeverity(currentText)
                         }
 
                         Item {
@@ -222,193 +529,53 @@ ScrollView {
             }
         }
 
-        Section {
-            title: "Header language overrides"
+        WorkbenchSurface {
+            id: configurationActionsSurface
             Layout.fillWidth: true
-            enabled: root.canEdit
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                ListView {
-                    id: headerOverrideTable
-                    objectName: "headerOverrideTable"
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Math.max(contentHeight, 1)
-                    interactive: false
-                    spacing: 6
-                    model: root.controller ? root.controller.headerOverrides : null
-
-                    delegate: RowLayout {
-                        id: headerRow
-
-                        required property int index
-                        required property var model
-
-                        width: headerOverrideTable.width
-                        height: 42
-
-                        TextField {
-                            id: patternField
-                            Layout.fillWidth: true
-                            placeholderText: "Header pattern, for example include/**/*.h"
-                            text: headerRow.model.pattern === undefined ? "" : headerRow.model.pattern
-                            onEditingFinished: {
-                                if (root.controller) {
-                                    root.controller.updateHeaderOverride(
-                                        headerRow.index, text, languageSelector.currentText)
-                                }
-                            }
-                        }
-
-                        ComboBox {
-                            id: languageSelector
-                            objectName: "headerLanguageSelector"
-                            Layout.preferredWidth: 120
-                            model: ["c", "cpp"]
-                            currentIndex: headerRow.model.language === "cpp" ? 1 : 0
-                            onActivated: {
-                                if (root.controller) {
-                                    root.controller.updateHeaderOverride(
-                                        headerRow.index, patternField.text, currentText)
-                                }
-                            }
-                        }
-
-                        PulseButton {
-                            text: "Remove"
-                            onClicked: root.controller.removeHeaderOverride(headerRow.index)
-                        }
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    TextField {
-                        id: newHeaderPattern
-                        Layout.fillWidth: true
-                        placeholderText: "Header pattern, for example include/**/*.h"
-                    }
-
-                    ComboBox {
-                        id: newHeaderLanguage
-                        Layout.preferredWidth: 120
-                        model: ["c", "cpp"]
-                    }
-
-                    PulseButton {
-                        text: "Add override"
-                        onClicked: {
-                            root.controller.addHeaderOverride(
-                                newHeaderPattern.text, newHeaderLanguage.currentText)
-                            newHeaderPattern.clear()
-                        }
-                    }
-                }
-            }
-        }
-
-        Section {
-            title: "Exclusions"
-            Layout.fillWidth: true
-            enabled: root.hasProject && !root.analysisRunning
+            tintColor: Root.CodeQaTheme.surfaceSubtle
+            implicitHeight: configurationActionsContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
 
             RowLayout {
-                Layout.fillWidth: true
+                id: configurationActionsContent
+                anchors.fill: parent
+                anchors.margins: Root.CodeQaTheme.spaceLg
+                spacing: Root.CodeQaTheme.spaceMd
 
-                TextField {
-                    id: excludePatternsField
-                    objectName: "excludePatternsField"
-                    Layout.fillWidth: true
-                    placeholderText: "Comma-separated glob patterns to skip, for example json.hpp, third_party/**"
-                    text: root.controller ? root.controller.excludePatterns : ""
-                    onEditingFinished: {
-                        if (root.controller) {
-                            root.controller.excludePatterns = text
-                        }
-                    }
-                }
-            }
-        }
-
-        Section {
-            title: "Quality gate"
-            Layout.fillWidth: true
-            enabled: root.canEdit
-
-            RowLayout {
-                Layout.fillWidth: true
-
-                Label {
-                    text: "Minimum finding severity"
+                WorkbenchButton {
+                    id: resetConfigurationButton
+                    objectName: "resetConfigurationButton"
+                    text: "Reset"
+                    variant: "secondary"
+                    enabled: root.controller && root.hasProject && !root.analysisRunning
+                    onClicked: root.controller.resetConfiguration()
                 }
 
-                ComboBox {
-                    id: qualityGateSelector
-                    objectName: "qualityGateSelector"
-                    model: ["information", "warning", "error"]
-                    currentIndex: root.controller
-                        ? Math.max(0, find(root.controller.qualityGateSeverity))
-                        : 1
-                    onActivated: root.controller.setQualityGateSeverity(currentText)
+                WorkbenchButton {
+                    id: saveConfigurationButton
+                    objectName: "saveConfigurationButton"
+                    text: "Save"
+                    variant: "secondary"
+                    enabled: root.canEdit
+                    onClicked: root.controller.saveConfiguration()
                 }
 
                 Item {
                     Layout.fillWidth: true
                 }
-            }
-        }
 
-        RowLayout {
-            Layout.fillWidth: true
-
-            PulseButton {
-                id: resetConfigurationButton
-                objectName: "resetConfigurationButton"
-                text: "Reset"
-                enabled: root.controller && root.hasProject && !root.analysisRunning
-                onClicked: root.controller.resetConfiguration()
-            }
-
-            PulseButton {
-                id: saveConfigurationButton
-                objectName: "saveConfigurationButton"
-                text: "Save"
-                enabled: root.canEdit
-                onClicked: root.controller.saveConfiguration()
-            }
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            BusyIndicator {
-                id: analysisBusyIndicator
-                objectName: "analysisBusyIndicator"
-                running: root.analysisRunning
-                visible: running
-            }
-
-            Label {
-                id: analysisPhaseLabel
-                objectName: "analysisPhaseLabel"
-                text: root.controller ? root.controller.analysisPhase : ""
-                visible: root.analysisRunning
-            }
-
-            PulseButton {
-                id: startAnalysisButton
-                objectName: "startAnalysisButton"
-                text: "Analyze project"
-                enabled: root.canEdit
-                onClicked: root.controller.startAnalysis()
+                WorkbenchButton {
+                    id: startAnalysisButton
+                    objectName: "startAnalysisButton"
+                    text: "Analyze project"
+                    variant: "primary"
+                    enabled: root.canEdit
+                    onClicked: root.controller.startAnalysis()
+                }
             }
         }
 
         Item {
-            Layout.preferredHeight: 12
+            Layout.preferredHeight: Root.CodeQaTheme.spaceSm
         }
     }
 }

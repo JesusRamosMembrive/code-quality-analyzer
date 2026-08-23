@@ -5,6 +5,17 @@ import CodeQA.Desktop
 TestCase {
     name: "DesktopShell"
 
+    Component {
+        id: themeProbeComponent
+
+        QtObject {
+            property color canvas: CodeQaTheme.canvas
+            property color accent: CodeQaTheme.accent
+            property int sidebarWidth: CodeQaTheme.sidebarWidth
+            property int contentMaxWidth: CodeQaTheme.contentMaxWidth
+        }
+    }
+
     ListModel {
         id: fixtureFindings
         property int findingCount: count
@@ -191,6 +202,19 @@ TestCase {
 
         function setFindingSearchText(value) {
             findingSearchText = value
+            const normalized = value.toLowerCase()
+            const candidates = [errorFinding, warningFinding]
+            fixtureFindings.clear()
+            for (const finding of candidates) {
+                if (normalized === ""
+                        || finding.ruleId.toLowerCase().indexOf(normalized) !== -1
+                        || finding.symbolName.toLowerCase().indexOf(normalized) !== -1
+                        || finding.path.toLowerCase().indexOf(normalized) !== -1) {
+                    fixtureFindings.append(finding)
+                }
+            }
+            fixtureFindings.errorCount = fixtureFindings.count > 0 && fixtureFindings.get(0).severity === "error" ? 1 : 0
+            fixtureFindings.warningCount = fixtureFindings.count > 0 && fixtureFindings.get(fixtureFindings.count - 1).severity === "warning" ? 1 : 0
         }
     }
 
@@ -245,6 +269,42 @@ TestCase {
         fixtureController.nextProjectErrorMessage = ""
     }
 
+    function showResultsTab(shell, tabIndex) {
+        const resultsTabs = shell.findChild("resultsTabs")
+        verify(resultsTabs !== null)
+        shell.show()
+        resultsTabs.currentIndex = tabIndex
+        tryCompare(resultsTabs, "currentIndex", tabIndex)
+        tryVerify(function() { return shell.visible })
+        return resultsTabs
+    }
+
+    function prepareFindingsView(shell) {
+        showResultsTab(shell, 1)
+        const table = shell.findChild("findingTable")
+        verify(table !== null)
+        tryVerify(function() { return table.width > 0 && table.height > 0 })
+        return table
+    }
+
+    function findingRowAt(table, index) {
+        tryVerify(function() { return table.itemAtIndex(index) !== null })
+        const delegate = table.itemAtIndex(index)
+        verify(delegate !== null)
+        tryVerify(function() { return delegate.children !== null && delegate.children.length > 0 && delegate.children[0] !== null })
+        const row = delegate.children[0]
+        verify(row !== null)
+        tryVerify(function() { return row.width > 0 && row.height > 0 })
+        return row
+    }
+
+    function selectFindingRow(table, index) {
+        const row = findingRowAt(table, index)
+        tryVerify(function() { return row.visible })
+        mouseClick(row, row.width / 2, row.height / 2)
+        return row
+    }
+
     function findVisualText(parent, expectedText) {
         if (!parent) {
             return null
@@ -263,6 +323,12 @@ TestCase {
             }
         }
         return null
+    }
+
+    function findingDetailsHasText(shell, expectedText) {
+        const detailsPanel = shell.findChild("findingDetails")
+        verify(detailsPanel !== null)
+        return findVisualText(detailsPanel, expectedText) !== null
     }
 
     function test_shell_has_the_three_primary_pages() {
@@ -285,13 +351,169 @@ TestCase {
         compare(resultsButton.text, "Results")
     }
 
-    function test_results_page_is_findings_first_and_read_only() {
+    function test_warm_workbench_shell_exposes_header_and_sidebar() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        verify(shell.findChild("workbenchHeader") !== null)
+        verify(shell.findChild("workbenchSidebar") !== null)
+        compare(shell.findChild("analyzeNavigationButton").text, "Analyze")
+        compare(shell.findChild("historyNavigationButton").text, "History")
+        compare(shell.findChild("resultsNavigationButton").text, "Results")
+    }
+
+    function test_warm_workbench_theme_singleton_exposes_approved_roles() {
+        const probe = createTemporaryObject(themeProbeComponent, this)
+
+        verify(probe !== null)
+        compare(probe.canvas.toString(), "#f3eee6")
+        compare(probe.accent.toString(), "#d59a3f")
+        compare(probe.sidebarWidth, 208)
+        compare(probe.contentMaxWidth, 1480)
+    }
+
+    function test_workbench_primitives_instantiate_with_expected_states() {
+        const root = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/controls/WorkbenchSurface.qml"), this, {
+            selected: true
+        })
+        verify(root !== null)
+        compare(root.color.toString(), "#f6e7c7")
+        compare(root.border.color.toString(), "#d59a3f")
+
+        const button = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/controls/WorkbenchButton.qml"), this, {
+            text: "Analyze project",
+            variant: "secondary"
+        })
+        verify(button !== null)
+        compare(button.text, "Analyze project")
+        compare(button.variant, "secondary")
+
+        const badge = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/controls/StatusBadge.qml"), this, {
+            text: "Not evaluated",
+            status: "not-evaluated"
+        })
+        verify(badge !== null)
+        compare(badge.text, "Not evaluated")
+        compare(badge.status, "not-evaluated")
+    }
+
+    function test_workbench_keyboard_focus_is_tab_reachable() {
+        const button = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/controls/WorkbenchButton.qml"), this, {
+            text: "Analyze project"
+        })
+        verify(button !== null)
+        compare(button.activeFocusOnTab, true)
+
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+        const table = prepareFindingsView(shell)
+        shell.requestActivate()
+        tryVerify(function() { return shell.active })
+        tryVerify(function() { return table.count === 2 })
+        const row = findingRowAt(table, 0)
+        compare(row.activeFocusOnTab, true)
+
+        table.forceActiveFocus()
+        row.forceActiveFocus()
+        tryCompare(row, "activeFocus", true)
+        verify(row.activeFocus)
+        keyClick(Qt.Key_Return)
+        tryVerify(function() { return findingDetailsHasText(shell, "first.rule") })
+    }
+
+    function test_results_page_findings_view_is_read_only() {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 1
         compare(shell.findChild("resultsTitle").text, "Findings")
         verify(shell.findChild("findingTable") !== null)
-        verify(shell.findChild("resultsSummary") !== null)
         verify(shell.findChild("saveFindingButton") === null)
+    }
+
+    function test_results_tabs_start_on_overview_in_the_requested_order() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        const resultsTabs = shell.findChild("resultsTabs")
+        verify(resultsTabs !== null)
+
+        const overviewTab = shell.findChild("overviewTab")
+        verify(overviewTab !== null)
+        if (overviewTab === null) {
+            return
+        }
+
+        const findingsTab = shell.findChild("findingsTab")
+        const filesMetricsTab = shell.findChild("filesMetricsTab")
+        const suppressedTab = shell.findChild("suppressedTab")
+
+        verify(findingsTab !== null)
+        verify(filesMetricsTab !== null)
+        verify(suppressedTab !== null)
+        compare(resultsTabs.count, 4)
+        compare(resultsTabs.currentIndex, 0)
+        compare(overviewTab.text, "Overview")
+        compare(findingsTab.text, "Findings")
+        compare(filesMetricsTab.text, "Files and metrics")
+        compare(suppressedTab.text, "Suppressed")
+        verify(shell.findChild("overviewSummary") !== null)
+    }
+
+    function test_results_tabs_expose_findings_files_and_suppressed_views() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        const resultsTabs = showResultsTab(shell, 1)
+        verify(resultsTabs !== null)
+
+        verify(shell.findChild("findingTable") !== null)
+        verify(shell.findChild("findingDetails") !== null)
+
+        resultsTabs.currentIndex = 2
+        tryCompare(resultsTabs, "currentIndex", 2)
+        verify(shell.findChild("fileMetricsList") !== null)
+
+        resultsTabs.currentIndex = 3
+        tryCompare(resultsTabs, "currentIndex", 3)
+        verify(shell.findChild("suppressedFindingsList") !== null)
+    }
+
+    function test_results_has_workbench_summary_cards_and_detail_surface() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+
+        verify(shell.findChild("overviewSummary") !== null)
+        verify(shell.findChild("qualityGateSummaryCard") !== null)
+        verify(shell.findChild("findingsSummaryCard") !== null)
+        verify(shell.findChild("errorsSummaryCard") !== null)
+        verify(shell.findChild("warningsSummaryCard") !== null)
+        showResultsTab(shell, 1)
+        verify(shell.findChild("findingTable") !== null)
+        verify(shell.findChild("findingDetails") !== null)
+        verify(shell.findChild("saveFindingButton") === null)
+    }
+
+    function test_results_row_selection_keeps_existing_finding_values() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+        const table = prepareFindingsView(shell)
+        tryVerify(function() { return table.count === 2 })
+        selectFindingRow(table, 1)
+
+        tryVerify(function() { return findingDetailsHasText(shell, "second.rule") })
+        verify(shell.findChild("findingDetailsDescription").text.indexOf("second finding") !== -1)
+        verify(shell.findChild("findingDetailsRecommendation").text.indexOf("reduce parameters") !== -1)
+        compare(shell.findChild("findingDetailsObservedValue").text, "Observed value: 3")
+        compare(shell.findChild("findingDetailsLimitValue").text, "Limit value: 2")
+        compare(shell.findChild("findingDetailsPath").text, "Path: second.cpp")
+        compare(shell.findChild("findingDetailsLocation").text, "Location: Line 9, column 2")
+        compare(shell.findChild("findingDetailsMetrics").text, "Metrics: Parameters: 3")
     }
 
     function test_results_summary_uses_controller_model_counts() {
@@ -300,16 +522,105 @@ TestCase {
         shell.controller = fixtureController
         shell.selectPage("Results")
 
-        compare(shell.findChild("summaryFilesLabel").text, "Files: 3")
-        compare(shell.findChild("summaryDiagnosticsLabel").text, "Diagnostics: 4")
-        compare(shell.findChild("summaryFindingsLabel").text, "Matching findings: 2")
-        compare(shell.findChild("summaryErrorsLabel").text, "Matching errors: 1")
-        compare(shell.findChild("summaryWarningsLabel").text, "Matching warnings: 1")
+        compare(shell.findChild("qualityGateSummaryCard").value, "Not evaluated")
+        compare(shell.findChild("findingsSummaryCard").value, "2")
+        compare(shell.findChild("findingsSummaryCard").trend, "3 files analyzed")
+        compare(shell.findChild("errorsSummaryCard").value, "1")
+        compare(shell.findChild("warningsSummaryCard").value, "1")
+
+        fixtureController.qualityGateSeverity = "error"
+        fixtureController.qualityGateStatus = "Passed"
+        tryCompare(shell.findChild("qualityGateSummaryCard"), "status", "success")
+
+        fixtureController.qualityGateSeverity = "warning"
+        fixtureController.qualityGateStatus = "Failed"
+        tryCompare(shell.findChild("qualityGateSummaryCard"), "status", "error")
+
+        fixtureController.qualityGateStatus = "Not evaluated"
+        tryCompare(shell.findChild("qualityGateSummaryCard"), "status", "not-evaluated")
 
         fixtureController.setFindingSeverityFilter("warning")
-        tryCompare(shell.findChild("summaryFindingsLabel"), "text", "Matching findings: 1")
-        compare(shell.findChild("summaryErrorsLabel").text, "Matching errors: 0")
-        compare(shell.findChild("summaryWarningsLabel").text, "Matching warnings: 1")
+        tryCompare(shell.findChild("findingsSummaryCard"), "value", "1")
+        compare(shell.findChild("errorsSummaryCard").value, "0")
+        compare(shell.findChild("warningsSummaryCard").value, "1")
+    }
+
+    function test_results_empty_state_remains_visible_after_filtering_all_findings() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+        prepareFindingsView(shell)
+
+        fixtureController.setFindingSearchText("does-not-exist")
+
+        const table = shell.findChild("findingTable")
+        tryVerify(function() { return table.count === 0 })
+        const emptyState = shell.findChild("findingEmptyState")
+        verify(emptyState !== null)
+        tryCompare(emptyState, "visible", true)
+        compare(emptyState.text, "No findings match the current filters.")
+    }
+
+    function test_results_error_state_is_inline_and_theme_styled() {
+        resetFixtureFindings()
+        fixtureController.errorMessage = "Error [REPORT001]: report could not be imported"
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+        showResultsTab(shell, 1)
+
+        const errorState = shell.findChild("resultsErrorMessage")
+        verify(errorState !== null)
+        verify(errorState.visible)
+        compare(errorState.text, "Error [REPORT001]: report could not be imported")
+        compare(errorState.color.toString(), CodeQaTheme.error.toString())
+    }
+
+    function test_shell_keeps_all_primary_navigation_at_minimum_size() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.width = 960
+        shell.height = 600
+
+        const sidebar = shell.findChild("workbenchSidebar")
+        tryCompare(sidebar, "compact", true)
+        tryCompare(sidebar, "width", CodeQaTheme.compactSidebarWidth)
+        const analyzeButton = shell.findChild("analyzeNavigationButton")
+        const historyButton = shell.findChild("historyNavigationButton")
+        const resultsButton = shell.findChild("resultsNavigationButton")
+        compare(analyzeButton.text, "A")
+        compare(historyButton.text, "H")
+        compare(resultsButton.text, "R")
+        compare(analyzeButton.Accessible.name, "Analyze")
+        compare(analyzeButton.navigationTooltip, "Analyze")
+        compare(historyButton.Accessible.name, "History")
+        compare(resultsButton.Accessible.name, "Results")
+        mouseMove(analyzeButton)
+        tryCompare(analyzeButton, "hovered", true)
+        tryCompare(analyzeButton, "navigationTooltipVisible", true)
+        verify(shell.findChild("analyzeNavigationButton").visible)
+        verify(shell.findChild("historyNavigationButton").visible)
+        verify(shell.findChild("resultsNavigationButton").visible)
+
+        shell.width = 1120
+        tryCompare(sidebar, "compact", true)
+        shell.width = 1280
+        tryCompare(sidebar, "compact", false)
+        tryCompare(sidebar, "width", CodeQaTheme.sidebarWidth)
+        compare(analyzeButton.text, "Analyze")
+    }
+
+    function test_results_search_preserves_matching_findings() {
+        resetFixtureFindings()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Results")
+        prepareFindingsView(shell)
+
+        fixtureController.setFindingSearchText("secondFunction")
+
+        const table = shell.findChild("findingTable")
+        tryCompare(table, "count", 1)
     }
 
     function test_clear_recent_paths_action_is_visible_calls_controller_and_is_disabled_during_analysis() {
@@ -347,6 +658,55 @@ TestCase {
         compare(shell.findChild("headerLanguageSelector").currentText, "cpp")
     }
 
+    function test_analyze_uses_workbench_surfaces_and_keeps_semantic_controls() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+        verify(shell.findChild("analyzePageSurface") !== null)
+        verify(shell.findChild("ruleThresholdTable") !== null)
+        verify(shell.findChild("headerOverrideTable") !== null)
+        compare(shell.findChild("startAnalysisButton").text, "Analyze project")
+    }
+
+    function test_analyze_sections_keep_vertical_content_geometry() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+        shell.show()
+
+        const ruleTable = shell.findChild("ruleThresholdTable")
+        const headerTable = shell.findChild("headerOverrideTable")
+        const exclusionsField = shell.findChild("excludePatternsField")
+        const qualityGateSelector = shell.findChild("qualityGateSelector")
+        const contentTop = function(item) { return item.mapToItem(shell.contentItem, 0, 0).y }
+        const contentBottom = function(item) { return contentTop(item) + item.height }
+
+        tryVerify(function() {
+            return contentBottom(ruleTable) <= contentTop(headerTable)
+                && contentBottom(headerTable) <= contentTop(exclusionsField)
+                && contentBottom(exclusionsField) <= contentTop(qualityGateSelector)
+        })
+    }
+
+    function test_header_override_entry_surface_keeps_its_controls_inside_the_section() {
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+        shell.show()
+
+        const headerTable = shell.findChild("headerOverrideTable")
+        const exclusionsField = shell.findChild("excludePatternsField")
+        const headerContent = headerTable.parent
+        const addOverrideSurface = headerContent.children[1]
+        const contentTop = function(item) { return item.mapToItem(shell.contentItem, 0, 0).y }
+        const contentBottom = function(item) { return contentTop(item) + item.height }
+
+        tryVerify(function() {
+            return addOverrideSurface.height > 0
+                && contentBottom(addOverrideSurface) <= contentTop(exclusionsField)
+        })
+    }
+
     function test_history_lists_newest_first_and_open_is_non_destructive() {
         resetHistoryCalls()
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
@@ -361,7 +721,10 @@ TestCase {
         tryVerify(function() { return list.itemAtIndex(0) !== null })
         const newest = list.itemAtIndex(0)
         compare(newest.timestampText, "20260301T000000Z")
-        mouseClick(newest.openAction, newest.openAction.width / 2, newest.openAction.height / 2)
+        const openPoint = newest.openAction.mapToItem(shell.contentItem, 0, 0)
+        mouseClick(shell.contentItem,
+                   openPoint.x + newest.openAction.width / 2,
+                   openPoint.y + newest.openAction.height / 2)
 
         compare(fixtureController.openSnapshotCalls, 1)
         compare(fixtureController.openedTimestamp, "20260301T000000Z")
@@ -421,18 +784,34 @@ TestCase {
         tryVerify(function() { return list.itemAtIndex(0) !== null })
         const newest = list.itemAtIndex(0)
 
-        mouseClick(newest.deleteAction, newest.deleteAction.width / 2, newest.deleteAction.height / 2)
-
+        const deletePoint = newest.deleteAction.mapToItem(shell.contentItem, 0, 0)
+        mouseClick(shell.contentItem,
+                   deletePoint.x + newest.deleteAction.width / 2,
+                   deletePoint.y + newest.deleteAction.height / 2)
         compare(fixtureController.deleteSnapshotCalls, 0)
         compare(history.deleteConfirmation.title, "Delete snapshot?")
         verify(history.deleteConfirmationText.indexOf("20260301T000000Z") !== -1)
         history.deleteConfirmation.reject()
         compare(fixtureController.deleteSnapshotCalls, 0)
 
-        mouseClick(newest.deleteAction, newest.deleteAction.width / 2, newest.deleteAction.height / 2)
+        const secondDeletePoint = newest.deleteAction.mapToItem(shell.contentItem, 0, 0)
+        mouseClick(shell.contentItem,
+                   secondDeletePoint.x + newest.deleteAction.width / 2,
+                   secondDeletePoint.y + newest.deleteAction.height / 2)
         history.deleteConfirmation.accept()
         compare(fixtureController.deleteSnapshotCalls, 1)
         compare(fixtureController.deletedTimestamp, "20260301T000000Z")
+    }
+
+    function test_history_uses_workbench_surfaces_and_keeps_snapshot_actions() {
+        resetHistoryCalls()
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("History")
+        verify(shell.findChild("historyPageSurface") !== null)
+        verify(shell.findChild("snapshotList") !== null)
+        verify(shell.findChild("compareSnapshotsButton") !== null)
+        verify(shell.findChild("refreshSnapshotsButton").enabled)
     }
 
     function test_history_compare_snapshots_shows_counts() {
@@ -515,11 +894,42 @@ TestCase {
         compare(shell.findChild("resetConfigurationButton").enabled, false)
         compare(shell.findChild("startAnalysisButton").enabled, false)
         compare(shell.findChild("openReportButton").enabled, false)
-        compare(shell.findChild("analysisBusyIndicator").running, true)
-        compare(shell.findChild("analysisPhaseLabel").text, "Measuring functions")
+
+        const progressPanel = shell.findChild("analysisProgressPanel")
+        verify(progressPanel !== null)
+        verify(progressPanel.visible)
+        const progressPage = shell.findChild("analysisProgressPage")
+        verify(progressPage !== null)
+        verify(progressPage.visible)
+        compare(progressPanel.running, true)
+        compare(progressPanel.phaseText, "Measuring functions")
+        compare(progressPanel.activePhaseIndex, 2)
+        compare(progressPanel.phaseCount, 5)
+        compare(progressPanel.projectPath, "file:///C:/projects/sample")
+        verify(shell.findChild("analysisProgressRing").running)
+        compare(shell.findChild("analysisProgressPhaseLabel").text, "Measuring functions")
 
         fixtureController.analysisRunning = false
         fixtureController.analysisPhase = ""
+        tryVerify(function() { return progressPage.visible === false }, 1000)
+    }
+
+    function test_running_analysis_uses_dedicated_progress_page() {
+        fixtureController.analysisRunning = true
+        fixtureController.analysisPhase = "Parsing source files"
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+
+        const progressPage = shell.findChild("analysisProgressPage")
+        verify(progressPage !== null)
+        verify(progressPage.visible)
+        verify(shell.findChild("analysisProgressPanel").visible)
+        compare(shell.selectedPage, "Analyze")
+
+        fixtureController.analysisRunning = false
+        fixtureController.analysisPhase = ""
+        tryVerify(function() { return progressPage.visible === false }, 2500)
     }
 
     function test_completed_analysis_selects_results() {
@@ -532,19 +942,35 @@ TestCase {
         tryCompare(shell, "selectedPage", "Results")
     }
 
+    function test_completed_analysis_waits_for_progress_panel_minimum() {
+        fixtureController.analysisRunning = true
+        fixtureController.analysisPhase = "Discovering files"
+        const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
+        shell.controller = fixtureController
+        shell.selectPage("Analyze")
+
+        fixtureController.currentReportChanged()
+        compare(shell.selectedPage, "Analyze")
+        verify(shell.findChild("analysisProgressPage").visible)
+
+        fixtureController.analysisRunning = false
+        tryVerify(function() { return shell.selectedPage === "Results" }, 2500)
+        fixtureController.analysisPhase = ""
+    }
+
     function test_suppressed_findings_tab_lists_rows_and_shows_empty_state() {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
+        shell.findChild("resultsTabs").currentIndex = 3
 
         const suppressedList = shell.findChild("suppressedFindingsList")
         verify(suppressedList !== null)
         tryVerify(function() { return suppressedList.count === 1 })
 
         // StackLayout only instantiates ListView delegates for the current
-        // tab, so the "Suprimidos" tab must be selected before its rows
+        // tab, so the "Suppressed" tab must be selected before its rows
         // can be inspected via itemAtIndex().
-        shell.findChild("resultsTabs").currentIndex = 2
         tryVerify(function() { return suppressedList.itemAtIndex(0) !== null })
 
         const row = suppressedList.itemAtIndex(0)
@@ -570,16 +996,11 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
-
-        const table = shell.findChild("findingTable")
+        const table = prepareFindingsView(shell)
         tryVerify(function() { return table.count === 2 })
+        selectFindingRow(table, 1)
 
-        const secondFinding = table.itemAtIndex(1)
-        verify(secondFinding !== null)
-        mouseClick(secondFinding, secondFinding.width / 2, secondFinding.height / 2)
-
-        const details = shell.findChild("findingDetails")
-        tryVerify(function() { return details.text === "second.rule" })
+        tryVerify(function() { return findingDetailsHasText(shell, "second.rule") })
     }
 
     function test_filtering_out_the_selected_finding_clears_details() {
@@ -587,20 +1008,17 @@ TestCase {
         const shell = createTemporaryObject(Qt.createComponent("qrc:/qt/qml/CodeQA/Desktop/Main.qml"), this)
         shell.controller = fixtureController
         shell.selectPage("Results")
-
-        const table = shell.findChild("findingTable")
+        const table = prepareFindingsView(shell)
         tryVerify(function() { return table.count === 2 })
-        const firstFinding = table.itemAtIndex(0)
-        mouseClick(firstFinding, firstFinding.width / 2, firstFinding.height / 2)
+        selectFindingRow(table, 0)
 
-        const details = shell.findChild("findingDetails")
-        tryVerify(function() { return details.text === "first.rule" })
+        tryVerify(function() { return findingDetailsHasText(shell, "first.rule") })
 
         const severityFilter = shell.findChild("findingSeverityFilter")
         severityFilter.currentIndex = 2
         severityFilter.activated(2)
 
         tryVerify(function() { return table.count === 1 })
-        tryVerify(function() { return details.text === "Finding details" })
+        tryVerify(function() { return findingDetailsHasText(shell, "Finding details") })
     }
 }

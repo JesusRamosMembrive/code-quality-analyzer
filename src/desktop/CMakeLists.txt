@@ -34,6 +34,11 @@ set_source_files_properties(qml/Main.qml PROPERTIES
     QT_RESOURCE_ALIAS Main.qml
 )
 
+set_source_files_properties(qml/CodeQaTheme.qml PROPERTIES
+    QT_QML_SINGLETON_TYPE TRUE
+    QT_RESOURCE_ALIAS CodeQaTheme.qml
+)
+
 set_source_files_properties(qml/pages/ResultsPage.qml PROPERTIES
     QT_RESOURCE_ALIAS pages/ResultsPage.qml
 )
@@ -44,6 +49,26 @@ set_source_files_properties(qml/pages/AnalyzePage.qml PROPERTIES
 
 set_source_files_properties(qml/pages/HistoryPage.qml PROPERTIES
     QT_RESOURCE_ALIAS pages/HistoryPage.qml
+)
+
+set_source_files_properties(qml/pages/AnalysisProgressPage.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/AnalysisProgressPage.qml
+)
+
+set_source_files_properties(qml/pages/ResultsOverview.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/ResultsOverview.qml
+)
+
+set_source_files_properties(qml/pages/ResultsFindings.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/ResultsFindings.qml
+)
+
+set_source_files_properties(qml/pages/ResultsFilesMetrics.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/ResultsFilesMetrics.qml
+)
+
+set_source_files_properties(qml/pages/ResultsSuppressed.qml PROPERTIES
+    QT_RESOURCE_ALIAS pages/ResultsSuppressed.qml
 )
 
 set_source_files_properties(qml/controls/PulseButton.qml PROPERTIES
@@ -58,17 +83,73 @@ set_source_files_properties(qml/controls/Section.qml PROPERTIES
     QT_RESOURCE_ALIAS controls/Section.qml
 )
 
+set_source_files_properties(qml/controls/WorkbenchSurface.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/WorkbenchSurface.qml
+)
+
+set_source_files_properties(qml/controls/WorkbenchButton.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/WorkbenchButton.qml
+)
+
+set_source_files_properties(qml/controls/StatusBadge.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/StatusBadge.qml
+)
+
+set_source_files_properties(qml/controls/WorkbenchSidebar.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/WorkbenchSidebar.qml
+)
+
+set_source_files_properties(qml/controls/WorkbenchHeader.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/WorkbenchHeader.qml
+)
+
+set_source_files_properties(qml/controls/SummaryCard.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/SummaryCard.qml
+)
+
+set_source_files_properties(qml/controls/FilterBar.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/FilterBar.qml
+)
+
+set_source_files_properties(qml/controls/FindingRow.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/FindingRow.qml
+)
+
+set_source_files_properties(qml/controls/FindingDetails.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/FindingDetails.qml
+)
+
+set_source_files_properties(qml/controls/AnalysisProgressPanel.qml PROPERTIES
+    QT_RESOURCE_ALIAS controls/AnalysisProgressPanel.qml
+)
+
 qt_add_qml_module(codeqa_desktop
     URI CodeQA.Desktop
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/CodeQaTheme.qml
         qml/pages/AnalyzePage.qml
         qml/pages/HistoryPage.qml
+        qml/pages/AnalysisProgressPage.qml
+        qml/pages/ResultsOverview.qml
+        qml/pages/ResultsFindings.qml
+        qml/pages/ResultsFilesMetrics.qml
         qml/pages/ResultsPage.qml
+        qml/pages/ResultsSuppressed.qml
         qml/controls/PulseButton.qml
         qml/controls/GlassPanel.qml
         qml/controls/Section.qml
+        qml/controls/WorkbenchSurface.qml
+        qml/controls/WorkbenchButton.qml
+        qml/controls/StatusBadge.qml
+        qml/controls/WorkbenchSidebar.qml
+        qml/controls/WorkbenchHeader.qml
+        qml/controls/SummaryCard.qml
+        qml/controls/FilterBar.qml
+        qml/controls/FindingRow.qml
+        qml/controls/FindingDetails.qml
+        qml/controls/AnalysisProgressPanel.qml
 )
 
 get_target_property(_codeqa_qmake_executable Qt6::qmake IMPORTED_LOCATION)
