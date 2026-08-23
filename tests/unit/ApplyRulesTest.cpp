@@ -260,3 +260,34 @@ TEST_CASE("LoadProjectConfig output flows end-to-end into ApplyRules")
     CHECK_FALSE(hasFinding(findings.files.front().findings, "signature.parameter-count"));
     CHECK(hasFinding(findings.files.front().findings, "complexity.returns"));
 }
+
+TEST_CASE("ApplyRules generates a finding for an unsafe macro parameter")
+{
+    const TempProject fixture;
+    fixture.addFile(
+        "macros.c",
+        "#define SQUARE(x) x*x\n");
+
+    const codeqa::rules::ProjectFindingsModel findings = analyzeAndApplyRules(fixture.root());
+
+    REQUIRE(findings.files.size() == 1);
+    CHECK(hasFinding(findings.files.front().findings, "preprocessor.unparenthesized-macro-parameter"));
+}
+
+TEST_CASE("ApplyRules suppresses an unsafe macro finding with a matching inline disable comment")
+{
+    const TempProject fixture;
+    fixture.addFile(
+        "macros.c",
+        "// codeqa-disable-next-line preprocessor.unparenthesized-macro-parameter\n"
+        "#define SQUARE(x) x*x\n");
+
+    const codeqa::rules::ProjectFindingsModel findings = analyzeAndApplyRules(fixture.root());
+
+    REQUIRE(findings.files.size() == 1);
+    CHECK_FALSE(
+        hasFinding(findings.files.front().findings, "preprocessor.unparenthesized-macro-parameter"));
+    CHECK(
+        hasFinding(
+            findings.files.front().suppressedFindings, "preprocessor.unparenthesized-macro-parameter"));
+}

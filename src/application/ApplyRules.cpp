@@ -5,6 +5,7 @@
 #include "codeqa/core/SourceRangeText.h"
 #include "codeqa/infrastructure/ReadFileContents.h"
 #include "codeqa/infrastructure/StringUtilities.h"
+#include "codeqa/rules/FileRule.h"
 #include "codeqa/rules/Rule.h"
 #include "codeqa/rules/Rules.h"
 
@@ -122,6 +123,8 @@ codeqa::rules::ProjectFindingsModel ApplyRules::execute(
     codeqa::rules::ProjectFindingsModel result;
     result.rootPath = project.rootPath;
     const std::vector<std::unique_ptr<codeqa::rules::Rule>> rules = codeqa::rules::allRules(config);
+    const std::vector<std::unique_ptr<codeqa::rules::FileRule>> fileRules =
+        codeqa::rules::allFileRules(config);
 
     for (const codeqa::model::FileModel& file : project.files)
     {
@@ -179,6 +182,28 @@ codeqa::rules::ProjectFindingsModel ApplyRules::execute(
                     {
                         fileFindings.findings.push_back(std::move(finding));
                     }
+                }
+            }
+        }
+
+        const codeqa::rules::FileRuleContext fileContext{file};
+
+        for (const std::unique_ptr<codeqa::rules::FileRule>& fileRule : fileRules)
+        {
+            if (!fileRule->appliesTo(file.language))
+            {
+                continue;
+            }
+
+            for (codeqa::rules::Finding& finding : fileRule->evaluate(fileContext))
+            {
+                if (isSuppressed(finding, file.comments, sourceLines))
+                {
+                    fileFindings.suppressedFindings.push_back(std::move(finding));
+                }
+                else
+                {
+                    fileFindings.findings.push_back(std::move(finding));
                 }
             }
         }
