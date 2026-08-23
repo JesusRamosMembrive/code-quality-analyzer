@@ -35,11 +35,19 @@ struct DuplicationConfig
     std::size_t minNormalizedTokens{30};
 };
 
+struct LayerDependency
+{
+    std::string from;
+    std::string to;
+};
+
 struct ArchitectureConfig
 {
     bool enabled{true};
     long long fanOutWarning{10};
     long long fanOutHigh{20};
+    std::map<std::string, std::vector<std::string>> layers;
+    std::vector<LayerDependency> forbiddenDependencies;
 };
 
 struct ProjectConfig

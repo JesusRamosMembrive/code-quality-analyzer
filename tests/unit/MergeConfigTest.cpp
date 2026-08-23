@@ -115,3 +115,20 @@ TEST_CASE("mergeConfig replaces architecture wholesale with the user's value")
     CHECK(merged.architecture.fanOutWarning == 3);
     CHECK(merged.architecture.fanOutHigh == 6);
 }
+
+TEST_CASE("mergeConfig preserves architecture layers and forbiddenDependencies through a wholesale replace")
+{
+    codeqa::config::ProjectConfig defaults;
+
+    codeqa::config::ProjectConfig user;
+    user.architecture.layers = {{"core", {"src/core/**"}}, {"desktop", {"src/desktop/**"}}};
+    user.architecture.forbiddenDependencies = {{"core", "desktop"}};
+
+    const codeqa::config::ProjectConfig merged = codeqa::config::mergeConfig(defaults, user);
+
+    REQUIRE(merged.architecture.layers.count("core") == 1);
+    CHECK(merged.architecture.layers.at("core") == std::vector<std::string>{"src/core/**"});
+    REQUIRE(merged.architecture.forbiddenDependencies.size() == 1);
+    CHECK(merged.architecture.forbiddenDependencies[0].from == "core");
+    CHECK(merged.architecture.forbiddenDependencies[0].to == "desktop");
+}

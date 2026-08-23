@@ -253,7 +253,9 @@ DuplicationConfig parseDuplication(const Json& duplication)
 
 ArchitectureConfig parseArchitecture(const Json& architecture)
 {
-    requireKeysSubset(architecture, {"enabled", "fanOutWarning", "fanOutHigh"}, "architecture");
+    requireKeysSubset(
+        architecture, {"enabled", "fanOutWarning", "fanOutHigh", "layers", "forbiddenDependencies"},
+        "architecture");
 
     ArchitectureConfig config;
 
@@ -270,6 +272,79 @@ ArchitectureConfig parseArchitecture(const Json& architecture)
     if (architecture.contains("fanOutHigh"))
     {
         config.fanOutHigh = requireInteger(architecture, "fanOutHigh", "architecture");
+    }
+
+    if (architecture.contains("layers"))
+    {
+        const Json& layers = architecture.at("layers");
+        requireObject(layers, "architecture.layers");
+
+        for (const auto& [layerName, patternsJson] : layers.items())
+        {
+            const std::string path = "architecture.layers." + layerName;
+
+            if (!patternsJson.is_array())
+            {
+                throw ParseFailure("Error [CONFIG005]: '" + path + "' must be an array.");
+            }
+
+            std::vector<std::string> patterns;
+            for (const Json& patternJson : patternsJson)
+            {
+                if (!patternJson.is_string())
+                {
+                    throw ParseFailure("Error [CONFIG005]: '" + path + "' entries must be strings.");
+                }
+                patterns.push_back(patternJson.get<std::string>());
+            }
+
+            config.layers[layerName] = std::move(patterns);
+        }
+    }
+
+    if (architecture.contains("forbiddenDependencies"))
+    {
+        const Json& forbidden = architecture.at("forbiddenDependencies");
+
+        if (!forbidden.is_array())
+        {
+            throw ParseFailure("Error [CONFIG005]: 'architecture.forbiddenDependencies' must be an array.");
+        }
+
+        for (std::size_t index = 0; index < forbidden.size(); ++index)
+        {
+            const std::string entryPath = "architecture.forbiddenDependencies[" + std::to_string(index) + "]";
+            const Json& entry = forbidden.at(index);
+            requireObject(entry, entryPath);
+            requireKeysSubset(entry, {"from", "to"}, entryPath);
+
+            LayerDependency dependency;
+            dependency.from = requireString(entry, "from", entryPath);
+            dependency.to = requireString(entry, "to", entryPath);
+
+            if (config.layers.find(dependency.from) == config.layers.end())
+            {
+                throw ParseFailure(
+                    "Error [CONFIG014]: '" + entryPath + ".from' references undeclared layer '" + dependency.from
+                    + "'.");
+            }
+
+            if (config.layers.find(dependency.to) == config.layers.end())
+            {
+                throw ParseFailure(
+                    "Error [CONFIG014]: '" + entryPath + ".to' references undeclared layer '" + dependency.to
+                    + "'.");
+            }
+
+            if (dependency.from == dependency.to)
+            {
+                throw ParseFailure(
+                    "Error [CONFIG015]: '" + entryPath + "' has the same layer ('" + dependency.from
+                    + "') as both 'from' and 'to'.");
+            }
+
+            config.forbiddenDependencies.push_back(std::move(dependency));
+        }
     }
 
     if (config.fanOutWarning > config.fanOutHigh)
@@ -386,6 +461,19 @@ nlohmann::json toJson(const ProjectConfig& config)
         {"enabled", config.architecture.enabled},
         {"fanOutWarning", config.architecture.fanOutWarning},
         {"fanOutHigh", config.architecture.fanOutHigh}};
+
+    document["architecture"]["layers"] = Json::object();
+    for (const auto& [layerName, patterns] : config.architecture.layers)
+    {
+        document["architecture"]["layers"][layerName] = patterns;
+    }
+
+    document["architecture"]["forbiddenDependencies"] = Json::array();
+    for (const codeqa::config::LayerDependency& dependency : config.architecture.forbiddenDependencies)
+    {
+        document["architecture"]["forbiddenDependencies"].push_back(
+            {{"from", dependency.from}, {"to", dependency.to}});
+    }
 
     return document;
 }
