@@ -203,14 +203,6 @@ ScrollView {
             }
         }
 
-        AnalysisProgressPanel {
-            id: analysisProgressPanel
-            Layout.fillWidth: true
-            running: root.analysisProgressVisible
-            phaseText: root.controller ? root.controller.analysisPhase : ""
-            projectPath: root.hasProject ? root.controller.currentProject.toString() : ""
-        }
-
         WorkbenchSurface {
             id: analyzeInlineErrorSurface
             Layout.fillWidth: true
@@ -588,41 +580,55 @@ ScrollView {
             tintColor: Root.CodeQaTheme.surfaceSubtle
             implicitHeight: configurationActionsContent.implicitHeight + Root.CodeQaTheme.spaceLg * 2
 
-            RowLayout {
+            ColumnLayout {
                 id: configurationActionsContent
+                objectName: "configurationActionsContent"
                 anchors.fill: parent
                 anchors.margins: Root.CodeQaTheme.spaceLg
-                spacing: Root.CodeQaTheme.spaceMd
+                spacing: Root.CodeQaTheme.spaceLg
 
-                WorkbenchButton {
-                    id: resetConfigurationButton
-                    objectName: "resetConfigurationButton"
-                    text: "Reset"
-                    variant: "secondary"
-                    enabled: root.controller && root.hasProject && !root.analysisRunning
-                    onClicked: root.controller.resetConfiguration()
-                }
-
-                WorkbenchButton {
-                    id: saveConfigurationButton
-                    objectName: "saveConfigurationButton"
-                    text: "Save"
-                    variant: "secondary"
-                    enabled: root.canEdit
-                    onClicked: root.controller.saveConfiguration()
-                }
-
-                Item {
+                AnalysisProgressPanel {
+                    id: analysisProgressPanel
                     Layout.fillWidth: true
+                    running: root.analysisProgressVisible
+                    phaseText: root.controller ? root.controller.analysisPhase : ""
+                    projectPath: root.hasProject ? root.controller.currentProject.toString() : ""
                 }
 
-                WorkbenchButton {
-                    id: startAnalysisButton
-                    objectName: "startAnalysisButton"
-                    text: "Analyze project"
-                    variant: "primary"
-                    enabled: root.canEdit
-                    onClicked: root.controller.startAnalysis()
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Root.CodeQaTheme.spaceMd
+
+                    WorkbenchButton {
+                        id: resetConfigurationButton
+                        objectName: "resetConfigurationButton"
+                        text: "Reset"
+                        variant: "secondary"
+                        enabled: root.controller && root.hasProject && !root.analysisRunning
+                        onClicked: root.controller.resetConfiguration()
+                    }
+
+                    WorkbenchButton {
+                        id: saveConfigurationButton
+                        objectName: "saveConfigurationButton"
+                        text: "Save"
+                        variant: "secondary"
+                        enabled: root.canEdit
+                        onClicked: root.controller.saveConfiguration()
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    WorkbenchButton {
+                        id: startAnalysisButton
+                        objectName: "startAnalysisButton"
+                        text: "Analyze project"
+                        variant: "primary"
+                        enabled: root.canEdit
+                        onClicked: root.controller.startAnalysis()
+                    }
                 }
             }
         }
