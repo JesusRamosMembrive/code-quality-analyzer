@@ -135,4 +135,41 @@ TEST_CASE("analyzeArchitecture returns an empty model when disabled")
     CHECK(result.files.empty());
     CHECK(result.cycles.empty());
     CHECK(result.fanOutFindings.empty());
+    CHECK(result.forbiddenDependencyViolations.empty());
+}
+
+TEST_CASE("analyzeArchitecture reports a forbidden-dependency violation end-to-end")
+{
+    codeqa::model::ProjectModel project;
+    project.rootPath = "project";
+    project.files.push_back(makeFile((project.rootPath / "src" / "core" / "a.h").generic_string()));
+    project.files.push_back(makeFile((project.rootPath / "src" / "desktop" / "b.h").generic_string()));
+    project.files[0].dependencies.push_back(makeDependency("b.h"));
+
+    codeqa::config::ArchitectureConfig config = codeqa::config::defaultConfig().architecture;
+    config.layers = {{"core", {"src/core/**"}}, {"desktop", {"src/desktop/**"}}};
+    config.forbiddenDependencies = {{"core", "desktop"}};
+
+    const codeqa::architecture::ProjectArchitectureModel result =
+        codeqa::architecture::analyzeArchitecture(project, config);
+
+    REQUIRE(result.forbiddenDependencyViolations.size() == 1);
+    CHECK(result.forbiddenDependencyViolations[0].fromLayer == "core");
+    CHECK(result.forbiddenDependencyViolations[0].toLayer == "desktop");
+}
+
+TEST_CASE("analyzeArchitecture reports no violation when the project has no layer configuration")
+{
+    codeqa::model::ProjectModel project;
+    project.rootPath = "project";
+    project.files.push_back(makeFile((project.rootPath / "src" / "core" / "a.h").generic_string()));
+    project.files.push_back(makeFile((project.rootPath / "src" / "desktop" / "b.h").generic_string()));
+    project.files[0].dependencies.push_back(makeDependency("b.h"));
+
+    const codeqa::config::ArchitectureConfig config = codeqa::config::defaultConfig().architecture;
+
+    const codeqa::architecture::ProjectArchitectureModel result =
+        codeqa::architecture::analyzeArchitecture(project, config);
+
+    CHECK(result.forbiddenDependencyViolations.empty());
 }
