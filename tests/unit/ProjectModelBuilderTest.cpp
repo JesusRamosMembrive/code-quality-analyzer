@@ -610,3 +610,56 @@ TEST_CASE("ProjectModelBuilder maps a frontend Array parameter to the model's Ar
         result.files[0].callables[0].parameters[0].passing
         == codeqa::model::ParameterPassing::Array);
 }
+
+TEST_CASE("ProjectModelBuilder bridges a frontend macro into the model with a flat SymbolIdentity")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/sample.h"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::C;
+    sourceFile.grammar = codeqa::frontend::Grammar::C;
+    sourceFile.parsed = true;
+    sourceFile.macros.push_back(codeqa::frontend::MacroModel{
+        "SQUARE", true, {"x"}, false, "x*x", rangeFor(sourcePath, 0, 20)});
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE(result.files[0].macros.size() == 1);
+    const codeqa::model::MacroModel& macro = result.files[0].macros[0];
+    CHECK(macro.symbol.name == "SQUARE");
+    CHECK(macro.symbol.qualifiedName == "SQUARE");
+    CHECK(macro.isFunctionLike);
+    REQUIRE(macro.parameters.size() == 1);
+    CHECK(macro.parameters[0] == "x");
+    CHECK_FALSE(macro.isVariadic);
+    CHECK(macro.body == "x*x");
+}
+
+TEST_CASE("ProjectModelBuilder gives a macro a flat qualifiedName even inside an enclosing namespace")
+{
+    const std::filesystem::path rootPath{"project"};
+    const std::filesystem::path sourcePath{"project/src/sample.h"};
+
+    codeqa::frontend::ParsedFile sourceFile;
+    sourceFile.path = sourcePath;
+    sourceFile.language = codeqa::core::Language::Cpp;
+    sourceFile.grammar = codeqa::frontend::Grammar::Cpp;
+    sourceFile.parsed = true;
+    sourceFile.classes = {
+        codeqa::frontend::ClassModel{
+            "app", codeqa::frontend::ClassKind::Namespace, rangeFor(sourcePath, 0, 100)}};
+    sourceFile.macros.push_back(codeqa::frontend::MacroModel{
+        "MAX_SIZE", false, {}, false, "128", rangeFor(sourcePath, 10, 30)});
+
+    const codeqa::model::ProjectModel result = codeqa::model::ProjectModelBuilder{}.build(
+        rootPath, std::vector<codeqa::frontend::ParsedFile>{sourceFile});
+
+    REQUIRE(result.files.size() == 1);
+    REQUIRE(result.files[0].macros.size() == 1);
+    CHECK(result.files[0].macros[0].symbol.name == "MAX_SIZE");
+    CHECK(result.files[0].macros[0].symbol.qualifiedName == "MAX_SIZE");
+}

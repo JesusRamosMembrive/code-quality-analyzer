@@ -194,6 +194,16 @@ Json typeAliasJson(const codeqa::model::TypeAliasModel& alias)
     return document;
 }
 
+Json macroJson(const codeqa::model::MacroModel& macro)
+{
+    Json document = symbolIdentityJson(macro.symbol);
+    document["isFunctionLike"] = macro.isFunctionLike;
+    document["parameters"] = macro.parameters;
+    document["isVariadic"] = macro.isVariadic;
+    document["body"] = macro.body;
+    return document;
+}
+
 Json parameterJson(const codeqa::model::ParameterModel& parameter)
 {
     return Json{
@@ -318,6 +328,12 @@ nlohmann::json fileJson(const codeqa::model::FileModel& file)
     for (const codeqa::model::TypeAliasModel& alias : file.typeAliases)
     {
         document["typeAliases"].push_back(typeAliasJson(alias));
+    }
+
+    document["macros"] = Json::array();
+    for (const codeqa::model::MacroModel& macro : file.macros)
+    {
+        document["macros"].push_back(macroJson(macro));
     }
 
     document["comments"] = Json::array();

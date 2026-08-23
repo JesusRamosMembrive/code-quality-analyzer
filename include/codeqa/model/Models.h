@@ -165,6 +165,15 @@ struct TypeAliasModel
     std::string aliasedType;
 };
 
+struct MacroModel
+{
+    SymbolIdentity symbol;
+    bool isFunctionLike{false};
+    std::vector<std::string> parameters;
+    bool isVariadic{false};
+    std::string body;
+};
+
 struct DependencyModel
 {
     std::string target;
@@ -184,6 +193,7 @@ struct FileModel
     std::vector<NamespaceModel> namespaces;
     std::vector<GlobalVariableModel> globalVariables;
     std::vector<TypeAliasModel> typeAliases;
+    std::vector<MacroModel> macros;
     std::vector<core::SourceRange> comments;
 };
 

@@ -429,6 +429,16 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
             identityFor(alias.name, alias.range, file.classes), alias.aliasedType});
     }
 
+    for (const frontend::MacroModel& macro : file.macros)
+    {
+        model.macros.push_back(MacroModel{
+            SymbolIdentity{macro.name, macro.name, macro.range},
+            macro.isFunctionLike,
+            macro.parameters,
+            macro.isVariadic,
+            macro.body});
+    }
+
     sortByRange(model.dependencies, [](const DependencyModel& dependency) -> const core::SourceRange& {
         return dependency.range;
     });
@@ -446,6 +456,9 @@ FileModel buildFileModel(const frontend::ParsedFile& file)
     });
     sortByRange(model.typeAliases, [](const TypeAliasModel& alias) -> const core::SourceRange& {
         return alias.symbol.range;
+    });
+    sortByRange(model.macros, [](const MacroModel& macro) -> const core::SourceRange& {
+        return macro.symbol.range;
     });
 
     return model;

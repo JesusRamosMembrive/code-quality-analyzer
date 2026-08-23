@@ -159,3 +159,30 @@ TEST_CASE("fileJson serializes Array parameter passing as \"array\"")
     REQUIRE(callableJson.at("parameters").size() == 1);
     CHECK(callableJson.at("parameters")[0].at("passing").get<std::string>() == "array");
 }
+
+TEST_CASE("fileJson serializes a macro with its parameters and body")
+{
+    codeqa::model::FileModel file;
+    file.path = "src/macros.h";
+    file.language = codeqa::core::Language::C;
+
+    codeqa::model::MacroModel macro;
+    macro.symbol.name = "SQUARE";
+    macro.symbol.qualifiedName = "SQUARE";
+    macro.isFunctionLike = true;
+    macro.parameters = {"x"};
+    macro.isVariadic = false;
+    macro.body = "x*x";
+    file.macros.push_back(macro);
+
+    const nlohmann::json document = codeqa::report::fileJson(file);
+
+    REQUIRE(document.at("macros").size() == 1);
+    const nlohmann::json& macroJson = document.at("macros")[0];
+    CHECK(macroJson.at("qualifiedName").get<std::string>() == "SQUARE");
+    CHECK(macroJson.at("isFunctionLike").get<bool>());
+    REQUIRE(macroJson.at("parameters").size() == 1);
+    CHECK(macroJson.at("parameters")[0].get<std::string>() == "x");
+    CHECK_FALSE(macroJson.at("isVariadic").get<bool>());
+    CHECK(macroJson.at("body").get<std::string>() == "x*x");
+}
