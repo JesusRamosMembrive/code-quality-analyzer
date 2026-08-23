@@ -159,6 +159,7 @@ private slots:
     void missingConfigurationUsesUnsavedDefaultsWithoutWriting();
     void invalidConfigurationIsReportedAndNeverOverwritten();
     void saveConfigurationWritesOnlyExplicitValidatedForm();
+    void savingConfigurationPreservesArchitectureLayersItDoesNotEdit();
     void invalidFormDoesNotOverwriteExistingConfiguration();
     void resetConfigurationChangesOnlyTheForm();
     void headerOverrideLanguagesAreConstrained();
@@ -322,6 +323,38 @@ void AppControllerTest::saveConfigurationWritesOnlyExplicitValidatedForm()
         codeqa::core::DiagnosticSeverity::Information);
     QVERIFY(!controller.configurationDirty());
     QCOMPARE(controller.errorMessage(), QString{});
+}
+
+void AppControllerTest::savingConfigurationPreservesArchitectureLayersItDoesNotEdit()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    codeqa::config::ProjectConfig config = codeqa::config::defaultConfig();
+    config.architecture.layers["core"] = {"src/core/**"};
+    config.architecture.layers["desktop"] = {"src/desktop/**"};
+    config.architecture.forbiddenDependencies.push_back({"core", "desktop"});
+    writeTextFile(
+        directory.filePath("codeqa.json"),
+        QByteArray::fromStdString(codeqa::config::toJson(config).dump(2)));
+    AppController controller(settingsPath(directory));
+
+    controller.selectProject(QUrl::fromLocalFile(directory.path()));
+    QVERIFY(controller.configurationAvailable());
+    controller.saveConfiguration();
+
+    const codeqa::application::ProjectConfigLoadResult loaded =
+        codeqa::application::ApplicationFacade{}.loadProjectConfig(
+            std::filesystem::path(directory.path().toStdWString()));
+    QVERIFY(loaded.config.has_value());
+    QVERIFY(!loaded.error.hasError());
+    QCOMPARE(loaded.config->architecture.layers.count("core"), std::size_t{1});
+    QCOMPARE(
+        QString::fromStdString(loaded.config->architecture.layers.at("core").front()), QString("src/core/**"));
+    QCOMPARE(loaded.config->architecture.forbiddenDependencies.size(), std::size_t{1});
+    QCOMPARE(
+        QString::fromStdString(loaded.config->architecture.forbiddenDependencies.front().from), QString("core"));
+    QCOMPARE(
+        QString::fromStdString(loaded.config->architecture.forbiddenDependencies.front().to), QString("desktop"));
 }
 
 void AppControllerTest::invalidFormDoesNotOverwriteExistingConfiguration()

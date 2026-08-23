@@ -74,6 +74,20 @@ Json duplicateGroupJson(const codeqa::duplication::DuplicateGroup& group, const 
     return Json{{"members", members}};
 }
 
+Json forbiddenDependencyJson(
+    const codeqa::architecture::ForbiddenDependencyViolation& violation, const std::filesystem::path& rootPath)
+{
+    return Json{
+        {"from",
+         Json{
+             {"path", std::filesystem::relative(violation.fromPath, rootPath).generic_string()},
+             {"layer", violation.fromLayer}}},
+        {"to",
+         Json{
+             {"path", std::filesystem::relative(violation.toPath, rootPath).generic_string()},
+             {"layer", violation.toLayer}}}};
+}
+
 Json architectureJson(
     const codeqa::architecture::ProjectArchitectureModel& architecture, const std::filesystem::path& rootPath)
 {
@@ -106,10 +120,18 @@ Json architectureJson(
             {"severity", codeqa::core::diagnosticSeverityToJsonString(finding.severity)}});
     }
 
+    Json forbiddenDependencyViolations = Json::array();
+    for (const codeqa::architecture::ForbiddenDependencyViolation& violation :
+         architecture.forbiddenDependencyViolations)
+    {
+        forbiddenDependencyViolations.push_back(forbiddenDependencyJson(violation, rootPath));
+    }
+
     return Json{
         {"files", files},
         {"cycles", cycles},
         {"fanOutFindings", fanOutFindings},
+        {"forbiddenDependencyViolations", forbiddenDependencyViolations},
         {"externalOrUnresolvedIncludes", architecture.externalOrUnresolvedIncludes},
         {"ambiguousIncludes", architecture.ambiguousIncludes}};
 }

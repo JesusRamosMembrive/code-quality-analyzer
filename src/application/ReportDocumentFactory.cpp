@@ -383,6 +383,25 @@ codeqa::architecture::FanOutFinding parseFanOutFinding(const Json& document, con
     return finding;
 }
 
+codeqa::architecture::ForbiddenDependencyViolation parseForbiddenDependencyViolation(
+    const Json& document, const std::string& path)
+{
+    if (!document.is_object())
+    {
+        failRequired("'" + path + "' must be an object.");
+    }
+
+    const Json& from = requireObject(document, "from", path);
+    const Json& to = requireObject(document, "to", path);
+
+    codeqa::architecture::ForbiddenDependencyViolation violation;
+    violation.fromPath = requireString(from, "path", path + ".from");
+    violation.fromLayer = requireString(from, "layer", path + ".from");
+    violation.toPath = requireString(to, "path", path + ".to");
+    violation.toLayer = requireString(to, "layer", path + ".to");
+    return violation;
+}
+
 } // namespace
 
 ReportDocument makeReportDocument(
@@ -516,6 +535,18 @@ ReportDocumentResult parseReportDocument(const nlohmann::json& document)
                 result.architecture.fanOutFindings.push_back(parseFanOutFinding(
                     fanOutFindings.at(index),
                     "report.architecture.fanOutFindings[" + std::to_string(index) + "]"));
+            }
+
+            if (architecture.contains("forbiddenDependencyViolations"))
+            {
+                const Json& violations =
+                    requireArray(architecture, "forbiddenDependencyViolations", "report.architecture");
+                for (std::size_t index = 0; index < violations.size(); ++index)
+                {
+                    result.architecture.forbiddenDependencyViolations.push_back(parseForbiddenDependencyViolation(
+                        violations.at(index),
+                        "report.architecture.forbiddenDependencyViolations[" + std::to_string(index) + "]"));
+                }
             }
 
             result.architecture.externalOrUnresolvedIncludes =

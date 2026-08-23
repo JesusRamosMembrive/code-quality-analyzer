@@ -48,6 +48,12 @@ void absolutizeArchitecturePaths(
     {
         finding.path = rootPath / finding.path;
     }
+
+    for (codeqa::architecture::ForbiddenDependencyViolation& violation : architecture.forbiddenDependencyViolations)
+    {
+        violation.fromPath = rootPath / violation.fromPath;
+        violation.toPath = rootPath / violation.toPath;
+    }
 }
 
 } // namespace

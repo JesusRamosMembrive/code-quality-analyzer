@@ -224,3 +224,24 @@ TEST_CASE("renderText lists a cycle and a fan-out finding")
     CHECK(text.find("hub.h") != std::string::npos);
     CHECK(text.find("fan-out=15") != std::string::npos);
 }
+
+TEST_CASE("renderText lists a forbidden dependency violation")
+{
+    codeqa::model::ProjectModel model;
+    model.rootPath = "project";
+    codeqa::metrics::ProjectMetricsModel metrics;
+    codeqa::rules::ProjectFindingsModel findings;
+    const codeqa::duplication::ProjectDuplicationModel duplicates;
+
+    codeqa::architecture::ProjectArchitectureModel architecture;
+    architecture.forbiddenDependencyViolations.push_back(codeqa::architecture::ForbiddenDependencyViolation{
+        model.rootPath / "src" / "core" / "a.h", "core", model.rootPath / "src" / "desktop" / "b.h", "desktop"});
+
+    std::ostringstream output;
+    codeqa::report::renderText(output, model, metrics, findings, duplicates, architecture);
+    const std::string text = output.str();
+
+    CHECK(text.find("Architecture") != std::string::npos);
+    CHECK(text.find("core") != std::string::npos);
+    CHECK(text.find("desktop") != std::string::npos);
+}

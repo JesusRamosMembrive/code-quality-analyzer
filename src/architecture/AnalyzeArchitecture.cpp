@@ -18,6 +18,7 @@ ProjectArchitectureModel analyzeArchitecture(
     const IncludeGraph graph = resolveIncludeGraph(project);
     result.files = computeFanInOut(graph);
     result.cycles = findCycles(graph);
+    result.forbiddenDependencyViolations = computeForbiddenDependencies(graph, project.rootPath, config);
     result.externalOrUnresolvedIncludes = graph.externalOrUnresolvedIncludes;
     result.ambiguousIncludes = graph.ambiguousIncludes;
 

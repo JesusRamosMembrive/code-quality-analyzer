@@ -1,6 +1,7 @@
 #pragma once
 
 #include "codeqa/architecture/ArchitectureModels.h"
+#include "codeqa/config/ConfigModels.h"
 #include "codeqa/model/Models.h"
 
 #include <cstddef>
@@ -22,5 +23,9 @@ struct IncludeGraph
 
 [[nodiscard]] std::vector<DependencyCycle> findCycles(const IncludeGraph& graph);
 [[nodiscard]] std::vector<FileDependencyMetrics> computeFanInOut(const IncludeGraph& graph);
+[[nodiscard]] std::vector<ForbiddenDependencyViolation> computeForbiddenDependencies(
+    const IncludeGraph& graph,
+    const std::filesystem::path& rootPath,
+    const codeqa::config::ArchitectureConfig& config);
 
 } // namespace codeqa::architecture

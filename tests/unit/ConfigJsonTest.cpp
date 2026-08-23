@@ -418,3 +418,113 @@ TEST_CASE("toJson round-trips architecture through parseConfig")
     CHECK(result.config->architecture.fanOutWarning == 7);
     CHECK(result.config->architecture.fanOutHigh == 14);
 }
+
+TEST_CASE("parseConfig accepts architecture layers and forbiddenDependencies")
+{
+    const std::string text = R"({
+        "architecture": {
+            "layers": {"core": ["src/core/**"], "desktop": ["src/desktop/**"]},
+            "forbiddenDependencies": [{"from": "core", "to": "desktop"}]
+        }
+    })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE(result.config.has_value());
+    REQUIRE(result.config->architecture.layers.count("core") == 1);
+    CHECK(result.config->architecture.layers.at("core") == std::vector<std::string>{"src/core/**"});
+    REQUIRE(result.config->architecture.forbiddenDependencies.size() == 1);
+    CHECK(result.config->architecture.forbiddenDependencies[0].from == "core");
+    CHECK(result.config->architecture.forbiddenDependencies[0].to == "desktop");
+}
+
+TEST_CASE("parseConfig reports CONFIG005 when a layer's pattern list is not an array")
+{
+    const std::string text = R"({ "architecture": { "layers": {"core": "src/core/**"} } })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE_FALSE(result.config.has_value());
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG005") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG005 when a layer pattern entry is not a string")
+{
+    const std::string text = R"({ "architecture": { "layers": {"core": [123]} } })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE_FALSE(result.config.has_value());
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG005") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG005 when forbiddenDependencies is not an array")
+{
+    const std::string text = R"({ "architecture": { "forbiddenDependencies": {} } })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE_FALSE(result.config.has_value());
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG005") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG014 when forbiddenDependencies references an undeclared 'from' layer")
+{
+    const std::string text = R"({
+        "architecture": {
+            "layers": {"desktop": ["src/desktop/**"]},
+            "forbiddenDependencies": [{"from": "core", "to": "desktop"}]
+        }
+    })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE_FALSE(result.config.has_value());
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG014") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG014 when forbiddenDependencies references an undeclared 'to' layer")
+{
+    const std::string text = R"({
+        "architecture": {
+            "layers": {"core": ["src/core/**"]},
+            "forbiddenDependencies": [{"from": "core", "to": "desktop"}]
+        }
+    })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE_FALSE(result.config.has_value());
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG014") != std::string::npos);
+}
+
+TEST_CASE("parseConfig reports CONFIG015 when a forbidden pair names the same layer twice")
+{
+    const std::string text = R"({
+        "architecture": {
+            "layers": {"core": ["src/core/**"]},
+            "forbiddenDependencies": [{"from": "core", "to": "core"}]
+        }
+    })";
+    const codeqa::config::ParseConfigResult result = codeqa::config::parseConfig(text);
+
+    REQUIRE_FALSE(result.config.has_value());
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->find("CONFIG015") != std::string::npos);
+}
+
+TEST_CASE("toJson round-trips architecture layers and forbiddenDependencies through parseConfig")
+{
+    codeqa::config::ProjectConfig original = codeqa::config::defaultConfig();
+    original.architecture.layers = {{"core", {"src/core/**"}}, {"desktop", {"src/desktop/**"}}};
+    original.architecture.forbiddenDependencies = {{"core", "desktop"}};
+
+    const codeqa::config::ParseConfigResult result =
+        codeqa::config::parseConfig(codeqa::config::toJson(original).dump());
+
+    REQUIRE(result.config.has_value());
+    REQUIRE(result.config->architecture.layers.count("core") == 1);
+    CHECK(result.config->architecture.layers.at("core") == std::vector<std::string>{"src/core/**"});
+    REQUIRE(result.config->architecture.forbiddenDependencies.size() == 1);
+    CHECK(result.config->architecture.forbiddenDependencies[0].from == "core");
+    CHECK(result.config->architecture.forbiddenDependencies[0].to == "desktop");
+}
