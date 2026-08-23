@@ -164,7 +164,8 @@ void writeArchitecture(
     std::ostream& output, const codeqa::architecture::ProjectArchitectureModel& architecture,
     const std::filesystem::path& rootPath)
 {
-    if (architecture.cycles.empty() && architecture.fanOutFindings.empty())
+    if (architecture.cycles.empty() && architecture.fanOutFindings.empty()
+        && architecture.forbiddenDependencyViolations.empty())
     {
         return;
     }
@@ -185,6 +186,14 @@ void writeArchitecture(
     {
         output << "  [" << severityTag(finding.severity) << "] " << relativeDisplayPath(finding.path, rootPath)
                << "  fan-out=" << finding.fanOut << '\n';
+    }
+
+    for (const codeqa::architecture::ForbiddenDependencyViolation& violation :
+         architecture.forbiddenDependencyViolations)
+    {
+        output << "  [" << severityTag(codeqa::core::DiagnosticSeverity::Error) << "] "
+               << relativeDisplayPath(violation.fromPath, rootPath) << " (" << violation.fromLayer << ") -> "
+               << relativeDisplayPath(violation.toPath, rootPath) << " (" << violation.toLayer << ")\n";
     }
 }
 

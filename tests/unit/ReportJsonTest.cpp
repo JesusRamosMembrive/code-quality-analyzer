@@ -175,6 +175,8 @@ TEST_CASE("toReportJson includes an architecture section with relativized paths"
         {model.rootPath / "src" / "a.h", model.rootPath / "src" / "b.h"}});
     architecture.fanOutFindings.push_back(codeqa::architecture::FanOutFinding{
         model.rootPath / "src" / "a.h", 12, codeqa::core::DiagnosticSeverity::Warning});
+    architecture.forbiddenDependencyViolations.push_back(codeqa::architecture::ForbiddenDependencyViolation{
+        model.rootPath / "src" / "core" / "a.h", "core", model.rootPath / "src" / "desktop" / "b.h", "desktop"});
     architecture.externalOrUnresolvedIncludes = 3;
     architecture.ambiguousIncludes = 1;
 
@@ -188,6 +190,19 @@ TEST_CASE("toReportJson includes an architecture section with relativized paths"
     CHECK(document.at("architecture").at("cycles")[0].at("files")[0].get<std::string>() == "src/a.h");
     REQUIRE(document.at("architecture").at("fanOutFindings").size() == 1);
     CHECK(document.at("architecture").at("fanOutFindings")[0].at("severity").get<std::string>() == "warning");
+    REQUIRE(document.at("architecture").at("forbiddenDependencyViolations").size() == 1);
+    CHECK(
+        document.at("architecture").at("forbiddenDependencyViolations")[0].at("from").at("path").get<std::string>()
+        == "src/core/a.h");
+    CHECK(
+        document.at("architecture").at("forbiddenDependencyViolations")[0].at("from").at("layer").get<std::string>()
+        == "core");
+    CHECK(
+        document.at("architecture").at("forbiddenDependencyViolations")[0].at("to").at("path").get<std::string>()
+        == "src/desktop/b.h");
+    CHECK(
+        document.at("architecture").at("forbiddenDependencyViolations")[0].at("to").at("layer").get<std::string>()
+        == "desktop");
     CHECK(document.at("architecture").at("externalOrUnresolvedIncludes").get<int>() == 3);
     CHECK(document.at("architecture").at("ambiguousIncludes").get<int>() == 1);
 }
@@ -207,4 +222,5 @@ TEST_CASE("toReportJson emits empty architecture arrays when there is nothing to
     CHECK(document.at("architecture").at("files").empty());
     CHECK(document.at("architecture").at("cycles").empty());
     CHECK(document.at("architecture").at("fanOutFindings").empty());
+    CHECK(document.at("architecture").at("forbiddenDependencyViolations").empty());
 }
